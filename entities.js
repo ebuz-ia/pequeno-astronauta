@@ -1,300 +1,247 @@
 // ============================================
-// entities.js - All game entities, drawing helpers, starfield, entity manager
+// entities.js - Pixel sprites, entities, terrain
+// Pequeno Astronauta v2.0
 // ============================================
 
 window.Game = window.Game || {};
 
-// --- Drawing Helpers ---
-Game.Draw = {
-  rocket: function(ctx, x, y, angle, scale, color) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
+// --- Color shortcuts ---
+var _ = null; // transparent
+var W = '#ffffff'; var G = '#aaaaaa'; var D = '#666666'; var K = '#333333';
+var R = '#e53935'; var B = '#42a5f5'; var Y = '#ffeb3b'; var O = '#ff9800';
+var Gn = '#4caf50'; var P = '#9c27b0'; var C = '#4fc3f7'; var Br = '#8d6e63';
 
-    // Body
-    ctx.beginPath();
-    ctx.moveTo(0, -25);
-    ctx.lineTo(-12, 15);
-    ctx.lineTo(12, 15);
-    ctx.closePath();
-    ctx.fillStyle = '#e0e0e0';
-    ctx.fill();
-    ctx.strokeStyle = '#999';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+// ===========================
+// PIXEL SPRITES
+// ===========================
+Game.Sprites = {};
 
-    // Color stripe
-    ctx.beginPath();
-    ctx.moveTo(0, -15);
-    ctx.lineTo(-6, 8);
-    ctx.lineTo(6, 8);
-    ctx.closePath();
-    ctx.fillStyle = color || '#4fc3f7';
-    ctx.fill();
+// --- Rocket (16 wide x 24 tall) ---
+Game.Sprites.rocket = [
+  [_,_,_,_,_,_,_,W,W,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,W,'#e0e0e0',W,W,_,_,_,_,_,_],
+  [_,_,_,_,_,W,'#e0e0e0','#e0e0e0','#e0e0e0',W,_,_,_,_,_,_],
+  [_,_,_,_,_,W,'#e0e0e0',C,C,W,_,_,_,_,_,_],
+  [_,_,_,_,W,'#e0e0e0',C,'#1a237e',C,'#e0e0e0',W,_,_,_,_,_],
+  [_,_,_,_,W,'#e0e0e0',C,C,C,'#e0e0e0',W,_,_,_,_,_],
+  [_,_,_,_,W,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',W,_,_,_,_,_],
+  [_,_,_,W,W,R,R,W,R,R,W,W,_,_,_,_],
+  [_,_,_,W,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',W,_,_,_,_],
+  [_,_,_,W,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',W,_,_,_,_],
+  [_,_,_,W,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',W,_,_,_,_],
+  [_,_,_,W,G,G,'#e0e0e0','#e0e0e0','#e0e0e0',G,G,W,_,_,_,_],
+  [_,_,_,W,G,G,'#e0e0e0','#e0e0e0','#e0e0e0',G,G,W,_,_,_,_],
+  [_,_,_,W,G,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',G,W,_,_,_,_],
+  [_,_,W,W,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',W,W,_,_,_],
+  [_,_,W,D,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',D,W,_,_,_],
+  [_,W,W,D,'#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0','#e0e0e0',D,W,W,_,_],
+  [_,W,D,D,G,G,G,G,G,G,G,D,D,W,_,_],
+  [W,W,D,_,_,_,D,D,D,_,_,_,D,W,W,_],
+  [W,R,_,_,_,_,_,D,_,_,_,_,_,R,W,_],
+  [_,W,_,_,_,_,_,D,_,_,_,_,_,W,_,_],
+  [_,_,_,_,_,_,_,K,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,K,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_]
+];
 
-    // Window
-    ctx.beginPath();
-    ctx.arc(0, -8, 4, 0, Math.PI * 2);
-    ctx.fillStyle = '#64b5f6';
-    ctx.fill();
-    ctx.strokeStyle = '#42a5f5';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+// --- Rocket flame frames (16x8) ---
+Game.Sprites.flame = [];
+Game.Sprites.flame[0] = [
+  [_,_,_,_,_,_,O,O,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,O,Y,Y,O,O,_,_,_,_,_,_],
+  [_,_,_,_,_,O,Y,W,Y,O,_,_,_,_,_,_],
+  [_,_,_,_,_,_,O,Y,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,O,Y,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,O,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,R,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_]
+];
+Game.Sprites.flame[1] = [
+  [_,_,_,_,_,O,O,O,O,O,_,_,_,_,_,_],
+  [_,_,_,_,O,Y,Y,Y,Y,O,_,_,_,_,_,_],
+  [_,_,_,_,_,O,Y,W,Y,O,_,_,_,_,_,_],
+  [_,_,_,_,_,O,Y,Y,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,O,Y,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,O,O,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,R,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,R,_,_,_,_,_,_,_,_]
+];
+Game.Sprites.flame[2] = [
+  [_,_,_,_,_,_,O,O,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,O,Y,Y,O,_,_,_,_,_,_,_],
+  [_,_,_,_,O,Y,W,W,Y,O,_,_,_,_,_,_],
+  [_,_,_,_,_,O,Y,Y,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,O,O,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,O,R,O,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,R,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_]
+];
 
-    // Fins
-    ctx.fillStyle = color || '#4fc3f7';
-    ctx.beginPath();
-    ctx.moveTo(-12, 15);
-    ctx.lineTo(-20, 22);
-    ctx.lineTo(-10, 18);
-    ctx.closePath();
-    ctx.fill();
+// --- Astronaut (12 wide x 16 tall) ---
+Game.Sprites.astronautIdle = [
+  [_,_,_,_,W,W,W,W,_,_,_,_],
+  [_,_,_,W,G,G,G,G,W,_,_,_],
+  [_,_,_,W,G,C,C,G,W,_,_,_],
+  [_,_,_,W,G,C,'#1565c0',C,W,_,_,_],
+  [_,_,_,W,G,C,C,G,W,_,_,_],
+  [_,_,_,_,W,G,G,W,_,_,_,_],
+  [_,_,W,W,W,W,W,W,W,W,_,_],
+  [_,_,W,W,W,W,W,W,W,W,_,_],
+  [_,D,W,W,W,W,W,W,W,W,D,_],
+  [_,D,_,W,W,W,W,W,W,_,D,_],
+  [_,_,_,W,W,W,W,W,W,_,_,_],
+  [_,_,_,W,W,_,_,W,W,_,_,_],
+  [_,_,_,W,W,_,_,W,W,_,_,_],
+  [_,_,W,W,W,_,_,W,W,W,_,_],
+  [_,_,K,K,K,_,_,K,K,K,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_]
+];
 
-    ctx.beginPath();
-    ctx.moveTo(12, 15);
-    ctx.lineTo(20, 22);
-    ctx.lineTo(10, 18);
-    ctx.closePath();
-    ctx.fill();
+Game.Sprites.astronautWalk1 = [
+  [_,_,_,_,W,W,W,W,_,_,_,_],
+  [_,_,_,W,G,G,G,G,W,_,_,_],
+  [_,_,_,W,G,C,C,G,W,_,_,_],
+  [_,_,_,W,G,C,'#1565c0',C,W,_,_,_],
+  [_,_,_,W,G,C,C,G,W,_,_,_],
+  [_,_,_,_,W,G,G,W,_,_,_,_],
+  [_,_,W,W,W,W,W,W,W,W,_,_],
+  [_,_,W,W,W,W,W,W,W,W,_,_],
+  [_,D,W,W,W,W,W,W,W,W,D,_],
+  [_,D,_,W,W,W,W,W,W,_,D,_],
+  [_,_,_,W,W,W,W,W,W,_,_,_],
+  [_,_,_,_,W,W,W,W,_,_,_,_],
+  [_,_,_,W,W,_,_,_,W,_,_,_],
+  [_,_,W,W,_,_,_,_,W,W,_,_],
+  [_,_,K,K,_,_,_,_,K,K,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_]
+];
 
-    ctx.restore();
-  },
+Game.Sprites.astronautJump = [
+  [_,_,_,_,W,W,W,W,_,_,_,_],
+  [_,_,_,W,G,G,G,G,W,_,_,_],
+  [_,_,_,W,G,C,C,G,W,_,_,_],
+  [_,_,_,W,G,C,'#1565c0',C,W,_,_,_],
+  [_,_,_,W,G,C,C,G,W,_,_,_],
+  [_,_,_,_,W,G,G,W,_,_,_,_],
+  [_,D,W,W,W,W,W,W,W,W,D,_],
+  [_,D,W,W,W,W,W,W,W,W,D,_],
+  [_,_,W,W,W,W,W,W,W,W,_,_],
+  [_,_,_,W,W,W,W,W,W,_,_,_],
+  [_,_,_,W,W,W,W,W,W,_,_,_],
+  [_,_,_,W,_,_,_,_,W,_,_,_],
+  [_,_,W,W,_,_,_,_,W,W,_,_],
+  [_,W,W,_,_,_,_,_,_,W,W,_],
+  [_,K,K,_,_,_,_,_,_,K,K,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_]
+];
 
-  rocketFlame: function(ctx, x, y, angle, scale, time) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
+// --- Meteor (10x10) ---
+Game.Sprites.meteor = [
+  [_,_,_,Br,Br,Br,Br,_,_,_],
+  [_,_,Br,D,D,Br,D,Br,_,_],
+  [_,Br,D,K,D,D,D,D,Br,_],
+  [Br,D,D,D,D,K,D,D,D,Br],
+  [Br,D,K,D,D,D,D,K,D,Br],
+  [Br,D,D,D,K,D,D,D,D,Br],
+  [Br,D,D,D,D,D,K,D,D,Br],
+  [_,Br,D,D,K,D,D,D,Br,_],
+  [_,_,Br,D,D,D,D,Br,_,_],
+  [_,_,_,Br,Br,Br,Br,_,_]
+];
 
-    var flicker = Math.sin(time * 15) * 3;
-    var flicker2 = Math.cos(time * 20) * 2;
+// --- Enemy ship (12x10) ---
+Game.Sprites.enemyShip = [
+  [_,_,_,_,_,R,R,_,_,_,_,_],
+  [_,_,_,_,R,D,D,R,_,_,_,_],
+  [_,_,_,R,D,R,D,D,R,_,_,_],
+  [_,_,R,D,D,D,D,D,D,R,_,_],
+  [_,R,D,D,D,D,D,D,D,D,R,_],
+  [R,D,D,G,D,D,D,D,G,D,D,R],
+  [R,R,D,D,D,D,D,D,D,D,R,R],
+  [_,_,R,D,D,D,D,D,D,R,_,_],
+  [_,_,_,R,D,_,_,D,R,_,_,_],
+  [_,_,_,_,R,_,_,R,_,_,_,_]
+];
 
-    // Outer flame
-    ctx.beginPath();
-    ctx.moveTo(-8, 15);
-    ctx.lineTo(0, 30 + flicker);
-    ctx.lineTo(8, 15);
-    ctx.closePath();
-    ctx.fillStyle = '#ff6b35';
-    ctx.globalAlpha = 0.8;
-    ctx.fill();
+// --- Coin (8x8, 4 frames) ---
+Game.Sprites.coin = [];
+Game.Sprites.coin[0] = [
+  [_,_,Y,Y,Y,Y,_,_],
+  [_,Y,Y,O,O,Y,Y,_],
+  [Y,Y,O,Y,Y,O,Y,Y],
+  [Y,O,Y,O,O,Y,O,Y],
+  [Y,O,Y,O,O,Y,O,Y],
+  [Y,Y,O,Y,Y,O,Y,Y],
+  [_,Y,Y,O,O,Y,Y,_],
+  [_,_,Y,Y,Y,Y,_,_]
+];
+Game.Sprites.coin[1] = [
+  [_,_,_,Y,Y,_,_,_],
+  [_,_,Y,O,Y,Y,_,_],
+  [_,Y,O,Y,O,Y,_,_],
+  [_,Y,Y,O,Y,Y,_,_],
+  [_,Y,Y,O,Y,Y,_,_],
+  [_,Y,O,Y,O,Y,_,_],
+  [_,_,Y,O,Y,Y,_,_],
+  [_,_,_,Y,Y,_,_,_]
+];
+Game.Sprites.coin[2] = [
+  [_,_,_,Y,Y,_,_,_],
+  [_,_,_,O,Y,_,_,_],
+  [_,_,Y,O,Y,_,_,_],
+  [_,_,Y,Y,Y,_,_,_],
+  [_,_,Y,Y,Y,_,_,_],
+  [_,_,Y,O,Y,_,_,_],
+  [_,_,_,O,Y,_,_,_],
+  [_,_,_,Y,Y,_,_,_]
+];
+Game.Sprites.coin[3] = Game.Sprites.coin[1];
 
-    // Inner flame
-    ctx.beginPath();
-    ctx.moveTo(-4, 15);
-    ctx.lineTo(0, 24 + flicker2);
-    ctx.lineTo(4, 15);
-    ctx.closePath();
-    ctx.fillStyle = '#ffeb3b';
-    ctx.globalAlpha = 0.9;
-    ctx.fill();
+// --- Parachute (16x10) ---
+Game.Sprites.parachute = [
+  [_,_,_,R,R,R,R,R,R,R,R,R,R,_,_,_],
+  [_,_,R,W,R,W,R,W,R,W,R,W,R,R,_,_],
+  [_,R,W,W,R,W,W,R,W,W,R,W,W,R,_,_],
+  [R,W,W,R,R,W,W,R,W,W,R,R,W,W,R,_],
+  [R,_,R,_,_,R,_,_,_,R,_,_,R,_,R,_],
+  [_,_,R,_,_,_,R,_,R,_,_,_,R,_,_,_],
+  [_,_,_,R,_,_,_,R,_,_,_,R,_,_,_,_],
+  [_,_,_,_,R,_,_,R,_,_,R,_,_,_,_,_],
+  [_,_,_,_,_,R,_,R,_,R,_,_,_,_,_,_],
+  [_,_,_,_,_,_,R,R,R,_,_,_,_,_,_,_]
+];
 
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  },
+// --- Shop building (24x20) ---
+Game.Sprites.shop = [
+  [_,_,_,_,_,_,_,_,Y,Y,Y,Y,Y,Y,Y,Y,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,Y,O,O,O,O,O,O,O,O,Y,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,Y,O,O,O,O,O,O,O,O,O,O,Y,_,_,_,_,_,_],
+  [_,_,_,_,_,Y,O,O,O,O,O,O,O,O,O,O,O,O,Y,_,_,_,_,_],
+  [_,_,_,_,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,W,W,Br,Br,Br,Br,Br,Br,Br,Br,Br,W,W,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,W,W,Br,Br,Br,Br,Br,Br,Br,Br,Br,W,W,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,W,W,Br,Br,Br,Br,Br,Br,Br,Br,Br,W,W,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,K,K,K,K,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,Br,Br,Br,Br,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,Br,Br,Br,K,K,K,K,K,K,Br,Br,Br,Br,Br,_,_,_,_],
+  [_,_,_,_,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,_,_,_,_]
+];
 
-  astronaut: function(ctx, x, y, angle, scale) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(scale, scale);
-
-    // Backpack
-    ctx.fillStyle = '#546e7a';
-    ctx.fillRect(-14, -6, 6, 14);
-
-    // Body (suit)
-    ctx.beginPath();
-    ctx.arc(0, 0, 12, 0, Math.PI * 2);
-    ctx.fillStyle = '#eceff1';
-    ctx.fill();
-    ctx.strokeStyle = '#b0bec5';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Helmet visor
-    ctx.beginPath();
-    ctx.arc(3, -2, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#4fc3f7';
-    ctx.fill();
-    ctx.strokeStyle = '#0288d1';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // Visor reflection
-    ctx.beginPath();
-    ctx.arc(5, -4, 2, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fill();
-
-    // Legs
-    ctx.fillStyle = '#b0bec5';
-    ctx.fillRect(-6, 10, 5, 8);
-    ctx.fillRect(2, 10, 5, 8);
-
-    // Boots
-    ctx.fillStyle = '#546e7a';
-    ctx.fillRect(-7, 16, 6, 4);
-    ctx.fillRect(1, 16, 6, 4);
-
-    // Direction indicator (arm pointing toward angle)
-    if (angle !== undefined) {
-      ctx.save();
-      ctx.rotate(angle);
-      ctx.fillStyle = '#eceff1';
-      ctx.fillRect(10, -2, 8, 4);
-      ctx.fillStyle = '#ff8a65';
-      ctx.fillRect(16, -3, 5, 6); // gun
-      ctx.restore();
-    }
-
-    ctx.restore();
-  },
-
-  hexagon: function(ctx, x, y, radius, rotation, color, eyeColor) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
-
-    // Body
-    ctx.beginPath();
-    for (var i = 0; i < 6; i++) {
-      var a = (Math.PI / 3) * i - Math.PI / 2;
-      var px = Math.cos(a) * radius;
-      var py = Math.sin(a) * radius;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Eye
-    ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
-    ctx.fillStyle = eyeColor || '#fff';
-    ctx.fill();
-
-    // Pupil
-    ctx.beginPath();
-    ctx.arc(radius * 0.08, 0, radius * 0.15, 0, Math.PI * 2);
-    ctx.fillStyle = '#1a1a2a';
-    ctx.fill();
-
-    // Antennae
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-radius * 0.3, -radius);
-    ctx.lineTo(-radius * 0.4, -radius * 1.4);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(-radius * 0.4, -radius * 1.5, 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(radius * 0.3, -radius);
-    ctx.lineTo(radius * 0.4, -radius * 1.4);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(radius * 0.4, -radius * 1.5, 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-
-    ctx.restore();
-  },
-
-  meteor: function(ctx, x, y, radius, rotation, vertices) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
-
-    ctx.beginPath();
-    for (var i = 0; i < vertices.length; i++) {
-      var vx = vertices[i].x;
-      var vy = vertices[i].y;
-      if (i === 0) ctx.moveTo(vx, vy);
-      else ctx.lineTo(vx, vy);
-    }
-    ctx.closePath();
-
-    ctx.fillStyle = '#5d4e37';
-    ctx.fill();
-    ctx.strokeStyle = '#8d7e67';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Craters
-    ctx.beginPath();
-    ctx.arc(radius * 0.2, -radius * 0.1, radius * 0.2, 0, Math.PI * 2);
-    ctx.fillStyle = '#4a3d2a';
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(-radius * 0.3, radius * 0.2, radius * 0.15, 0, Math.PI * 2);
-    ctx.fillStyle = '#4a3d2a';
-    ctx.fill();
-
-    ctx.restore();
-  },
-
-  coin: function(ctx, x, y, time) {
-    var bob = Math.sin(time * 3) * 3;
-    var shimmer = Math.sin(time * 5) * 0.2 + 0.8;
-
-    // Glow
-    ctx.beginPath();
-    ctx.arc(x, y + bob, 12, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
-    ctx.fill();
-
-    // Outer
-    ctx.beginPath();
-    ctx.arc(x, y + bob, 8, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgb(255, 215, 0)';
-    ctx.fill();
-    ctx.strokeStyle = '#b8860b';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Inner
-    ctx.beginPath();
-    ctx.arc(x, y + bob, 4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(184, 134, 11, ' + shimmer + ')';
-    ctx.fill();
-
-    // $ symbol
-    ctx.fillStyle = '#b8860b';
-    ctx.font = 'bold 9px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('$', x, y + bob + 1);
-  },
-
-  hpBar: function(ctx, x, y, w, h, hp, maxHp, color) {
-    // Background
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(x, y, w, h);
-    // HP fill
-    var ratio = Math.max(0, hp / maxHp);
-    ctx.fillStyle = color || (ratio > 0.5 ? '#4caf50' : ratio > 0.25 ? '#ff9800' : '#f44336');
-    ctx.fillRect(x, y, w * ratio, h);
-    // Border
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, w, h);
-  }
-};
-
-// --- Starfield ---
+// ===========================
+// STARFIELD (reused, adapted for vertical)
+// ===========================
 Game.Starfield = function(count) {
   this.stars = [];
   for (var i = 0; i < (count || 200); i++) {
-    var layer = Math.floor(Math.random() * 3); // 0=far, 1=mid, 2=near
+    var layer = Math.floor(Math.random() * 3);
     this.stars.push({
       x: Math.random() * Game.CANVAS_W,
       y: Math.random() * Game.CANVAS_H,
@@ -308,16 +255,16 @@ Game.Starfield = function(count) {
   this.time = 0;
 };
 
-Game.Starfield.prototype.update = function(dt, scrollSpeed) {
+Game.Starfield.prototype.update = function(dt, scrollDir) {
   this.time += dt;
   for (var i = 0; i < this.stars.length; i++) {
     var s = this.stars[i];
-    if (scrollSpeed) {
-      s.x -= s.speed * dt * (scrollSpeed || 1);
-      if (s.x < -5) {
-        s.x = Game.CANVAS_W + 5;
-        s.y = Math.random() * Game.CANVAS_H;
-      }
+    if (scrollDir === 'down') {
+      s.y += s.speed * dt;
+      if (s.y > Game.CANVAS_H + 5) { s.y = -5; s.x = Math.random() * Game.CANVAS_W; }
+    } else if (scrollDir === 'left') {
+      s.x -= s.speed * dt;
+      if (s.x < -5) { s.x = Game.CANVAS_W + 5; s.y = Math.random() * Game.CANVAS_H; }
     }
   }
 };
@@ -326,26 +273,18 @@ Game.Starfield.prototype.render = function(ctx) {
   for (var i = 0; i < this.stars.length; i++) {
     var s = this.stars[i];
     var twinkle = Math.sin(this.time * 2 + s.twinkleOffset) * 0.15 + 0.85;
-    var alpha = s.brightness * twinkle;
-
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, ' + alpha + ')';
-    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,' + (s.brightness * twinkle) + ')';
+    ctx.fillRect(Math.floor(s.x), Math.floor(s.y), Math.ceil(s.size), Math.ceil(s.size));
   }
 };
 
-// --- Entity Manager ---
+// ===========================
+// ENTITY MANAGER
+// ===========================
 Game.EntityManager = {
-  bullets: [],
-  enemies: [],
-  meteors: [],
-  coins: [],
-  particles: [],
+  bullets: [], enemies: [], meteors: [], coins: [], particles: [],
 
-  add: function(type, entity) {
-    if (this[type]) this[type].push(entity);
-  },
+  add: function(type, entity) { if (this[type]) this[type].push(entity); },
 
   updateAll: function(dt) {
     var types = ['bullets', 'enemies', 'meteors', 'coins', 'particles'];
@@ -358,59 +297,45 @@ Game.EntityManager = {
     }
   },
 
-  renderAll: function(ctx, cam) {
+  renderAll: function(ctx, offsetX, offsetY) {
+    var ox = offsetX || 0, oy = offsetY || 0;
     var types = ['coins', 'meteors', 'enemies', 'bullets', 'particles'];
     for (var t = 0; t < types.length; t++) {
       var arr = this[types[t]];
       for (var i = 0; i < arr.length; i++) {
-        if (arr[i].active) arr[i].render(ctx, cam);
+        if (arr[i].active) arr[i].render(ctx, ox, oy);
       }
     }
   },
 
   clear: function() {
-    this.bullets = [];
-    this.enemies = [];
-    this.meteors = [];
-    this.coins = [];
-    this.particles = [];
-  },
-
-  getByType: function(type) {
-    return this[type] || [];
+    this.bullets = []; this.enemies = []; this.meteors = [];
+    this.coins = []; this.particles = [];
   }
 };
 
-// --- Particle ---
+// ===========================
+// PARTICLES
+// ===========================
 Game.createParticle = function(x, y, color, size, speedMult) {
   var angle = Math.random() * Math.PI * 2;
   var speed = (50 + Math.random() * 150) * (speedMult || 1);
   return {
-    x: x,
-    y: y,
-    dx: Math.cos(angle) * speed,
-    dy: Math.sin(angle) * speed,
-    life: 0.5 + Math.random() * 0.5,
-    maxLife: 0.5 + Math.random() * 0.5,
-    color: color,
-    size: size || (2 + Math.random() * 3),
-    active: true,
+    x: x, y: y,
+    dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed,
+    life: 0.4 + Math.random() * 0.4, maxLife: 0.8,
+    color: color, size: size || (2 + Math.random() * 3), active: true,
     update: function(dt) {
-      this.x += this.dx * dt;
-      this.y += this.dy * dt;
-      this.dx *= 0.98;
-      this.dy *= 0.98;
+      this.x += this.dx * dt; this.y += this.dy * dt;
+      this.dx *= 0.97; this.dy *= 0.97;
       this.life -= dt;
       if (this.life <= 0) this.active = false;
     },
-    render: function(ctx, cam) {
-      var sx = this.x - (cam ? cam.x : 0);
-      var sy = this.y - (cam ? cam.y : 0);
+    render: function(ctx, ox, oy) {
       var alpha = Math.max(0, this.life / this.maxLife);
-      ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.save(); ctx.globalAlpha = alpha;
       ctx.fillStyle = this.color;
-      ctx.fillRect(sx - this.size / 2, sy - this.size / 2, this.size, this.size);
+      ctx.fillRect(this.x - (ox || 0), this.y - (oy || 0), this.size, this.size);
       ctx.restore();
     }
   };
@@ -422,308 +347,430 @@ Game.spawnParticles = function(x, y, count, color, speedMult) {
   }
 };
 
-// --- Bullet ---
-Game.createBullet = function(x, y, angle, damage, speed) {
-  var spd = speed || 500;
+// ===========================
+// BULLET (shoots upward in flight)
+// ===========================
+Game.createBullet = function(x, y, damage, skinColor) {
   return {
-    x: x,
-    y: y,
-    radius: 4,
-    dx: Math.cos(angle) * spd,
-    dy: Math.sin(angle) * spd,
-    damage: damage || 10,
-    lifetime: 2,
-    active: true,
-    trail: [],
+    x: x, y: y, radius: 4,
+    dy: -500, damage: damage || 10,
+    color: skinColor || '#ffeb3b',
+    lifetime: 3, active: true,
     update: function(dt) {
-      this.trail.push({ x: this.x, y: this.y });
-      if (this.trail.length > 4) this.trail.shift();
-
-      this.x += this.dx * dt;
       this.y += this.dy * dt;
       this.lifetime -= dt;
-
-      if (this.lifetime <= 0 || this.x < -50 || this.x > Game.WORLD_W + 50 ||
-          this.y < -50 || this.y > Game.WORLD_H + 50) {
-        this.active = false;
-      }
+      if (this.lifetime <= 0 || this.y < -20) this.active = false;
     },
-    render: function(ctx, cam) {
-      var ox = cam ? cam.x : 0;
-      var oy = cam ? cam.y : 0;
-
-      // Trail
-      for (var i = 0; i < this.trail.length; i++) {
-        var alpha = (i + 1) / (this.trail.length + 1) * 0.5;
-        var r = this.radius * (i + 1) / (this.trail.length + 1);
-        ctx.beginPath();
-        ctx.arc(this.trail[i].x - ox, this.trail[i].y - oy, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 235, 59, ' + alpha + ')';
-        ctx.fill();
-      }
-
-      // Bullet
-      ctx.beginPath();
-      ctx.arc(this.x - ox, this.y - oy, this.radius, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffeb3b';
-      ctx.fill();
-
-      // Glow
-      ctx.beginPath();
-      ctx.arc(this.x - ox, this.y - oy, this.radius + 3, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
-      ctx.fill();
+    render: function(ctx, ox, oy) {
+      var sx = this.x - (ox || 0);
+      var sy = this.y - (oy || 0);
+      ctx.fillStyle = this.color;
+      ctx.fillRect(sx - 2, sy - 4, 4, 8);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(sx - 1, sy - 2, 2, 4);
     }
   };
 };
 
-// --- Player ---
-Game.Player = function() {
-  this.x = 0;
-  this.y = 0;
+// ===========================
+// COIN (drops from enemies)
+// ===========================
+Game.createCoin = function(x, y, value) {
+  return {
+    x: x, y: y, radius: 8,
+    value: value || 1, lifetime: 6, active: true, time: Math.random() * 10,
+    dy: -80, // pop up then fall
+    vy: 0, gravity: 200,
+    update: function(dt) {
+      this.time += dt;
+      this.vy += this.gravity * dt;
+      this.y += this.vy * dt;
+      this.lifetime -= dt;
+      if (this.lifetime <= 0) this.active = false;
+    },
+    render: function(ctx, ox, oy) {
+      var sx = this.x - (ox || 0);
+      var sy = this.y - (oy || 0);
+      if (this.lifetime < 2) { ctx.save(); ctx.globalAlpha = this.lifetime / 2; }
+      var frame = Math.floor(this.time * 6) % 4;
+      Game.Pixel.drawCentered(ctx, Game.Sprites.coin[frame], sx, sy, 2);
+      if (this.lifetime < 2) ctx.restore();
+    }
+  };
+};
+
+// ===========================
+// ROCKET (flight entity)
+// ===========================
+Game.Rocket = function(saveData) {
+  var stats = Game.getRocketStats(saveData);
+  this.x = Game.CANVAS_W / 2;
+  this.y = Game.CANVAS_H - 80;
+  this.width = 32; // 16 * scale 2
+  this.height = 48;
   this.radius = 16;
+
+  this.speed = stats.speed;
+  this.fuel = saveData.fuel;
+  this.maxFuel = stats.maxFuel;
+  this.damageReduction = stats.damageReduction;
+  this.fireCooldown = 0;
+  this.fireRate = stats.fireCooldown;
+
   this.hp = 100;
   this.maxHp = 100;
-  this.speed = 200;
-  this.damage = 10;
-  this.fireRate = 300; // ms
-  this.fireCooldown = 0;
-  this.angle = 0;
-  this.invincible = 0;
+  this.altitude = 0;
+  this.ascending = true;
+  this.parachute = false;
+  this.parachuteDeploy = 0;
+
+  this.flameFrame = 0;
+  this.flameTimer = 0;
   this.active = true;
+  this.shotSkin = saveData.shotSkin;
   this.time = 0;
-  this.walkAnim = 0;
 };
 
-Game.Player.prototype.initStats = function(saveData) {
-  var u = saveData.upgrades;
-  this.maxHp = 100 + u.hp * 25;
-  this.hp = this.maxHp;
-  this.damage = 10 + u.dmg * 5;
-  this.speed = 200 * (1 + u.speed * 0.2);
-  this.fireRate = Math.max(100, 300 - u.fireRate * 50);
-};
-
-Game.Player.prototype.update = function(dt, worldW, worldH, useCamera) {
+Game.Rocket.prototype.update = function(dt) {
   this.time += dt;
+  var inp = Game.Input;
+
+  // Flame animation
+  this.flameTimer += dt;
+  if (this.flameTimer > 0.1) { this.flameTimer = 0; this.flameFrame = (this.flameFrame + 1) % 3; }
+
+  if (this.parachute) {
+    // Falling with parachute
+    this.parachuteDeploy = Math.min(1, this.parachuteDeploy + dt * 2);
+    this.altitude -= 80 * dt;
+    this.y += 60 * dt; // visual fall
+    // Sway
+    this.x += Math.sin(this.time * 2) * 30 * dt;
+    if (this.altitude <= 0) { this.altitude = 0; this.active = false; }
+    return;
+  }
 
   // Movement
-  var mx = 0, my = 0;
-  var inp = Game.Input;
-  if (inp.isDown('w') || inp.isDown('W') || inp.isDown('ArrowUp')) my = -1;
-  if (inp.isDown('s') || inp.isDown('S') || inp.isDown('ArrowDown')) my = 1;
+  var mx = 0;
   if (inp.isDown('a') || inp.isDown('A') || inp.isDown('ArrowLeft')) mx = -1;
   if (inp.isDown('d') || inp.isDown('D') || inp.isDown('ArrowRight')) mx = 1;
 
-  // Normalize diagonal
-  if (mx !== 0 && my !== 0) {
-    var norm = 1 / Math.sqrt(2);
-    mx *= norm;
-    my *= norm;
+  this.x += mx * 250 * dt;
+  this.x = Math.max(20, Math.min(this.x, Game.CANVAS_W - 20));
+
+  // Descend if holding down
+  if (inp.isDown('s') || inp.isDown('S') || inp.isDown('ArrowDown')) {
+    this.altitude -= this.speed * 0.5 * dt;
+    if (this.altitude < 0) this.altitude = 0;
   }
 
-  this.x += mx * this.speed * dt;
-  this.y += my * this.speed * dt;
-
-  // Walking animation
-  if (mx !== 0 || my !== 0) {
-    this.walkAnim += dt * 8;
-  }
-
-  // Clamp
-  var maxX = worldW || Game.CANVAS_W;
-  var maxY = worldH || Game.CANVAS_H;
-  this.x = Math.max(this.radius, Math.min(this.x, maxX - this.radius));
-  this.y = Math.max(this.radius, Math.min(this.y, maxY - this.radius));
-
-  // Angle toward mouse
-  if (useCamera) {
-    var worldMouse = Game.Camera.screenToWorld(inp.mouse.x, inp.mouse.y);
-    this.angle = Math.atan2(worldMouse.y - this.y, worldMouse.x - this.x);
-  } else {
-    this.angle = Math.atan2(inp.mouse.y - this.y, inp.mouse.x - this.x);
+  // Ascend (auto)
+  if (this.fuel > 0 && this.ascending) {
+    this.altitude += this.speed * dt;
+    this.fuel -= dt * 8; // fuel consumption
+    if (this.fuel <= 0) {
+      this.fuel = 0;
+      this.parachute = true;
+    }
   }
 
   // Shooting
   this.fireCooldown -= dt * 1000;
-  if ((inp.mouse.down || inp.isDown(' ')) && this.fireCooldown <= 0) {
-    this.shoot();
+  if ((inp.wasPressed(' ') || inp.isDown(' ')) && this.fireCooldown <= 0) {
+    var skinData = Game.ShopData.skins.find(function(s) { return s.key === (Game.saveData.shotSkin || 'default'); });
+    var bulletColor = skinData ? skinData.color : '#ffeb3b';
+    Game.EntityManager.add('bullets', Game.createBullet(this.x, this.y - 24, 10, bulletColor));
     this.fireCooldown = this.fireRate;
   }
-
-  // Invincibility
-  if (this.invincible > 0) {
-    this.invincible -= dt;
-  }
 };
 
-Game.Player.prototype.shoot = function() {
-  var bx = this.x + Math.cos(this.angle) * 20;
-  var by = this.y + Math.sin(this.angle) * 20;
-  Game.EntityManager.add('bullets', Game.createBullet(bx, by, this.angle, this.damage));
-};
-
-Game.Player.prototype.takeDamage = function(amount) {
-  if (this.invincible > 0) return;
-  this.hp -= amount;
-  this.invincible = 0.5;
+Game.Rocket.prototype.takeDamage = function(amount) {
+  var dmg = amount * (1 - this.damageReduction);
+  this.hp -= dmg;
   Game.triggerShake(6, 0.2);
-  Game.spawnParticles(this.x, this.y, 5, '#f44336');
+  Game.spawnParticles(this.x, this.y, 6, '#f44336');
   if (this.hp <= 0) {
     this.hp = 0;
-    this.active = false;
+    this.parachute = true; // still deploy parachute
+    Game.spawnParticles(this.x, this.y, 15, '#ff6b35', 1.5);
   }
 };
 
-Game.Player.prototype.render = function(ctx, cam) {
-  // Blink when invincible
-  if (this.invincible > 0 && Math.floor(this.invincible * 10) % 2 === 0) return;
+Game.Rocket.prototype.render = function(ctx) {
+  // Parachute
+  if (this.parachute && this.parachuteDeploy > 0) {
+    ctx.save();
+    ctx.globalAlpha = this.parachuteDeploy;
+    Game.Pixel.drawCentered(ctx, Game.Sprites.parachute, this.x, this.y - 40 - this.parachuteDeploy * 20, 2);
+    // Strings
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(this.x - 12, this.y - 40); ctx.lineTo(this.x - 4, this.y - 10);
+    ctx.moveTo(this.x + 12, this.y - 40); ctx.lineTo(this.x + 4, this.y - 10);
+    ctx.stroke();
+    ctx.restore();
+  }
 
-  var sx = this.x - (cam ? cam.x : 0);
-  var sy = this.y - (cam ? cam.y : 0);
+  // Rocket
+  Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, this.x, this.y, 2);
 
-  // Leg animation offset
-  var legOffset = Math.sin(this.walkAnim) * 3;
-
-  Game.Draw.astronaut(ctx, sx, sy, this.angle, 1);
+  // Flame (only when ascending with fuel)
+  if (this.fuel > 0 && !this.parachute) {
+    Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], this.x, this.y + 30, 2);
+  }
 };
 
-// --- Enemy ---
-Game.Enemy = function(x, y, planetLevel) {
+// ===========================
+// METEOR (falls down in flight)
+// ===========================
+Game.MeteorPixel = function(x, y, speed) {
   this.x = x;
   this.y = y;
-  this.radius = 20;
-  this.planetLevel = planetLevel || 0;
-  this.hp = Math.floor(50 * Math.pow(1.5, this.planetLevel));
-  this.maxHp = this.hp;
-  this.speed = 80 + this.planetLevel * 15;
-  this.damage = Math.floor(10 * Math.pow(1.3, this.planetLevel));
-  this.coinDrop = 5 + Math.floor(Math.random() * 11);
-  this.hitCooldown = 0;
-  this.flashTimer = 0;
+  this.radius = 10;
+  this.speed = speed || (120 + Math.random() * 200);
   this.rotation = 0;
   this.active = true;
-  this.time = 0;
-
-  // Color based on planet
-  var colors = ['#4caf50', '#f44336', '#9c27b0'];
-  this.color = colors[this.planetLevel] || '#4caf50';
 };
 
-Game.Enemy.prototype.update = function(dt, playerX, playerY) {
-  this.time += dt;
-  this.rotation += dt * 0.5;
+Game.MeteorPixel.prototype.update = function(dt) {
+  this.y += this.speed * dt;
+  this.x += Math.sin(this.y * 0.01) * 20 * dt; // slight wobble
+  if (this.y > Game.CANVAS_H + 40) this.active = false;
+};
 
-  // Chase player
-  var dx = playerX - this.x;
-  var dy = playerY - this.y;
-  var dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist > 0) {
-    this.x += (dx / dist) * this.speed * dt;
-    this.y += (dy / dist) * this.speed * dt;
+Game.MeteorPixel.prototype.render = function(ctx, ox, oy) {
+  Game.Pixel.drawCentered(ctx, Game.Sprites.meteor, this.x - (ox || 0), this.y - (oy || 0), 2);
+};
+
+Game.MeteorPixel.prototype.destroy = function() {
+  this.active = false;
+  Game.spawnParticles(this.x, this.y, 8, '#8d6e63');
+};
+
+// ===========================
+// ENEMY SHIP (comes from top in flight)
+// ===========================
+Game.EnemyShip = function(x, y) {
+  this.x = x;
+  this.y = y;
+  this.radius = 14;
+  this.hp = 30;
+  this.speed = 60 + Math.random() * 60;
+  this.shootTimer = 1 + Math.random() * 2;
+  this.coinDrop = 5 + Math.floor(Math.random() * 10);
+  this.pattern = Math.random() < 0.5 ? 'zigzag' : 'straight';
+  this.time = Math.random() * 10;
+  this.active = true;
+};
+
+Game.EnemyShip.prototype.update = function(dt) {
+  this.time += dt;
+  this.y += this.speed * dt;
+
+  if (this.pattern === 'zigzag') {
+    this.x += Math.sin(this.time * 3) * 100 * dt;
   }
 
-  // Clamp to world
-  this.x = Math.max(this.radius, Math.min(this.x, Game.WORLD_W - this.radius));
-  this.y = Math.max(this.radius, Math.min(this.y, Game.WORLD_H - this.radius));
+  this.x = Math.max(20, Math.min(this.x, Game.CANVAS_W - 20));
 
-  if (this.hitCooldown > 0) this.hitCooldown -= dt;
-  if (this.flashTimer > 0) this.flashTimer -= dt;
+  // Shoot downward
+  this.shootTimer -= dt;
+  if (this.shootTimer <= 0) {
+    this.shootTimer = 1.5 + Math.random() * 2;
+    // Enemy bullet (goes down)
+    Game.EntityManager.add('particles', {
+      x: this.x, y: this.y + 12,
+      dx: 0, dy: 300, life: 2, maxLife: 2,
+      color: '#f44336', size: 4, active: true,
+      isEnemyBullet: true,
+      radius: 4,
+      update: function(dt) {
+        this.y += this.dy * dt;
+        this.life -= dt;
+        if (this.life <= 0 || this.y > Game.CANVAS_H + 20) this.active = false;
+      },
+      render: function(ctx, ox, oy) {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - 2 - (ox || 0), this.y - 4 - (oy || 0), 4, 8);
+      }
+    });
+  }
+
+  if (this.y > Game.CANVAS_H + 40) this.active = false;
 };
 
-Game.Enemy.prototype.takeDamage = function(amount) {
+Game.EnemyShip.prototype.takeDamage = function(amount) {
   this.hp -= amount;
-  this.flashTimer = 0.1;
   if (this.hp <= 0) {
     this.active = false;
-    Game.spawnParticles(this.x, this.y, 12, this.color);
-    // Spawn coin
+    Game.spawnParticles(this.x, this.y, 10, '#f44336');
     Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
   }
 };
 
-Game.Enemy.prototype.render = function(ctx, cam) {
-  var sx = this.x - (cam ? cam.x : 0);
-  var sy = this.y - (cam ? cam.y : 0);
-
-  // Flash white when hit
-  var col = this.flashTimer > 0 ? '#fff' : this.color;
-
-  Game.Draw.hexagon(ctx, sx, sy, this.radius, this.rotation, col);
-
-  // HP bar
-  if (this.hp < this.maxHp) {
-    Game.Draw.hpBar(ctx, sx - 15, sy - this.radius - 10, 30, 4, this.hp, this.maxHp);
-  }
+Game.EnemyShip.prototype.render = function(ctx, ox, oy) {
+  Game.Pixel.drawCentered(ctx, Game.Sprites.enemyShip, this.x - (ox || 0), this.y - (oy || 0), 2);
 };
 
-// --- Meteor ---
-Game.Meteor = function(x, y) {
+// ===========================
+// ASTRONAUT (planet exploration)
+// ===========================
+Game.Astronaut = function(x, y) {
   this.x = x;
   this.y = y;
-  this.radius = 15 + Math.random() * 20;
-  this.speed = 100 + Math.random() * 200;
-  this.rotation = Math.random() * Math.PI * 2;
-  this.rotSpeed = (Math.random() - 0.5) * 3;
+  this.width = 24; // 12 * 2
+  this.height = 32; // 16 * 2
+  this.vx = 0;
+  this.vy = 0;
+  this.speed = 160;
+  this.jumpForce = -350;
+  this.onGround = false;
+  this.facing = 1; // 1=right, -1=left
+  this.animFrame = 0;
+  this.animTimer = 0;
+  this.walking = false;
   this.active = true;
+};
 
-  // Generate irregular polygon vertices
-  this.vertices = [];
-  var numVerts = 8 + Math.floor(Math.random() * 4);
-  for (var i = 0; i < numVerts; i++) {
-    var a = (Math.PI * 2 / numVerts) * i;
-    var r = this.radius * (0.7 + Math.random() * 0.3);
-    this.vertices.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+Game.Astronaut.prototype.update = function(dt, terrain, gravity) {
+  var inp = Game.Input;
+  var grav = (gravity || 1) * Game.GRAVITY;
+
+  // Horizontal movement
+  this.vx = 0;
+  this.walking = false;
+  if (inp.isDown('a') || inp.isDown('A') || inp.isDown('ArrowLeft')) {
+    this.vx = -this.speed;
+    this.facing = -1;
+    this.walking = true;
   }
-};
-
-Game.Meteor.prototype.update = function(dt) {
-  this.x -= this.speed * dt;
-  this.rotation += this.rotSpeed * dt;
-
-  if (this.x < -this.radius * 2) {
-    this.active = false;
+  if (inp.isDown('d') || inp.isDown('D') || inp.isDown('ArrowRight')) {
+    this.vx = this.speed;
+    this.facing = 1;
+    this.walking = true;
   }
-};
 
-Game.Meteor.prototype.render = function(ctx, cam) {
-  var sx = this.x - (cam ? cam.x : 0);
-  var sy = this.y - (cam ? cam.y : 0);
-  Game.Draw.meteor(ctx, sx, sy, this.radius, this.rotation, this.vertices);
-};
+  // Jump
+  if (this.onGround && (inp.wasPressed(' ') || inp.wasPressed('ArrowUp') || inp.wasPressed('w') || inp.wasPressed('W'))) {
+    this.vy = this.jumpForce * (gravity < 0.5 ? 0.7 : 1); // Lower jump on low gravity (already floaty)
+  }
 
-Game.Meteor.prototype.destroy = function() {
-  this.active = false;
-  Game.spawnParticles(this.x, this.y, 8, '#8d7e67');
-};
+  // Gravity
+  this.vy += grav * dt;
 
-// --- Coin ---
-Game.createCoin = function(x, y, value) {
-  return {
-    x: x,
-    y: y,
-    radius: 8,
-    value: value || 1,
-    lifetime: 8,
-    active: true,
-    time: Math.random() * 10,
-    update: function(dt) {
-      this.time += dt;
-      this.lifetime -= dt;
-      if (this.lifetime <= 0) this.active = false;
-    },
-    render: function(ctx, cam) {
-      var sx = this.x - (cam ? cam.x : 0);
-      var sy = this.y - (cam ? cam.y : 0);
-      // Fade when about to expire
-      if (this.lifetime < 2) {
-        ctx.save();
-        ctx.globalAlpha = this.lifetime / 2;
-      }
-      Game.Draw.coin(ctx, sx, sy, this.time);
-      if (this.lifetime < 2) {
-        ctx.restore();
+  // Move
+  this.x += this.vx * dt;
+  this.y += this.vy * dt;
+
+  // Ground collision with terrain
+  this.onGround = false;
+  if (terrain) {
+    var footX = Math.floor(this.x);
+    if (footX >= 0 && footX < terrain.length) {
+      var groundY = terrain[footX];
+      if (this.y + this.height / 2 >= groundY && this.vy >= 0) {
+        this.y = groundY - this.height / 2;
+        this.vy = 0;
+        this.onGround = true;
       }
     }
-  };
+  }
+
+  // World bounds
+  this.x = Math.max(12, Math.min(this.x, (terrain ? terrain.length : 1920) - 12));
+
+  // Animation
+  if (this.walking && this.onGround) {
+    this.animTimer += dt;
+    if (this.animTimer > 0.15) {
+      this.animTimer = 0;
+      this.animFrame = (this.animFrame + 1) % 2;
+    }
+  } else {
+    this.animFrame = 0;
+    this.animTimer = 0;
+  }
+};
+
+Game.Astronaut.prototype.render = function(ctx, ox, oy) {
+  var sx = this.x - (ox || 0);
+  var sy = this.y - (oy || 0) - this.height / 2;
+  var flipX = this.facing === -1;
+  var sprite;
+
+  if (!this.onGround) {
+    sprite = Game.Sprites.astronautJump;
+  } else if (this.walking) {
+    sprite = this.animFrame === 0 ? Game.Sprites.astronautIdle : Game.Sprites.astronautWalk1;
+  } else {
+    sprite = Game.Sprites.astronautIdle;
+  }
+
+  Game.Pixel.draw(ctx, sprite, sx - this.width / 2, sy, 2, flipX);
+};
+
+// ===========================
+// TERRAIN GENERATOR
+// ===========================
+Game.TerrainGenerator = {
+  generate: function(planetIndex, width) {
+    var planet = Game.PlanetData[planetIndex];
+    var terrain = [];
+    var baseY = planet.terrainBase;
+    var variance = planet.terrainVariance;
+
+    // Generate smooth terrain using sine waves
+    for (var x = 0; x < width; x++) {
+      var h = baseY;
+      h += Math.sin(x * 0.01) * variance * 0.5;
+      h += Math.sin(x * 0.03 + 2) * variance * 0.3;
+      h += Math.sin(x * 0.005) * variance * 0.8;
+
+      // Planet-specific features
+      if (planetIndex === 1) { // Lua - craters
+        if (Math.sin(x * 0.02 + 5) > 0.7) h += 15;
+      }
+      if (planetIndex === 3) { // Venus - jagged
+        h += Math.sin(x * 0.08) * variance * 0.4;
+      }
+      if (planetIndex === 4) { // Plutao - icy flat with spikes
+        if (Math.sin(x * 0.015 + 3) > 0.8) h -= 30;
+      }
+
+      terrain.push(Math.floor(h));
+    }
+
+    return terrain;
+  },
+
+  render: function(ctx, terrain, planetIndex, cameraX) {
+    var planet = Game.PlanetData[planetIndex];
+    var startX = Math.max(0, Math.floor(cameraX));
+    var endX = Math.min(terrain.length, Math.floor(cameraX + Game.CANVAS_W + 1));
+
+    for (var x = startX; x < endX; x++) {
+      var screenX = x - cameraX;
+      var groundY = terrain[x];
+      var depth = Game.CANVAS_H - groundY;
+
+      // Main ground
+      ctx.fillStyle = planet.groundColor;
+      ctx.fillRect(screenX, groundY, 1, depth);
+
+      // Surface detail (top 3 pixels)
+      ctx.fillStyle = planet.surfaceDetail;
+      ctx.fillRect(screenX, groundY, 1, 2);
+
+      // Darker layer below
+      ctx.fillStyle = planet.groundDark;
+      ctx.fillRect(screenX, groundY + 8, 1, depth - 8);
+
+      // Random dirt/rock pixels
+      if ((x * 7 + Math.floor(groundY)) % 13 === 0) {
+        ctx.fillStyle = planet.groundLight;
+        ctx.fillRect(screenX, groundY + 4 + (x % 5), 1, 2);
+      }
+    }
+  }
 };

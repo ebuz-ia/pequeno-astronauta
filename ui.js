@@ -1,5 +1,6 @@
 // ============================================
-// ui.js - HUD, Shop, Starmap, Pause, Dialog, UI helpers
+// ui.js - HUD, ShopUI, Pause, Dialog, UI helpers
+// Pequeno Astronauta v2.0 - Pixel Art Edition
 // ============================================
 
 window.Game = window.Game || {};
@@ -22,13 +23,82 @@ Game.UI = {
     ctx.fillText(str, x, y);
   },
 
+  // --- Pixel text (blocky) ---
+  pixelText: function(ctx, str, x, y, scale, color) {
+    ctx.fillStyle = color || '#fff';
+    var s = scale || 2;
+    var chars = str.toUpperCase().split('');
+    var cx = x;
+    for (var i = 0; i < chars.length; i++) {
+      var glyph = this.glyphs[chars[i]];
+      if (glyph) {
+        for (var r = 0; r < glyph.length; r++) {
+          for (var c = 0; c < glyph[r].length; c++) {
+            if (glyph[r][c]) {
+              ctx.fillRect(cx + c * s, y + r * s, s, s);
+            }
+          }
+        }
+        cx += (glyph[0].length + 1) * s;
+      } else {
+        cx += 3 * s; // space
+      }
+    }
+  },
+
+  // Minimal pixel font glyphs (5 tall)
+  glyphs: {
+    'P': [[1,1,1],[1,0,1],[1,1,1],[1,0,0],[1,0,0]],
+    'E': [[1,1,1],[1,0,0],[1,1,0],[1,0,0],[1,1,1]],
+    'Q': [[0,1,0],[1,0,1],[1,0,1],[1,0,1],[0,1,1]],
+    'U': [[1,0,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+    'N': [[1,0,1],[1,1,1],[1,1,1],[1,0,1],[1,0,1]],
+    'O': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+    'A': [[0,1,0],[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    'S': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+    'T': [[1,1,1],[0,1,0],[0,1,0],[0,1,0],[0,1,0]],
+    'R': [[1,1,0],[1,0,1],[1,1,0],[1,0,1],[1,0,1]],
+    'I': [[1,1,1],[0,1,0],[0,1,0],[0,1,0],[1,1,1]],
+    'L': [[1,0,0],[1,0,0],[1,0,0],[1,0,0],[1,1,1]],
+    'D': [[1,1,0],[1,0,1],[1,0,1],[1,0,1],[1,1,0]],
+    'C': [[0,1,1],[1,0,0],[1,0,0],[1,0,0],[0,1,1]],
+    'M': [[1,0,1],[1,1,1],[1,1,1],[1,0,1],[1,0,1]],
+    'V': [[1,0,1],[1,0,1],[1,0,1],[0,1,0],[0,1,0]],
+    'J': [[0,0,1],[0,0,1],[0,0,1],[1,0,1],[0,1,0]],
+    'G': [[0,1,1],[1,0,0],[1,0,1],[1,0,1],[0,1,1]],
+    'F': [[1,1,1],[1,0,0],[1,1,0],[1,0,0],[1,0,0]],
+    'H': [[1,0,1],[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    'B': [[1,1,0],[1,0,1],[1,1,0],[1,0,1],[1,1,0]],
+    'K': [[1,0,1],[1,1,0],[1,0,0],[1,1,0],[1,0,1]],
+    'W': [[1,0,1],[1,0,1],[1,1,1],[1,1,1],[1,0,1]],
+    'X': [[1,0,1],[0,1,0],[0,1,0],[0,1,0],[1,0,1]],
+    'Y': [[1,0,1],[1,0,1],[0,1,0],[0,1,0],[0,1,0]],
+    'Z': [[1,1,1],[0,0,1],[0,1,0],[1,0,0],[1,1,1]],
+    '0': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+    '1': [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
+    '2': [[1,1,1],[0,0,1],[1,1,1],[1,0,0],[1,1,1]],
+    '3': [[1,1,1],[0,0,1],[1,1,1],[0,0,1],[1,1,1]],
+    '4': [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+    '5': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+    '6': [[1,1,1],[1,0,0],[1,1,1],[1,0,1],[1,1,1]],
+    '7': [[1,1,1],[0,0,1],[0,0,1],[0,1,0],[0,1,0]],
+    '8': [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,1,1]],
+    '9': [[1,1,1],[1,0,1],[1,1,1],[0,0,1],[1,1,1]],
+    '/': [[0,0,1],[0,0,1],[0,1,0],[1,0,0],[1,0,0]],
+    ':': [[0],[1],[0],[1],[0]],
+    '+': [[0,0,0],[0,1,0],[1,1,1],[0,1,0],[0,0,0]],
+    '-': [[0,0,0],[0,0,0],[1,1,1],[0,0,0],[0,0,0]],
+    '.': [[0],[0],[0],[0],[1]],
+    '%': [[1,0,1],[0,0,1],[0,1,0],[1,0,0],[1,0,1]]
+  },
+
   // --- Panel ---
   panel: function(ctx, x, y, w, h, alpha) {
     ctx.save();
-    ctx.globalAlpha = alpha || 0.85;
-    ctx.fillStyle = '#1a1a2e';
+    ctx.globalAlpha = alpha || 0.9;
+    ctx.fillStyle = '#0f0f20';
     ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 12);
+    ctx.roundRect(x, y, w, h, 4);
     ctx.fill();
     ctx.strokeStyle = '#4fc3f7';
     ctx.lineWidth = 2;
@@ -38,18 +108,15 @@ Game.UI = {
 
   // --- Button ---
   button: function(ctx, text, x, y, w, h, isHovered, color) {
-    var bgColor = isHovered ? (color || '#4fc3f7') : '#2a2a4a';
-    var textColor = isHovered ? '#1a1a2e' : '#fff';
+    var bgColor = isHovered ? (color || '#4fc3f7') : '#1a1a30';
+    var textColor = isHovered ? '#0a0a15' : '#fff';
 
     ctx.save();
     ctx.fillStyle = bgColor;
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 8);
-    ctx.fill();
-
+    ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = color || '#4fc3f7';
     ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.strokeRect(x, y, w, h);
 
     ctx.fillStyle = textColor;
     ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
@@ -67,63 +134,150 @@ Game.UI = {
     return m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
   },
 
-  // --- HUD ---
-  renderHUD: function(ctx, data) {
-    // HP Bar (top-left)
-    if (data.hp !== undefined) {
-      // Heart icon
-      ctx.fillStyle = '#f44336';
-      ctx.font = '16px Arial';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('\u2665', 15, 25);
+  // --- Flight HUD ---
+  renderFlightHUD: function(ctx, rocket, saveData) {
+    // Fuel bar (left side, vertical)
+    var fuelBarX = 16;
+    var fuelBarY = 60;
+    var fuelBarW = 20;
+    var fuelBarH = 200;
+    var fuelPct = Math.max(0, rocket.fuel / rocket.maxFuel);
 
-      Game.Draw.hpBar(ctx, 35, 18, 120, 14, data.hp, data.maxHp);
+    // Fuel label
+    this.textBold(ctx, 'FUEL', fuelBarX + fuelBarW / 2, fuelBarY - 18, 10, '#4fc3f7', 'center');
 
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(Math.ceil(data.hp) + '/' + data.maxHp, 95, 25);
-      ctx.textAlign = 'left';
+    // Bar background
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(fuelBarX, fuelBarY, fuelBarW, fuelBarH);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fuelBarX, fuelBarY, fuelBarW, fuelBarH);
+
+    // Fuel fill (bottom to top)
+    var fillH = fuelBarH * fuelPct;
+    var fuelColor = fuelPct > 0.3 ? '#4caf50' : (fuelPct > 0.15 ? '#ff9800' : '#f44336');
+    ctx.fillStyle = fuelColor;
+    ctx.fillRect(fuelBarX + 1, fuelBarY + fuelBarH - fillH, fuelBarW - 2, fillH);
+
+    // Fuel text
+    this.text(ctx, Math.ceil(rocket.fuel), fuelBarX + fuelBarW / 2, fuelBarY + fuelBarH + 5, 11, '#fff', 'center');
+
+    // HP bar (below fuel)
+    var hpBarY = fuelBarY + fuelBarH + 25;
+    var hpPct = Math.max(0, rocket.hp / rocket.maxHp);
+    this.textBold(ctx, 'HP', fuelBarX + fuelBarW / 2, hpBarY - 14, 10, '#f44336', 'center');
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(fuelBarX, hpBarY, fuelBarW, 80);
+    ctx.strokeStyle = '#333';
+    ctx.strokeRect(fuelBarX, hpBarY, fuelBarW, 80);
+    var hpFillH = 80 * hpPct;
+    ctx.fillStyle = hpPct > 0.3 ? '#f44336' : '#880000';
+    ctx.fillRect(fuelBarX + 1, hpBarY + 80 - hpFillH, fuelBarW - 2, hpFillH);
+
+    // Altimeter (right side)
+    var altX = Game.CANVAS_W - 50;
+    var altY = 60;
+    var altH = 280;
+
+    this.textBold(ctx, 'ALT', altX + 15, altY - 18, 10, '#4fc3f7', 'center');
+
+    // Determine target altitude from current planet
+    var currentPlanetIdx = saveData.currentPlanet;
+    var targetAlt = 0;
+    if (currentPlanetIdx < Game.PlanetData.length - 1) {
+      targetAlt = Game.PlanetData[currentPlanetIdx + 1].altitude;
+    } else {
+      targetAlt = 50000; // Beyond Pluto
+    }
+    var startAlt = Game.PlanetData[currentPlanetIdx].altitude;
+    var altProgress = Math.min(1, (rocket.altitude) / (targetAlt - startAlt));
+
+    // Altimeter bar
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(altX, altY, 30, altH);
+    ctx.strokeStyle = '#333';
+    ctx.strokeRect(altX, altY, 30, altH);
+
+    // Fill
+    var altFillH = altH * altProgress;
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillRect(altX + 1, altY + altH - altFillH, 28, altFillH);
+
+    // Target planet marker
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(altX - 5, altY - 1, 40, 3);
+
+    // Current altitude number
+    var dispAlt = Math.floor(rocket.altitude + startAlt);
+    this.text(ctx, dispAlt + 'm', altX + 15, altY + altH + 5, 10, '#aaa', 'center');
+
+    // Next planet name
+    if (currentPlanetIdx < Game.PlanetData.length - 1) {
+      var nextPlanet = Game.PlanetData[currentPlanetIdx + 1];
+      this.text(ctx, nextPlanet.name, altX + 15, altY - 32, 9, '#ffd700', 'center');
     }
 
-    // Coins (top-right)
-    if (data.coins !== undefined) {
-      Game.Draw.coin(ctx, Game.CANVAS_W - 80, 22, performance.now() / 1000);
-      Game.UI.textBold(ctx, '' + data.coins, Game.CANVAS_W - 60, 15, 16, '#ffd700', 'left');
-    }
+    // Coins (top right)
+    var coinFrame = Math.floor(Game.time * 6) % 4;
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W - 120, 12, 2);
+    this.textBold(ctx, '' + saveData.coins, Game.CANVAS_W - 100, 15, 16, '#ffd700', 'left');
 
-    // State label (top-center)
-    if (data.label) {
-      Game.UI.textBold(ctx, data.label, Game.CANVAS_W / 2, 10, 14, '#4fc3f7', 'center');
-    }
+    // Planet name (top center)
+    var planetName = Game.PlanetData[currentPlanetIdx].name;
+    this.textBold(ctx, 'Saindo de ' + planetName, Game.CANVAS_W / 2, 10, 14, '#4fc3f7', 'center');
 
-    // Wave info
-    if (data.wave) {
-      Game.UI.text(ctx, 'Onda ' + data.wave + '/' + data.totalWaves + ' - Aliens: ' + data.enemiesLeft,
-        Game.CANVAS_W / 2, 30, 12, '#aaa', 'center');
+    // Parachute warning
+    if (rocket.parachute) {
+      var blink = Math.sin(Game.time * 6) > 0;
+      if (blink) {
+        this.textBold(ctx, 'PARAQUEDAS ATIVADO', Game.CANVAS_W / 2, 35, 16, '#f44336', 'center');
+      }
+    } else if (rocket.fuel < 10 && rocket.fuel > 0) {
+      var blink2 = Math.sin(Game.time * 8) > 0;
+      if (blink2) {
+        this.textBold(ctx, 'FUEL BAIXO!', Game.CANVAS_W / 2, 35, 14, '#ff9800', 'center');
+      }
     }
+  },
+
+  // --- Planet Explore HUD ---
+  renderExploreHUD: function(ctx, saveData) {
+    var planet = Game.PlanetData[saveData.currentPlanet];
+
+    // Planet name (top center)
+    this.textBold(ctx, planet.name, Game.CANVAS_W / 2, 10, 18, '#fff', 'center');
+
+    // Coins (top right)
+    var coinFrame = Math.floor(Game.time * 6) % 4;
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W - 120, 12, 2);
+    this.textBold(ctx, '' + saveData.coins, Game.CANVAS_W - 100, 15, 16, '#ffd700', 'left');
+
+    // Fuel indicator (top left)
+    this.text(ctx, 'Fuel: ' + Math.ceil(saveData.fuel) + '/' + Game.getRocketStats(saveData).maxFuel, 15, 12, 13, '#4caf50');
+
+    // Controls hint (bottom)
+    this.text(ctx, 'WASD: Mover | ESPACO: Pular | E: Interagir | ESC: Menu', Game.CANVAS_W / 2, Game.CANVAS_H - 25, 11, 'rgba(255,255,255,0.4)', 'center');
   },
 
   // --- Pause Overlay ---
   renderPause: function(ctx) {
     ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
     ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
 
-    Game.UI.textBold(ctx, 'PAUSADO', Game.CANVAS_W / 2, Game.CANVAS_H / 2 - 50, 40, '#fff', 'center', 'middle');
-    Game.UI.text(ctx, 'Pressione ESC para continuar', Game.CANVAS_W / 2, Game.CANVAS_H / 2 + 10, 16, '#aaa', 'center', 'middle');
+    this.textBold(ctx, 'PAUSADO', Game.CANVAS_W / 2, Game.CANVAS_H / 2 - 60, 40, '#fff', 'center', 'middle');
+    this.text(ctx, 'ESC para continuar', Game.CANVAS_W / 2, Game.CANVAS_H / 2 - 10, 16, '#aaa', 'center', 'middle');
 
     var btnW = 200, btnH = 40;
     var btnX = Game.CANVAS_W / 2 - btnW / 2;
-    var btnY = Game.CANVAS_H / 2 + 50;
-    var hovered = Game.UI.isMouseInRect(btnX, btnY, btnW, btnH);
+    var btnY = Game.CANVAS_H / 2 + 30;
+    var hovered = this.isMouseInRect(btnX, btnY, btnW, btnH);
 
-    Game.UI.button(ctx, 'Voltar ao Hub', btnX, btnY, btnW, btnH, hovered, '#ff6b35');
+    this.button(ctx, 'Voltar ao Menu', btnX, btnY, btnW, btnH, hovered, '#ff6b35');
 
     if (hovered && Game.Input.mouse.clicked) {
       Game.paused = false;
-      Game.changeState(Game.States.HUB);
+      Game.changeState(Game.States.MENU);
     }
 
     ctx.restore();
@@ -138,9 +292,7 @@ Game.UI = {
   },
 
   updateDialog: function(dt) {
-    if (this.dialog.timer > 0) {
-      this.dialog.timer -= dt;
-    }
+    if (this.dialog.timer > 0) this.dialog.timer -= dt;
   },
 
   renderDialog: function(ctx) {
@@ -150,261 +302,294 @@ Game.UI = {
     ctx.save();
     ctx.globalAlpha = alpha;
 
-    var w = 400, h = 40;
+    var w = 420, h = 36;
     var x = Game.CANVAS_W / 2 - w / 2;
-    var y = Game.CANVAS_H - 70;
+    var y = Game.CANVAS_H - 60;
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, 8);
-    ctx.fill();
-
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = '#4fc3f7';
     ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.strokeRect(x, y, w, h);
 
-    Game.UI.textBold(ctx, this.dialog.text, Game.CANVAS_W / 2, y + h / 2, 14, '#fff', 'center', 'middle');
-
+    this.textBold(ctx, this.dialog.text, Game.CANVAS_W / 2, y + h / 2, 13, '#fff', 'center', 'middle');
     ctx.restore();
   }
 };
 
-// --- Shop UI ---
+// ===========================
+// SHOP UI (3 tabs: Parts, Fuel, Skins)
+// ===========================
 Game.ShopUI = {
-  upgrades: [
-    { key: 'hp', name: 'Escudo', cost: 50, icon: 'shield', desc: '+25 HP', color: '#4caf50', maxLevel: 5 },
-    { key: 'dmg', name: 'Dano', cost: 75, icon: 'sword', desc: '+5 Dano', color: '#f44336', maxLevel: 5 },
-    { key: 'speed', name: 'Velocidade', cost: 60, icon: 'boot', desc: '+20% Vel', color: '#2196f3', maxLevel: 5 },
-    { key: 'fireRate', name: 'Cadencia', cost: 80, icon: 'bullet', desc: '-50ms Cooldown', color: '#ff9800', maxLevel: 5 }
-  ],
+  tab: 0, // 0=parts, 1=fuel, 2=skins
+
+  open: function() {
+    Game.subState = Game.SubStates.SHOP;
+    this.tab = 0;
+  },
+
+  close: function() {
+    Game.subState = Game.SubStates.NONE;
+  },
+
+  update: function(dt) {
+    if (Game.Input.wasPressed('Escape') || Game.Input.wasPressed('e') || Game.Input.wasPressed('E')) {
+      this.close();
+      // Consume the key press so planet scene doesn't also process it
+      Game.Input.justPressed['e'] = false;
+      Game.Input.justPressed['E'] = false;
+      Game.Input.justPressed['Escape'] = false;
+      return;
+    }
+  },
 
   render: function(ctx, saveData) {
-    var panelW = 560, panelH = 340;
+    var panelW = 600, panelH = 380;
     var panelX = (Game.CANVAS_W - panelW) / 2;
     var panelY = (Game.CANVAS_H - panelH) / 2;
 
     Game.UI.panel(ctx, panelX, panelY, panelW, panelH);
 
     // Title
-    Game.UI.textBold(ctx, 'LOJA DE UPGRADES', Game.CANVAS_W / 2, panelY + 20, 22, '#4fc3f7', 'center');
+    Game.UI.textBold(ctx, 'LOJA', Game.CANVAS_W / 2, panelY + 15, 22, '#ffd700', 'center');
 
-    // Coins display
-    Game.Draw.coin(ctx, Game.CANVAS_W / 2 - 50, panelY + 52, performance.now() / 1000);
-    Game.UI.textBold(ctx, '' + saveData.coins, Game.CANVAS_W / 2 - 35, panelY + 45, 16, '#ffd700', 'left');
+    // Coins
+    var coinFrame = Math.floor(Game.time * 6) % 4;
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W / 2 - 55, panelY + 40, 2);
+    Game.UI.textBold(ctx, '' + saveData.coins, Game.CANVAS_W / 2 - 35, panelY + 40, 16, '#ffd700', 'left');
 
-    // Cards 2x2
-    var cardW = 230, cardH = 100;
-    var startX = panelX + 30;
-    var startY = panelY + 75;
-    var gapX = 270, gapY = 115;
+    // Tab buttons
+    var tabNames = ['Pecas', 'Fuel', 'Skins'];
+    var tabColors = ['#4fc3f7', '#4caf50', '#9c27b0'];
+    var tabW = 120, tabH = 30;
+    var tabStartX = panelX + (panelW - tabNames.length * (tabW + 10)) / 2;
+    var tabY = panelY + 65;
 
-    for (var i = 0; i < this.upgrades.length; i++) {
-      var u = this.upgrades[i];
+    for (var t = 0; t < tabNames.length; t++) {
+      var tx = tabStartX + t * (tabW + 10);
+      var isActive = this.tab === t;
+      var tabHovered = Game.UI.isMouseInRect(tx, tabY, tabW, tabH);
+
+      ctx.fillStyle = isActive ? tabColors[t] : (tabHovered ? '#2a2a4a' : '#151525');
+      ctx.fillRect(tx, tabY, tabW, tabH);
+      ctx.strokeStyle = tabColors[t];
+      ctx.lineWidth = isActive ? 2 : 1;
+      ctx.strokeRect(tx, tabY, tabW, tabH);
+
+      ctx.fillStyle = isActive ? '#0a0a15' : '#fff';
+      ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tabNames[t], tx + tabW / 2, tabY + tabH / 2);
+
+      if (tabHovered && Game.Input.mouse.clicked) {
+        this.tab = t;
+      }
+    }
+
+    // Tab content area
+    var contentY = tabY + tabH + 15;
+    var contentH = panelH - (contentY - panelY) - 30;
+
+    if (this.tab === 0) {
+      this.renderPartsTab(ctx, saveData, panelX, contentY, panelW, contentH);
+    } else if (this.tab === 1) {
+      this.renderFuelTab(ctx, saveData, panelX, contentY, panelW, contentH);
+    } else {
+      this.renderSkinsTab(ctx, saveData, panelX, contentY, panelW, contentH);
+    }
+
+    // Close hint
+    Game.UI.text(ctx, 'ESC ou E para fechar', Game.CANVAS_W / 2, panelY + panelH - 20, 11, '#555', 'center');
+  },
+
+  renderPartsTab: function(ctx, saveData, px, py, pw, ph) {
+    var parts = Game.ShopData.parts;
+    var cardW = 260, cardH = 90;
+    var startX = px + 20;
+    var gapX = 280, gapY = 100;
+
+    // Check which parts are available on this planet
+    var planet = Game.PlanetData[saveData.currentPlanet];
+
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i];
       var col = i % 2;
       var row = Math.floor(i / 2);
       var cx = startX + col * gapX;
-      var cy = startY + row * gapY;
-      var level = saveData.upgrades[u.key] || 0;
-      var maxed = level >= u.maxLevel;
-      var cost = u.cost * (level + 1); // Scaling cost
+      var cy = py + row * gapY;
+      var level = saveData.rocketParts[part.key] || 0;
+      var maxed = level >= part.maxLevel;
+      var cost = Game.ShopData.getPartCost(part.key, level);
       var canBuy = !maxed && saveData.coins >= cost;
-      var hovered = Game.UI.isMouseInRect(cx, cy, cardW, cardH);
+      var available = planet.shopItems.indexOf(part.key) !== -1;
+      var hovered = available && Game.UI.isMouseInRect(cx, cy, cardW, cardH);
 
       // Card background
-      ctx.save();
-      ctx.fillStyle = hovered && canBuy ? '#2a2a4a' : '#1e1e38';
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, cardW, cardH, 8);
-      ctx.fill();
-      ctx.strokeStyle = hovered && canBuy ? u.color : '#333';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
+      ctx.fillStyle = !available ? '#0d0d18' : (hovered && canBuy ? '#252540' : '#15152a');
+      ctx.fillRect(cx, cy, cardW, cardH);
+      ctx.strokeStyle = !available ? '#222' : (hovered && canBuy ? part.color : '#333');
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx, cy, cardW, cardH);
 
-      // Icon
-      this.renderIcon(ctx, u.icon, cx + 25, cy + 35, u.color);
+      // Color bar left
+      ctx.fillStyle = available ? part.color : '#333';
+      ctx.fillRect(cx, cy, 5, cardH);
 
       // Name + level
-      Game.UI.textBold(ctx, u.name, cx + 55, cy + 15, 16, '#fff');
-      Game.UI.text(ctx, 'Nivel ' + level + '/' + u.maxLevel, cx + 55, cy + 35, 12, '#aaa');
-      Game.UI.text(ctx, u.desc, cx + 55, cy + 55, 12, u.color);
+      Game.UI.textBold(ctx, part.name, cx + 15, cy + 10, 15, available ? '#fff' : '#555');
+      Game.UI.text(ctx, 'Nivel ' + level + '/' + part.maxLevel, cx + 15, cy + 30, 11, available ? '#aaa' : '#444');
+      Game.UI.text(ctx, part.desc + '/nivel', cx + 15, cy + 48, 11, available ? part.color : '#444');
 
-      // Cost or MAX
-      if (maxed) {
-        Game.UI.textBold(ctx, 'MAX', cx + cardW - 40, cy + 40, 14, '#ffd700', 'center', 'middle');
+      // Level pips
+      for (var lv = 0; lv < part.maxLevel; lv++) {
+        ctx.fillStyle = lv < level ? part.color : '#333';
+        ctx.fillRect(cx + 15 + lv * 18, cy + 66, 14, 6);
+      }
+
+      // Cost / status
+      if (!available) {
+        Game.UI.text(ctx, 'Indisponivel', cx + cardW - 65, cy + 35, 11, '#555', 'center', 'middle');
+      } else if (maxed) {
+        Game.UI.textBold(ctx, 'MAX', cx + cardW - 40, cy + 35, 14, '#ffd700', 'center', 'middle');
       } else {
-        Game.UI.textBold(ctx, cost + '$', cx + cardW - 40, cy + 35, 14,
-          canBuy ? '#ffd700' : '#666', 'center');
+        Game.UI.textBold(ctx, cost + '$', cx + cardW - 45, cy + 30, 14, canBuy ? '#ffd700' : '#666', 'center');
         if (canBuy) {
-          Game.UI.text(ctx, 'Clique', cx + cardW - 40, cy + 55, 10, '#4fc3f7', 'center');
+          Game.UI.text(ctx, 'Comprar', cx + cardW - 45, cy + 50, 10, '#4fc3f7', 'center');
         }
       }
 
-      // Handle click
+      // Click to buy
       if (hovered && canBuy && Game.Input.mouse.clicked) {
         saveData.coins -= cost;
-        saveData.upgrades[u.key] = level + 1;
+        saveData.rocketParts[part.key] = level + 1;
         Game.Save.save(saveData);
-        Game.spawnParticles(cx + cardW / 2, cy + cardH / 2, 10, u.color);
+        Game.spawnParticles(cx + cardW / 2, cy + cardH / 2, 10, part.color);
       }
     }
-
-    // Close hint
-    Game.UI.text(ctx, 'ESC para fechar', Game.CANVAS_W / 2, panelY + panelH - 25, 12, '#666', 'center');
   },
 
-  renderIcon: function(ctx, type, x, y, color) {
-    ctx.save();
-    ctx.fillStyle = color;
+  renderFuelTab: function(ctx, saveData, px, py, pw, ph) {
+    var planet = Game.PlanetData[saveData.currentPlanet];
+    var stats = Game.getRocketStats(saveData);
+    var price = planet.fuelPrice;
 
-    switch (type) {
-      case 'shield':
-        ctx.beginPath();
-        ctx.moveTo(x, y - 12);
-        ctx.lineTo(x + 10, y - 6);
-        ctx.lineTo(x + 10, y + 4);
-        ctx.lineTo(x, y + 12);
-        ctx.lineTo(x - 10, y + 4);
-        ctx.lineTo(x - 10, y - 6);
-        ctx.closePath();
-        ctx.fill();
-        break;
-      case 'sword':
-        ctx.fillRect(x - 2, y - 14, 4, 20);
-        ctx.fillRect(x - 8, y - 2, 16, 4);
-        ctx.fillStyle = '#8d6e63';
-        ctx.fillRect(x - 3, y + 6, 6, 8);
-        break;
-      case 'boot':
-        ctx.fillRect(x - 6, y - 10, 8, 16);
-        ctx.fillRect(x - 6, y + 4, 14, 6);
-        break;
-      case 'bullet':
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(x - 3, y, 6, 12);
-        ctx.fillStyle = '#b8860b';
-        ctx.fillRect(x - 4, y + 8, 8, 4);
-        break;
+    // Current fuel display
+    var fuelPct = saveData.fuel / stats.maxFuel;
+    var barX = px + 80;
+    var barY = py + 20;
+    var barW = pw - 160;
+    var barH = 30;
+
+    Game.UI.textBold(ctx, 'Tanque: ' + Math.ceil(saveData.fuel) + '/' + stats.maxFuel, Game.CANVAS_W / 2, barY - 5, 14, '#fff', 'center', 'middle');
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(barX, barY + 15, barW, barH);
+    ctx.strokeStyle = '#333';
+    ctx.strokeRect(barX, barY + 15, barW, barH);
+
+    var fuelColor = fuelPct > 0.3 ? '#4caf50' : (fuelPct > 0.15 ? '#ff9800' : '#f44336');
+    ctx.fillStyle = fuelColor;
+    ctx.fillRect(barX + 1, barY + 16, (barW - 2) * fuelPct, barH - 2);
+
+    // Buy options
+    var options = [
+      { amount: 10, label: '+10 Fuel' },
+      { amount: 25, label: '+25 Fuel' },
+      { amount: 50, label: '+50 Fuel' },
+      { amount: stats.maxFuel - saveData.fuel, label: 'Tanque Cheio' }
+    ];
+
+    var optY = barY + 65;
+    var optW = 120, optH = 60;
+    var optStartX = px + (pw - options.length * (optW + 15)) / 2;
+
+    for (var i = 0; i < options.length; i++) {
+      var opt = options[i];
+      if (opt.amount <= 0) continue;
+
+      var actualAmount = Math.min(opt.amount, stats.maxFuel - saveData.fuel);
+      if (actualAmount <= 0) continue;
+
+      var totalCost = Math.ceil(actualAmount * price);
+      var ox = optStartX + i * (optW + 15);
+      var canBuy = saveData.coins >= totalCost && actualAmount > 0;
+      var hovered = Game.UI.isMouseInRect(ox, optY, optW, optH);
+
+      ctx.fillStyle = hovered && canBuy ? '#1a2e1a' : '#15152a';
+      ctx.fillRect(ox, optY, optW, optH);
+      ctx.strokeStyle = hovered && canBuy ? '#4caf50' : '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ox, optY, optW, optH);
+
+      Game.UI.textBold(ctx, opt.label, ox + optW / 2, optY + 15, 12, '#fff', 'center');
+      Game.UI.textBold(ctx, totalCost + '$', ox + optW / 2, optY + 35, 14, canBuy ? '#ffd700' : '#666', 'center');
+
+      if (hovered && canBuy && Game.Input.mouse.clicked) {
+        saveData.coins -= totalCost;
+        saveData.fuel = Math.min(saveData.fuel + actualAmount, stats.maxFuel);
+        Game.Save.save(saveData);
+        Game.spawnParticles(ox + optW / 2, optY + optH / 2, 8, '#4caf50');
+      }
     }
-    ctx.restore();
-  }
-};
 
-// --- Starmap UI ---
-Game.StarmapUI = {
-  planets: [
-    { name: 'Planeta Verde', color: '#4caf50', bgColor: '#1a2e1a', level: 0 },
-    { name: 'Planeta Vermelho', color: '#f44336', bgColor: '#2e1a1a', level: 1 },
-    { name: 'Planeta Roxo', color: '#9c27b0', bgColor: '#2a1a2e', level: 2 }
-  ],
+    // Price info
+    Game.UI.text(ctx, 'Preco por unidade: ' + price + ' moedas (planeta ' + planet.name + ')', Game.CANVAS_W / 2, optY + 80, 11, '#666', 'center');
+  },
 
-  render: function(ctx, saveData) {
-    var panelW = 600, panelH = 300;
-    var panelX = (Game.CANVAS_W - panelW) / 2;
-    var panelY = (Game.CANVAS_H - panelH) / 2;
+  renderSkinsTab: function(ctx, saveData, px, py, pw, ph) {
+    var skins = Game.ShopData.skins;
+    var cardW = 100, cardH = 100;
+    var startX = px + (pw - skins.length * (cardW + 10)) / 2;
 
-    Game.UI.panel(ctx, panelX, panelY, panelW, panelH);
+    for (var i = 0; i < skins.length; i++) {
+      var skin = skins[i];
+      var cx = startX + i * (cardW + 10);
+      var cy = py + 20;
+      var owned = saveData.unlockedSkins.indexOf(skin.key) !== -1;
+      var equipped = saveData.shotSkin === skin.key;
+      var canBuy = !owned && saveData.coins >= skin.cost;
+      var hovered = Game.UI.isMouseInRect(cx, cy, cardW, cardH);
 
-    // Title
-    Game.UI.textBold(ctx, 'MAPA ESTELAR', Game.CANVAS_W / 2, panelY + 20, 22, '#4fc3f7', 'center');
+      // Card
+      ctx.fillStyle = equipped ? '#1a2e1a' : (hovered ? '#252540' : '#15152a');
+      ctx.fillRect(cx, cy, cardW, cardH);
+      ctx.strokeStyle = equipped ? '#4caf50' : (hovered ? skin.color : '#333');
+      ctx.lineWidth = equipped ? 2 : 1;
+      ctx.strokeRect(cx, cy, cardW, cardH);
 
-    // Draw line connecting planets
-    ctx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(panelX + 110, panelY + 160);
-    ctx.lineTo(panelX + panelW - 110, panelY + 160);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Planets
-    var spacing = panelW / 4;
-    for (var i = 0; i < this.planets.length; i++) {
-      var p = this.planets[i];
-      var px = panelX + spacing * (i + 1);
-      var py = panelY + 150;
-      var radius = 40;
-
-      var cleared = saveData.planetsCleared.indexOf(p.level) !== -1;
-      var locked = p.level > 0 && saveData.planetsCleared.indexOf(p.level - 1) === -1;
-      var hovered = !locked && Game.Collision.pointCircle(Game.Input.mouse.x, Game.Input.mouse.y,
-        { x: px, y: py, radius: radius });
-
-      // Planet glow
-      if (hovered && !locked) {
-        ctx.beginPath();
-        ctx.arc(px, py, radius + 8, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(79, 195, 247, 0.2)';
-        ctx.fill();
-      }
-
-      // Planet circle
-      ctx.beginPath();
-      ctx.arc(px, py, radius, 0, Math.PI * 2);
-      ctx.fillStyle = locked ? '#333' : p.color;
-      ctx.fill();
-
-      if (!locked) {
-        ctx.strokeStyle = hovered ? '#fff' : 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = hovered ? 3 : 1;
-        ctx.stroke();
-      }
-
-      // Planet surface details
-      if (!locked) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(px, py, radius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.globalAlpha = 0.2;
-        ctx.beginPath();
-        ctx.arc(px - 10, py - 5, 20, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(px + 15, py + 10, 12, 0, Math.PI * 2);
-        ctx.fillStyle = '#000';
-        ctx.fill();
-        ctx.restore();
-      }
+      // Shot preview (colored rectangle)
+      ctx.fillStyle = skin.color;
+      ctx.fillRect(cx + cardW / 2 - 3, cy + 15, 6, 20);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(cx + cardW / 2 - 1, cy + 18, 2, 14);
 
       // Name
-      Game.UI.textBold(ctx, p.name, px, py + 55, 13, locked ? '#555' : '#fff', 'center');
+      Game.UI.textBold(ctx, skin.name, cx + cardW / 2, cy + 48, 12, '#fff', 'center');
 
-      // Difficulty stars
-      var diffText = '';
-      for (var s = 0; s <= p.level; s++) diffText += '\u2605';
-      Game.UI.text(ctx, diffText, px, py + 72, 12, locked ? '#555' : '#ff9800', 'center');
-
-      // Cleared checkmark
-      if (cleared) {
-        ctx.fillStyle = '#4caf50';
-        ctx.font = 'bold 24px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('\u2713', px, py);
+      // Status
+      if (equipped) {
+        Game.UI.text(ctx, 'Equipado', cx + cardW / 2, cy + 68, 10, '#4caf50', 'center');
+      } else if (owned) {
+        Game.UI.text(ctx, 'Equipar', cx + cardW / 2, cy + 68, 10, '#4fc3f7', 'center');
+      } else {
+        Game.UI.textBold(ctx, skin.cost + '$', cx + cardW / 2, cy + 66, 12, canBuy ? '#ffd700' : '#666', 'center');
+        if (canBuy) Game.UI.text(ctx, 'Comprar', cx + cardW / 2, cy + 82, 10, '#4fc3f7', 'center');
       }
 
-      // Lock icon
-      if (locked) {
-        ctx.fillStyle = '#666';
-        ctx.font = '24px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('\uD83D\uDD12', px, py);
-      }
-
-      // Click to select planet
-      if (hovered && !locked && Game.Input.mouse.clicked) {
-        Game.selectedPlanet = p.level;
-        Game.changeState(Game.States.SPACE_TRAVEL, { planetLevel: p.level });
+      // Click
+      if (hovered && Game.Input.mouse.clicked) {
+        if (owned && !equipped) {
+          saveData.shotSkin = skin.key;
+          Game.Save.save(saveData);
+        } else if (canBuy) {
+          saveData.coins -= skin.cost;
+          saveData.unlockedSkins.push(skin.key);
+          saveData.shotSkin = skin.key;
+          Game.Save.save(saveData);
+          Game.spawnParticles(cx + cardW / 2, cy + cardH / 2, 10, skin.color);
+        }
       }
     }
-
-    // Close hint
-    Game.UI.text(ctx, 'ESC para fechar', Game.CANVAS_W / 2, panelY + panelH - 25, 12, '#666', 'center');
   }
 };

@@ -1,5 +1,6 @@
 // ============================================
-// scenes.js - All game scenes: Menu, Hub, SpaceTravel, Planet
+// scenes.js - MENU, FLIGHT, PLANET_EXPLORE
+// Pequeno Astronauta v2.0 - Pixel Art Edition
 // ============================================
 
 window.Game = window.Game || {};
@@ -11,376 +12,186 @@ Game.scenes = Game.scenes || {};
 Game.scenes.MENU = {
   starfield: null,
   time: 0,
-  titleChars: 'PEQUENO ASTRONAUTA'.split(''),
   btnBounds: null,
+  flameFrame: 0,
+  flameTimer: 0,
 
   enter: function() {
-    this.starfield = new Game.Starfield(150);
+    this.starfield = new Game.Starfield(200);
     this.time = 0;
+    this.flameFrame = 0;
+    this.flameTimer = 0;
   },
 
   update: function(dt) {
     this.time += dt;
-    this.starfield.update(dt);
+    this.starfield.update(dt, 'down');
 
-    // Click "Jogar" or press Space/Enter
+    // Flame anim
+    this.flameTimer += dt;
+    if (this.flameTimer > 0.1) { this.flameTimer = 0; this.flameFrame = (this.flameFrame + 1) % 3; }
+
+    // Start game
     if (Game.Input.wasPressed(' ') || Game.Input.wasPressed('Enter')) {
-      Game.changeState(Game.States.HUB);
+      this.startGame();
     }
 
     if (this.btnBounds && Game.Input.mouse.clicked) {
       if (Game.UI.isMouseInRect(this.btnBounds.x, this.btnBounds.y, this.btnBounds.w, this.btnBounds.h)) {
-        Game.changeState(Game.States.HUB);
+        this.startGame();
       }
     }
   },
 
+  startGame: function() {
+    Game.saveData = Game.Save.load();
+    if (Game.saveData.currentPlanet > 0 || Game.saveData.coins > 50) {
+      // Continue - go to planet
+      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+    } else {
+      // New game - go to Terra
+      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: 0 });
+    }
+  },
+
   render: function(ctx) {
-    // Starfield
+    // Dark sky gradient
+    var grad = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
+    grad.addColorStop(0, '#050510');
+    grad.addColorStop(0.6, '#0a0a2a');
+    grad.addColorStop(1, '#1a3a5c');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+
+    // Stars
     this.starfield.render(ctx);
 
-    // Title with color cycling
-    var titleY = 140 + Math.sin(this.time * 1.5) * 8;
-    ctx.save();
-    ctx.font = 'bold 48px "Segoe UI", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    // Terra ground at bottom
+    var groundY = Game.CANVAS_H - 60;
+    ctx.fillStyle = '#3a7d2e';
+    ctx.fillRect(0, groundY, Game.CANVAS_W, 60);
+    ctx.fillStyle = '#5cb85c';
+    ctx.fillRect(0, groundY, Game.CANVAS_W, 3);
+    ctx.fillStyle = '#2d6323';
+    ctx.fillRect(0, groundY + 10, Game.CANVAS_W, 50);
 
-    // Measure total width for centering
-    var fullText = this.titleChars.join('');
-    var totalW = ctx.measureText(fullText).width;
-    var startX = Game.CANVAS_W / 2 - totalW / 2;
+    // Pixel title "PEQUENO ASTRONAUTA"
+    var titleY = 80 + Math.sin(this.time * 1.5) * 5;
+    var titleScale = 4;
 
-    var charX = startX;
-    for (var i = 0; i < this.titleChars.length; i++) {
-      var ch = this.titleChars[i];
-      var hue = (this.time * 40 + i * 20) % 360;
-      ctx.fillStyle = 'hsl(' + hue + ', 80%, 70%)';
-      ctx.textAlign = 'left';
-      ctx.fillText(ch, charX, titleY);
-      charX += ctx.measureText(ch).width;
-    }
-    ctx.restore();
+    // Title with color cycling per character
+    var title1 = 'PEQUENO';
+    var title2 = 'ASTRONAUTA';
+
+    // Draw each character with shifting color
+    this.drawColorTitle(ctx, title1, Game.CANVAS_W / 2, titleY, titleScale);
+    this.drawColorTitle(ctx, title2, Game.CANVAS_W / 2, titleY + titleScale * 7, titleScale);
 
     // Subtitle
-    Game.UI.text(ctx, 'Uma aventura espacial', Game.CANVAS_W / 2, titleY + 40, 18, '#78909c', 'center', 'middle');
+    Game.UI.text(ctx, 'Uma aventura espacial em pixel art', Game.CANVAS_W / 2, titleY + titleScale * 15, 14, '#78909c', 'center');
 
-    // Decorative astronaut
-    Game.Draw.astronaut(ctx, Game.CANVAS_W / 2 - 80, 280 + Math.sin(this.time * 2) * 5, 0, 1.5);
+    // Animated rocket in center
+    var rocketY = 260 + Math.sin(this.time * 2) * 8;
+    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, Game.CANVAS_W / 2, rocketY, 3);
+    Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], Game.CANVAS_W / 2, rocketY + 45, 3);
 
-    // Decorative rocket
-    Game.Draw.rocket(ctx, Game.CANVAS_W / 2 + 80, 270 + Math.sin(this.time * 2 + 1) * 5, 0, 1.5, '#4fc3f7');
-    Game.Draw.rocketFlame(ctx, Game.CANVAS_W / 2 + 80, 270 + Math.sin(this.time * 2 + 1) * 5, 0, 1.5, this.time);
+    // Small astronaut on the ground
+    var astSprite = Math.floor(this.time * 3) % 2 === 0 ? Game.Sprites.astronautIdle : Game.Sprites.astronautWalk1;
+    Game.Pixel.draw(ctx, astSprite, Game.CANVAS_W / 2 + 100, groundY - 32, 2);
 
     // "JOGAR" button
-    var btnW = 180, btnH = 50;
+    var btnW = 160, btnH = 44;
     var btnX = Game.CANVAS_W / 2 - btnW / 2;
-    var btnY = 370;
+    var btnY = 380;
     var hovered = Game.UI.isMouseInRect(btnX, btnY, btnW, btnH);
 
-    // Pulsing glow
-    var pulse = Math.sin(this.time * 3) * 0.15 + 0.85;
+    // Button glow
+    var pulse = Math.sin(this.time * 3) * 0.2 + 0.8;
     ctx.save();
     ctx.globalAlpha = pulse * 0.3;
     ctx.fillStyle = '#4caf50';
-    ctx.beginPath();
-    ctx.roundRect(btnX - 4, btnY - 4, btnW + 8, btnH + 8, 12);
-    ctx.fill();
+    ctx.fillRect(btnX - 4, btnY - 4, btnW + 8, btnH + 8);
     ctx.restore();
 
     this.btnBounds = Game.UI.button(ctx, 'JOGAR', btnX, btnY, btnW, btnH, hovered, '#4caf50');
 
+    // Check for save
+    var save = Game.Save.load();
+    if (save.coins !== 50 || save.currentPlanet > 0) {
+      Game.UI.text(ctx, 'Continuar jogo salvo', Game.CANVAS_W / 2, btnY + btnH + 8, 11, '#666', 'center');
+    }
+
     // Controls hint
-    Game.UI.text(ctx, 'WASD: Mover | Mouse: Mirar/Atirar | E: Interagir | ESC: Pausar',
-      Game.CANVAS_W / 2, Game.CANVAS_H - 40, 12, '#546e7a', 'center');
+    Game.UI.text(ctx, 'WASD: Mover | ESPACO: Pular/Atirar | E: Interagir | ESC: Pausar',
+      Game.CANVAS_W / 2, Game.CANVAS_H - 25, 11, '#3a3a5a', 'center');
 
     // Version
-    Game.UI.text(ctx, 'v1.0', Game.CANVAS_W - 15, Game.CANVAS_H - 20, 10, '#333', 'right');
+    Game.UI.text(ctx, 'v2.0', Game.CANVAS_W - 30, Game.CANVAS_H - 20, 10, '#333', 'right');
+  },
+
+  drawColorTitle: function(ctx, text, centerX, y, scale) {
+    // Calculate total width
+    var totalW = 0;
+    var chars = text.split('');
+    for (var i = 0; i < chars.length; i++) {
+      var glyph = Game.UI.glyphs[chars[i]];
+      if (glyph) totalW += (glyph[0].length + 1) * scale;
+      else totalW += 3 * scale;
+    }
+    totalW -= scale; // Remove last gap
+
+    var cx = centerX - totalW / 2;
+    for (var j = 0; j < chars.length; j++) {
+      var glyph2 = Game.UI.glyphs[chars[j]];
+      if (glyph2) {
+        // Color cycling
+        var hue = (this.time * 60 + j * 30) % 360;
+        var color = 'hsl(' + hue + ', 80%, 70%)';
+        ctx.fillStyle = color;
+        for (var r = 0; r < glyph2.length; r++) {
+          for (var c = 0; c < glyph2[r].length; c++) {
+            if (glyph2[r][c]) {
+              ctx.fillRect(cx + c * scale, y + r * scale, scale, scale);
+            }
+          }
+        }
+        cx += (glyph2[0].length + 1) * scale;
+      } else {
+        cx += 3 * scale;
+      }
+    }
   },
 
   exit: function() {}
 };
 
 // ===========================
-// HUB SCENE
+// FLIGHT SCENE (vertical)
 // ===========================
-Game.scenes.HUB = {
-  player: null,
+Game.scenes.FLIGHT = {
+  rocket: null,
   starfield: null,
   time: 0,
-  rocketPos: { x: 650, y: 250 },
-  nearRocket: false,
-  decorations: [],
-
-  enter: function() {
-    this.starfield = new Game.Starfield(100);
-    this.player = new Game.Player();
-    this.player.x = 250;
-    this.player.y = 350;
-    this.player.initStats(Game.saveData);
-    this.time = 0;
-    this.nearRocket = false;
-    Game.Camera.reset();
-    Game.EntityManager.clear();
-
-    // Generate random decorations (control panels, etc.)
-    this.decorations = [];
-    // Window showing space
-    this.decorations.push({ type: 'window', x: 480, y: 80, w: 160, h: 120 });
-    // Control panels
-    this.decorations.push({ type: 'panel', x: 100, y: 280, w: 60, h: 80 });
-    this.decorations.push({ type: 'panel', x: 800, y: 300, w: 50, h: 70 });
-
-    Game.UI.showDialog('Explore o hub. Pressione E proximo ao foguete.', 4);
-  },
-
-  update: function(dt) {
-    this.time += dt;
-    this.starfield.update(dt);
-    Game.UI.updateDialog(dt);
-    Game.EntityManager.updateAll(dt);
-
-    // Handle substates
-    if (Game.subState !== Game.SubStates.NONE) {
-      if (Game.Input.wasPressed('Escape')) {
-        Game.subState = Game.SubStates.NONE;
-      }
-      return;
-    }
-
-    // Player movement (no shooting in hub)
-    var inp = Game.Input;
-    var mx = 0, my = 0;
-    if (inp.isDown('w') || inp.isDown('W') || inp.isDown('ArrowUp')) my = -1;
-    if (inp.isDown('s') || inp.isDown('S') || inp.isDown('ArrowDown')) my = 1;
-    if (inp.isDown('a') || inp.isDown('A') || inp.isDown('ArrowLeft')) mx = -1;
-    if (inp.isDown('d') || inp.isDown('D') || inp.isDown('ArrowRight')) mx = 1;
-
-    if (mx !== 0 && my !== 0) {
-      var norm = 1 / Math.sqrt(2);
-      mx *= norm;
-      my *= norm;
-    }
-
-    this.player.x += mx * this.player.speed * dt;
-    this.player.y += my * this.player.speed * dt;
-    this.player.x = Math.max(20, Math.min(this.player.x, Game.CANVAS_W - 20));
-    this.player.y = Math.max(200, Math.min(this.player.y, Game.CANVAS_H - 30));
-
-    if (mx !== 0 || my !== 0) this.player.walkAnim += dt * 8;
-    this.player.angle = Math.atan2(inp.mouse.y - this.player.y, inp.mouse.x - this.player.x);
-
-    // Check proximity to rocket
-    var dx = this.player.x - this.rocketPos.x;
-    var dy = this.player.y - this.rocketPos.y;
-    this.nearRocket = Math.sqrt(dx * dx + dy * dy) < 100;
-
-    if (this.nearRocket && Game.Input.wasPressed('e') || this.nearRocket && Game.Input.wasPressed('E')) {
-      Game.subState = Game.SubStates.STARMAP;
-    }
-
-    // ESC to go back to menu
-    if (Game.Input.wasPressed('Escape')) {
-      Game.changeState(Game.States.MENU);
-    }
-  },
-
-  render: function(ctx) {
-    // Starfield background
-    this.starfield.render(ctx);
-
-    // Station floor
-    var gradient = ctx.createLinearGradient(0, 380, 0, Game.CANVAS_H);
-    gradient.addColorStop(0, '#2a2a3a');
-    gradient.addColorStop(1, '#1a1a2a');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 380, Game.CANVAS_W, 160);
-
-    // Floor grid lines
-    ctx.strokeStyle = 'rgba(79, 195, 247, 0.1)';
-    ctx.lineWidth = 1;
-    for (var fx = 0; fx < Game.CANVAS_W; fx += 60) {
-      ctx.beginPath();
-      ctx.moveTo(fx, 380);
-      ctx.lineTo(fx, Game.CANVAS_H);
-      ctx.stroke();
-    }
-    for (var fy = 380; fy < Game.CANVAS_H; fy += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, fy);
-      ctx.lineTo(Game.CANVAS_W, fy);
-      ctx.stroke();
-    }
-
-    // Station walls
-    ctx.fillStyle = '#1e1e30';
-    ctx.fillRect(0, 160, Game.CANVAS_W, 220);
-    ctx.strokeStyle = 'rgba(79, 195, 247, 0.15)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 160, Game.CANVAS_W, 220);
-
-    // Decorations
-    for (var d = 0; d < this.decorations.length; d++) {
-      var dec = this.decorations[d];
-      if (dec.type === 'window') {
-        // Space window
-        ctx.fillStyle = '#0a0a1a';
-        ctx.fillRect(dec.x, dec.y, dec.w, dec.h);
-        ctx.strokeStyle = '#4fc3f7';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(dec.x, dec.y, dec.w, dec.h);
-
-        // Distant planet in window
-        ctx.beginPath();
-        ctx.arc(dec.x + 100, dec.y + 60, 30, 0, Math.PI * 2);
-        ctx.fillStyle = '#4caf50';
-        ctx.fill();
-        ctx.globalAlpha = 0.3;
-        ctx.beginPath();
-        ctx.arc(dec.x + 90, dec.y + 50, 15, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.globalAlpha = 1;
-
-        // Stars in window
-        for (var ws = 0; ws < 8; ws++) {
-          ctx.beginPath();
-          ctx.arc(
-            dec.x + 10 + Math.sin(ws * 3.7) * 60 + 60,
-            dec.y + 10 + Math.cos(ws * 2.3) * 40 + 40,
-            1, 0, Math.PI * 2
-          );
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
-          ctx.fill();
-        }
-      } else if (dec.type === 'panel') {
-        ctx.fillStyle = '#2a2a3a';
-        ctx.fillRect(dec.x, dec.y, dec.w, dec.h);
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(dec.x, dec.y, dec.w, dec.h);
-
-        // Blinking lights
-        for (var li = 0; li < 3; li++) {
-          var on = Math.sin(this.time * 2 + li * 2) > 0;
-          ctx.beginPath();
-          ctx.arc(dec.x + 15 + li * 15, dec.y + 15, 4, 0, Math.PI * 2);
-          ctx.fillStyle = on ? '#4caf50' : '#333';
-          ctx.fill();
-        }
-      }
-    }
-
-    // Rocket
-    var rTime = this.time;
-    var rBob = Math.sin(rTime * 1.5) * 3;
-    Game.Draw.rocket(ctx, this.rocketPos.x, this.rocketPos.y + rBob, 0, 2.5, '#4fc3f7');
-    Game.Draw.rocketFlame(ctx, this.rocketPos.x, this.rocketPos.y + rBob, 0, 2.5, rTime);
-
-    // Interaction ring when near
-    if (this.nearRocket) {
-      var ringPulse = Math.sin(rTime * 4) * 0.3 + 0.5;
-      ctx.beginPath();
-      ctx.arc(this.rocketPos.x, this.rocketPos.y, 80, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(79, 195, 247, ' + ringPulse + ')';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 4]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      Game.UI.textBold(ctx, 'Pressione E', this.rocketPos.x, this.rocketPos.y + 95, 14, '#4fc3f7', 'center');
-    }
-
-    // Player
-    this.player.render(ctx);
-
-    // HUD (coins only)
-    Game.UI.renderHUD(ctx, {
-      coins: Game.saveData.coins,
-      label: 'ESTACAO ESPACIAL'
-    });
-
-    // Dialog
-    Game.UI.renderDialog(ctx);
-
-    // Particles
-    Game.EntityManager.renderAll(ctx);
-
-    // Substates overlays
-    if (Game.subState === Game.SubStates.SHOP) {
-      Game.ShopUI.render(ctx, Game.saveData);
-    } else if (Game.subState === Game.SubStates.STARMAP) {
-      // Tab buttons at top of panel
-      var panelW = 600, panelH = 300;
-      var panelY = (Game.CANVAS_H - panelH) / 2;
-
-      Game.StarmapUI.render(ctx, Game.saveData);
-
-      // Shop tab button
-      var tabX = (Game.CANVAS_W - panelW) / 2 + 10;
-      var tabY = panelY - 35;
-      var tabHovered = Game.UI.isMouseInRect(tabX, tabY, 100, 30);
-      Game.UI.button(ctx, 'Loja', tabX, tabY, 100, 30, tabHovered, '#ff9800');
-      if (tabHovered && Game.Input.mouse.clicked) {
-        Game.subState = Game.SubStates.SHOP;
-      }
-    } else if (Game.subState === Game.SubStates.SHOP) {
-      // Already rendered above
-    }
-
-    // If in shop, show starmap tab
-    if (Game.subState === Game.SubStates.SHOP) {
-      var panelW2 = 560, panelH2 = 340;
-      var panelY2 = (Game.CANVAS_H - panelH2) / 2;
-      var tabX2 = (Game.CANVAS_W - panelW2) / 2 + 10;
-      var tabY2 = panelY2 - 35;
-      var tabHovered2 = Game.UI.isMouseInRect(tabX2, tabY2, 120, 30);
-      Game.UI.button(ctx, 'Mapa Estelar', tabX2, tabY2, 120, 30, tabHovered2, '#4fc3f7');
-      if (tabHovered2 && Game.Input.mouse.clicked) {
-        Game.subState = Game.SubStates.STARMAP;
-      }
-    }
-  },
-
-  exit: function() {
-    Game.EntityManager.clear();
-  }
-};
-
-// ===========================
-// SPACE TRAVEL SCENE
-// ===========================
-Game.scenes.SPACE_TRAVEL = {
-  starfield: null,
-  rocketX: 0,
-  rocketY: 0,
-  rocketHP: 0,
-  rocketMaxHP: 0,
-  distance: 0,
-  targetDistance: 0,
   spawnTimer: 0,
-  spawnInterval: 0,
-  planetLevel: 0,
-  time: 0,
-  coinsEarned: 0,
+  meteorSpawnRate: 1.5,
+  enemySpawnRate: 4,
+  enemyTimer: 0,
+  eventTimer: 0,
+  eventActive: null,
+  reachedTarget: false,
+  bgPhase: 0, // 0=atmosphere, 1=space, 2=next atmosphere
 
   enter: function(data) {
     data = data || {};
-    this.planetLevel = data.planetLevel || 0;
-    this.starfield = new Game.Starfield(250);
-    this.rocketX = 150;
-    this.rocketY = Game.CANVAS_H / 2;
-
-    var u = Game.saveData.upgrades;
-    this.rocketMaxHP = 100 + (u.hp || 0) * 25;
-    this.rocketHP = this.rocketMaxHP;
-
-    this.targetDistance = 3000 + this.planetLevel * 1500;
-    this.distance = 0;
-    this.spawnInterval = Math.max(0.4, 0.8 - this.planetLevel * 0.15);
-    this.spawnTimer = 1.5; // Initial grace period
+    this.starfield = new Game.Starfield(300);
+    this.rocket = new Game.Rocket(Game.saveData);
     this.time = 0;
-    this.coinsEarned = 0;
+    this.spawnTimer = 2; // grace period
+    this.enemyTimer = 5;
+    this.eventTimer = 15 + Math.random() * 10;
+    this.eventActive = null;
+    this.reachedTarget = false;
+    this.bgPhase = 0;
 
     Game.EntityManager.clear();
   },
@@ -394,452 +205,628 @@ Game.scenes.SPACE_TRAVEL = {
       return;
     }
 
-    // Rocket movement (up/down + slight left/right)
-    var inp = Game.Input;
-    var my = 0, mx = 0;
-    if (inp.isDown('w') || inp.isDown('W') || inp.isDown('ArrowUp')) my = -1;
-    if (inp.isDown('s') || inp.isDown('S') || inp.isDown('ArrowDown')) my = 1;
-    if (inp.isDown('a') || inp.isDown('A') || inp.isDown('ArrowLeft')) mx = -1;
-    if (inp.isDown('d') || inp.isDown('D') || inp.isDown('ArrowRight')) mx = 1;
+    // Update rocket
+    this.rocket.update(dt);
 
-    this.rocketY += my * 250 * dt;
-    this.rocketX += mx * 120 * dt;
-    this.rocketY = Math.max(30, Math.min(this.rocketY, Game.CANVAS_H - 30));
-    this.rocketX = Math.max(60, Math.min(this.rocketX, 300));
+    // Background phase based on altitude
+    var currentPlanet = Game.saveData.currentPlanet;
+    var startAlt = Game.PlanetData[currentPlanet].altitude;
+    var nextPlanetIdx = currentPlanet + 1;
+    var targetAlt = nextPlanetIdx < Game.PlanetData.length
+      ? Game.PlanetData[nextPlanetIdx].altitude - startAlt
+      : 50000;
 
-    // Shooting
-    if ((inp.mouse.down || inp.isDown(' ')) && this.time > 0.3) {
-      // Use player fire rate
-      var fireRate = Math.max(100, 300 - (Game.saveData.upgrades.fireRate || 0) * 50);
-      if (!this._lastShot || this.time - this._lastShot > fireRate / 1000) {
-        var dmg = 10 + (Game.saveData.upgrades.dmg || 0) * 5;
-        Game.EntityManager.add('bullets',
-          Game.createBullet(this.rocketX + 30, this.rocketY, 0, dmg, 600));
-        this._lastShot = this.time;
-      }
-    }
+    var altPct = this.rocket.altitude / targetAlt;
+    if (altPct < 0.15) this.bgPhase = 0;
+    else if (altPct < 0.85) this.bgPhase = 1;
+    else this.bgPhase = 2;
 
-    // Progress
-    this.distance += 200 * dt;
-
-    // Starfield scroll
-    this.starfield.update(dt, 1);
-
-    // Meteor spawning
-    this.spawnTimer -= dt;
-    if (this.spawnTimer <= 0) {
-      var m = new Game.Meteor(Game.CANVAS_W + 40, 30 + Math.random() * (Game.CANVAS_H - 60));
-      Game.EntityManager.add('meteors', m);
-      this.spawnTimer = this.spawnInterval * (0.7 + Math.random() * 0.6);
-    }
+    // Starfield speed based on fuel
+    var scrollSpeed = this.rocket.fuel > 0 ? 1 : 0.3;
+    this.starfield.update(dt * scrollSpeed, 'down');
 
     // Update entities
     Game.EntityManager.updateAll(dt);
 
-    // Collision: bullets vs meteors
-    var bullets = Game.EntityManager.getByType('bullets');
-    var meteors = Game.EntityManager.getByType('meteors');
+    // Spawn meteors
+    if (!this.rocket.parachute) {
+      this.spawnTimer -= dt;
+      if (this.spawnTimer <= 0) {
+        var mx = 40 + Math.random() * (Game.CANVAS_W - 80);
+        var speed = 150 + Math.random() * 200 + currentPlanet * 30;
+        Game.EntityManager.add('meteors', new Game.MeteorPixel(mx, -30, speed));
+        this.spawnTimer = this.meteorSpawnRate * (0.6 + Math.random() * 0.8);
+        // Increase difficulty over time
+        if (this.meteorSpawnRate > 0.4) this.meteorSpawnRate -= dt * 0.02;
+      }
+
+      // Spawn enemy ships
+      this.enemyTimer -= dt;
+      if (this.enemyTimer <= 0) {
+        var ex = 60 + Math.random() * (Game.CANVAS_W - 120);
+        Game.EntityManager.add('enemies', new Game.EnemyShip(ex, -40));
+        this.enemyTimer = this.enemySpawnRate * (0.7 + Math.random() * 0.6);
+        if (this.enemySpawnRate > 2) this.enemySpawnRate -= 0.1;
+      }
+
+      // Special events
+      this.eventTimer -= dt;
+      if (this.eventTimer <= 0 && !this.eventActive) {
+        this.triggerEvent();
+        this.eventTimer = 20 + Math.random() * 15;
+      }
+    }
+
+    // Update special event
+    if (this.eventActive) {
+      this.eventActive.timer -= dt;
+      if (this.eventActive.type === 'meteor_shower') {
+        this.eventActive.spawnTimer -= dt;
+        if (this.eventActive.spawnTimer <= 0) {
+          this.eventActive.spawnTimer = 0.15;
+          Game.EntityManager.add('meteors', new Game.MeteorPixel(
+            Math.random() * Game.CANVAS_W, -30, 200 + Math.random() * 250
+          ));
+        }
+      } else if (this.eventActive.type === 'enemy_fleet') {
+        this.eventActive.spawnTimer -= dt;
+        if (this.eventActive.spawnTimer <= 0) {
+          this.eventActive.spawnTimer = 0.8;
+          Game.EntityManager.add('enemies', new Game.EnemyShip(
+            60 + Math.random() * (Game.CANVAS_W - 120), -40
+          ));
+        }
+      }
+      if (this.eventActive.timer <= 0) this.eventActive = null;
+    }
+
+    // --- COLLISIONS ---
+
+    // Bullets vs meteors
+    var bullets = Game.EntityManager.bullets;
+    var meteors = Game.EntityManager.meteors;
     for (var b = 0; b < bullets.length; b++) {
-      for (var m2 = 0; m2 < meteors.length; m2++) {
-        if (bullets[b].active && meteors[m2].active &&
-            Game.Collision.circleCircle(bullets[b], meteors[m2])) {
-          bullets[b].active = false;
-          meteors[m2].destroy();
-          this.coinsEarned += 1 + Math.floor(Math.random() * 3);
-          Game.saveData.coins += 1 + Math.floor(Math.random() * 3);
-        }
-      }
-    }
-
-    // Collision: meteors vs rocket
-    var rocketHitbox = { x: this.rocketX, y: this.rocketY, radius: 20 };
-    for (var m3 = 0; m3 < meteors.length; m3++) {
-      if (meteors[m3].active && Game.Collision.circleCircle(rocketHitbox, meteors[m3])) {
-        meteors[m3].destroy();
-        this.rocketHP -= 20;
-        Game.triggerShake(8, 0.3);
-        Game.spawnParticles(this.rocketX, this.rocketY, 8, '#ff6b35');
-      }
-    }
-
-    // Rocket destroyed
-    if (this.rocketHP <= 0) {
-      Game.spawnParticles(this.rocketX, this.rocketY, 25, '#ff6b35', 1.5);
-      Game.Save.save(Game.saveData);
-      Game.showMessage('Viagem falhou!', 2);
-      Game.changeState(Game.States.HUB);
-      return;
-    }
-
-    // Reached destination
-    if (this.distance >= this.targetDistance) {
-      Game.Save.save(Game.saveData);
-      Game.changeState(Game.States.PLANET, { planetLevel: this.planetLevel });
-    }
-  },
-
-  render: function(ctx) {
-    // Starfield
-    this.starfield.render(ctx);
-
-    // Distance progress bar
-    var barW = 400, barH = 8;
-    var barX = (Game.CANVAS_W - barW) / 2;
-    var barY = 12;
-    var progress = Math.min(1, this.distance / this.targetDistance);
-
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barW, barH, 4);
-    ctx.fill();
-
-    ctx.fillStyle = '#4fc3f7';
-    ctx.beginPath();
-    ctx.roundRect(barX, barY, barW * progress, barH, 4);
-    ctx.fill();
-
-    // Destination planet indicator
-    var planetColors = ['#4caf50', '#f44336', '#9c27b0'];
-    ctx.beginPath();
-    ctx.arc(barX + barW + 20, barY + 4, 8, 0, Math.PI * 2);
-    ctx.fillStyle = planetColors[this.planetLevel] || '#4caf50';
-    ctx.fill();
-
-    // Rocket ship icon at progress point
-    ctx.beginPath();
-    ctx.arc(barX + barW * progress, barY + 4, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-
-    // Rocket
-    ctx.save();
-    ctx.translate(this.rocketX, this.rocketY);
-    ctx.rotate(-Math.PI / 2); // Point right
-    Game.Draw.rocket(ctx, 0, 0, 0, 1.8, planetColors[this.planetLevel]);
-    Game.Draw.rocketFlame(ctx, 0, 0, 0, 1.8, this.time);
-    ctx.restore();
-
-    // Entities
-    Game.EntityManager.renderAll(ctx);
-
-    // HUD
-    Game.UI.renderHUD(ctx, {
-      hp: this.rocketHP,
-      maxHp: this.rocketMaxHP,
-      coins: Game.saveData.coins,
-      label: 'VIAGEM ESPACIAL'
-    });
-
-    // Distance text
-    var pct = Math.floor(progress * 100);
-    Game.UI.text(ctx, pct + '%', Game.CANVAS_W / 2, 24, 12, '#aaa', 'center');
-  },
-
-  exit: function() {
-    Game.EntityManager.clear();
-  }
-};
-
-// ===========================
-// PLANET SCENE
-// ===========================
-Game.scenes.PLANET = {
-  player: null,
-  starfield: null,
-  planetLevel: 0,
-  currentWave: 1,
-  totalWaves: 3,
-  enemiesPerWave: 5,
-  enemiesAlive: 0,
-  waveDelay: 0,
-  waveStarted: false,
-  victory: false,
-  victoryTimer: 0,
-  time: 0,
-  coinsEarned: 0,
-  rocks: [],
-  planetColors: [
-    { bg: '#0d1a0d', ground: '#1a2e1a', accent: '#4caf50' },
-    { bg: '#1a0d0d', ground: '#2e1a1a', accent: '#f44336' },
-    { bg: '#1a0d1a', ground: '#2a1a2e', accent: '#9c27b0' }
-  ],
-
-  enter: function(data) {
-    data = data || {};
-    this.planetLevel = data.planetLevel || 0;
-    this.starfield = new Game.Starfield(80);
-    this.time = 0;
-    this.coinsEarned = 0;
-
-    // Player
-    this.player = new Game.Player();
-    this.player.x = Game.WORLD_W / 2;
-    this.player.y = Game.WORLD_H / 2;
-    this.player.initStats(Game.saveData);
-
-    // Camera
-    Game.Camera.x = this.player.x - Game.CANVAS_W / 2;
-    Game.Camera.y = this.player.y - Game.CANVAS_H / 2;
-
-    // Waves
-    this.currentWave = 1;
-    this.waveStarted = false;
-    this.waveDelay = 2;
-    this.enemiesAlive = 0;
-    this.victory = false;
-    this.victoryTimer = 0;
-
-    Game.EntityManager.clear();
-
-    // Generate rocks (decorative)
-    this.rocks = [];
-    for (var i = 0; i < 30; i++) {
-      this.rocks.push({
-        x: Math.random() * Game.WORLD_W,
-        y: Math.random() * Game.WORLD_H,
-        radius: 5 + Math.random() * 15,
-        shade: Math.random() * 0.3
-      });
-    }
-  },
-
-  spawnWave: function() {
-    var count = this.enemiesPerWave + this.currentWave;
-    this.enemiesAlive = count;
-
-    for (var i = 0; i < count; i++) {
-      var edge = Math.floor(Math.random() * 4);
-      var ex, ey;
-      switch (edge) {
-        case 0: ex = Math.random() * Game.WORLD_W; ey = 20; break;
-        case 1: ex = Math.random() * Game.WORLD_W; ey = Game.WORLD_H - 20; break;
-        case 2: ex = 20; ey = Math.random() * Game.WORLD_H; break;
-        case 3: ex = Game.WORLD_W - 20; ey = Math.random() * Game.WORLD_H; break;
-      }
-      // Ensure at least 300px from player
-      var dx = ex - this.player.x;
-      var dy = ey - this.player.y;
-      if (Math.sqrt(dx * dx + dy * dy) < 300) {
-        ex = (this.player.x + 400) % Game.WORLD_W;
-        ey = (this.player.y + 400) % Game.WORLD_H;
-      }
-      Game.EntityManager.add('enemies', new Game.Enemy(ex, ey, this.planetLevel));
-    }
-    this.waveStarted = true;
-  },
-
-  update: function(dt) {
-    this.time += dt;
-
-    // Pause
-    if (Game.Input.wasPressed('Escape')) {
-      Game.paused = !Game.paused;
-      return;
-    }
-
-    // Victory state
-    if (this.victory) {
-      this.victoryTimer -= dt;
-      // Firework particles
-      if (Math.random() < 0.3) {
-        var fx = this.player.x + (Math.random() - 0.5) * 300;
-        var fy = this.player.y + (Math.random() - 0.5) * 200;
-        var colors = ['#ffd700', '#4caf50', '#f44336', '#4fc3f7', '#ff9800'];
-        Game.spawnParticles(fx, fy, 5, colors[Math.floor(Math.random() * colors.length)], 1.2);
-      }
-      Game.EntityManager.updateAll(dt);
-
-      if (this.victoryTimer <= 0) {
-        // Mark planet as cleared
-        if (Game.saveData.planetsCleared.indexOf(this.planetLevel) === -1) {
-          Game.saveData.planetsCleared.push(this.planetLevel);
-        }
-        Game.Save.save(Game.saveData);
-        Game.showMessage('Planeta conquistado! +' + this.coinsEarned + ' moedas', 3);
-        Game.changeState(Game.States.HUB);
-      }
-      return;
-    }
-
-    // Wave management
-    if (!this.waveStarted) {
-      this.waveDelay -= dt;
-      if (this.waveDelay <= 0) {
-        this.spawnWave();
-      }
-    }
-
-    // Player update
-    this.player.update(dt, Game.WORLD_W, Game.WORLD_H, true);
-
-    // Camera follow
-    Game.Camera.follow(this.player, dt);
-
-    // Update entities
-    var enemies = Game.EntityManager.getByType('enemies');
-    for (var e = 0; e < enemies.length; e++) {
-      enemies[e].update(dt, this.player.x, this.player.y);
-    }
-
-    // Non-enemy entity updates
-    var bullets = Game.EntityManager.getByType('bullets');
-    for (var b = 0; b < bullets.length; b++) bullets[b].update(dt);
-    var coins = Game.EntityManager.getByType('coins');
-    for (var c = 0; c < coins.length; c++) coins[c].update(dt);
-    var particles = Game.EntityManager.getByType('particles');
-    for (var p = 0; p < particles.length; p++) particles[p].update(dt);
-
-    // Remove inactive
-    Game.EntityManager.bullets = bullets.filter(function(e) { return e.active; });
-    Game.EntityManager.enemies = enemies.filter(function(e) { return e.active; });
-    Game.EntityManager.coins = coins.filter(function(e) { return e.active; });
-    Game.EntityManager.particles = particles.filter(function(e) { return e.active; });
-
-    // Collision: bullets vs enemies
-    bullets = Game.EntityManager.getByType('bullets');
-    enemies = Game.EntityManager.getByType('enemies');
-    for (var b2 = 0; b2 < bullets.length; b2++) {
-      for (var e2 = 0; e2 < enemies.length; e2++) {
-        if (bullets[b2].active && enemies[e2].active &&
-            Game.Collision.circleCircle(bullets[b2], enemies[e2])) {
-          enemies[e2].takeDamage(bullets[b2].damage);
-          bullets[b2].active = false;
-          if (!enemies[e2].active) {
-            this.enemiesAlive--;
-            this.coinsEarned += enemies[e2].coinDrop;
-            Game.saveData.coins += enemies[e2].coinDrop;
+      for (var m = 0; m < meteors.length; m++) {
+        if (bullets[b].active && meteors[m].active) {
+          var bdx = bullets[b].x - meteors[m].x;
+          var bdy = bullets[b].y - meteors[m].y;
+          if (Math.sqrt(bdx * bdx + bdy * bdy) < bullets[b].radius + meteors[m].radius) {
+            bullets[b].active = false;
+            meteors[m].destroy();
+            // Drop coin
+            Game.EntityManager.add('coins', Game.createCoin(meteors[m].x, meteors[m].y, 2 + Math.floor(Math.random() * 3)));
           }
         }
       }
     }
 
-    // Collision: enemies vs player (contact damage)
-    for (var e3 = 0; e3 < enemies.length; e3++) {
-      if (enemies[e3].active && enemies[e3].hitCooldown <= 0 &&
-          Game.Collision.circleCircle(this.player, enemies[e3])) {
-        this.player.takeDamage(enemies[e3].damage);
-        enemies[e3].hitCooldown = 1;
+    // Bullets vs enemies
+    var enemies = Game.EntityManager.enemies;
+    for (var b2 = 0; b2 < bullets.length; b2++) {
+      for (var e = 0; e < enemies.length; e++) {
+        if (bullets[b2].active && enemies[e].active && !enemies[e].isEnemyBullet) {
+          var edx = bullets[b2].x - enemies[e].x;
+          var edy = bullets[b2].y - enemies[e].y;
+          if (Math.sqrt(edx * edx + edy * edy) < bullets[b2].radius + enemies[e].radius) {
+            bullets[b2].active = false;
+            enemies[e].takeDamage(bullets[b2].damage);
+          }
+        }
       }
     }
 
-    // Collision: coins vs player
-    coins = Game.EntityManager.getByType('coins');
-    for (var c2 = 0; c2 < coins.length; c2++) {
-      if (coins[c2].active && Game.Collision.circleCircle(this.player, coins[c2])) {
-        coins[c2].active = false;
+    // Meteors vs rocket
+    var rkt = this.rocket;
+    for (var m2 = 0; m2 < meteors.length; m2++) {
+      if (meteors[m2].active) {
+        var mdx = rkt.x - meteors[m2].x;
+        var mdy = rkt.y - meteors[m2].y;
+        if (Math.sqrt(mdx * mdx + mdy * mdy) < rkt.radius + meteors[m2].radius) {
+          meteors[m2].destroy();
+          rkt.takeDamage(20);
+        }
       }
     }
 
-    // Player died
-    if (!this.player.active) {
+    // Enemy bullets vs rocket (stored in particles with isEnemyBullet)
+    var particles = Game.EntityManager.particles;
+    for (var p = 0; p < particles.length; p++) {
+      if (particles[p].active && particles[p].isEnemyBullet) {
+        var pdx = rkt.x - particles[p].x;
+        var pdy = rkt.y - particles[p].y;
+        if (Math.sqrt(pdx * pdx + pdy * pdy) < rkt.radius + (particles[p].radius || 4)) {
+          particles[p].active = false;
+          rkt.takeDamage(10);
+        }
+      }
+    }
+
+    // Coins vs rocket
+    var coins = Game.EntityManager.coins;
+    for (var c = 0; c < coins.length; c++) {
+      if (coins[c].active) {
+        var cdx = rkt.x - coins[c].x;
+        var cdy = rkt.y - coins[c].y;
+        if (Math.sqrt(cdx * cdx + cdy * cdy) < rkt.radius + coins[c].radius) {
+          Game.saveData.coins += coins[c].value;
+          coins[c].active = false;
+          Game.spawnParticles(coins[c].x, coins[c].y, 4, '#ffd700');
+        }
+      }
+    }
+
+    // Check if reached next planet
+    if (!this.reachedTarget && this.rocket.altitude >= targetAlt && nextPlanetIdx < Game.PlanetData.length) {
+      this.reachedTarget = true;
+      Game.saveData.currentPlanet = nextPlanetIdx;
+      if (nextPlanetIdx > Game.saveData.highestPlanet) {
+        Game.saveData.highestPlanet = nextPlanetIdx;
+      }
+      Game.saveData.fuel = this.rocket.fuel;
       Game.Save.save(Game.saveData);
-      Game.showMessage('Voce foi derrotado! +' + this.coinsEarned + ' moedas', 3);
-      Game.changeState(Game.States.HUB);
+      Game.showMessage('Chegou em ' + Game.PlanetData[nextPlanetIdx].name + '!', 2);
+      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: nextPlanetIdx });
       return;
     }
 
-    // All enemies dead in wave
-    if (this.waveStarted && this.enemiesAlive <= 0) {
-      if (this.currentWave >= this.totalWaves) {
-        this.victory = true;
-        this.victoryTimer = 3;
-      } else {
-        this.currentWave++;
-        this.waveStarted = false;
-        this.waveDelay = 2;
-      }
+    // Parachute landed = back to current planet
+    if (this.rocket.parachute && !this.rocket.active) {
+      Game.saveData.fuel = 0;
+      Game.Save.save(Game.saveData);
+      Game.showMessage('Fuel esgotado! Voltando para ' + Game.PlanetData[currentPlanet].name, 2);
+      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: currentPlanet });
+      return;
     }
   },
 
+  triggerEvent: function() {
+    var type = Math.random() < 0.5 ? 'meteor_shower' : 'enemy_fleet';
+    this.eventActive = { type: type, timer: 5, spawnTimer: 0 };
+    if (type === 'meteor_shower') {
+      Game.showMessage('CHUVA DE METEOROS!', 2);
+    } else {
+      Game.showMessage('FROTA INIMIGA!', 2);
+    }
+    Game.triggerShake(4, 0.5);
+  },
+
   render: function(ctx) {
-    var cam = Game.Camera;
-    var colors = this.planetColors[this.planetLevel] || this.planetColors[0];
+    var currentPlanet = Game.saveData.currentPlanet;
+    var planet = Game.PlanetData[currentPlanet];
 
-    // Background
-    ctx.fillStyle = colors.bg;
-    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
-
-    // Ground texture (grid)
-    ctx.strokeStyle = colors.accent + '15'; // Very transparent
-    ctx.lineWidth = 1;
-    var gridSize = 80;
-    var startX = -(cam.x % gridSize);
-    var startY = -(cam.y % gridSize);
-    for (var gx = startX; gx < Game.CANVAS_W; gx += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, Game.CANVAS_H);
-      ctx.stroke();
-    }
-    for (var gy = startY; gy < Game.CANVAS_H; gy += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(Game.CANVAS_W, gy);
-      ctx.stroke();
-    }
-
-    // Rocks (decorative)
-    for (var r = 0; r < this.rocks.length; r++) {
-      var rock = this.rocks[r];
-      var rsx = rock.x - cam.x;
-      var rsy = rock.y - cam.y;
-      if (rsx < -50 || rsx > Game.CANVAS_W + 50 || rsy < -50 || rsy > Game.CANVAS_H + 50) continue;
-
-      ctx.beginPath();
-      ctx.arc(rsx, rsy, rock.radius, 0, Math.PI * 2);
-      var shade = 0.15 + rock.shade;
-      ctx.fillStyle = 'rgba(100, 100, 100, ' + shade + ')';
-      ctx.fill();
+    // Sky background based on phase
+    if (this.bgPhase === 0) {
+      // Atmosphere of current planet
+      var grad = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
+      grad.addColorStop(0, planet.skyTop);
+      grad.addColorStop(1, planet.skyBottom);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+    } else if (this.bgPhase === 2 && currentPlanet + 1 < Game.PlanetData.length) {
+      // Atmosphere of next planet
+      var nextPlanet = Game.PlanetData[currentPlanet + 1];
+      var grad2 = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
+      grad2.addColorStop(0, nextPlanet.skyTop);
+      grad2.addColorStop(1, nextPlanet.skyBottom);
+      ctx.fillStyle = grad2;
+      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+    } else {
+      // Deep space
+      ctx.fillStyle = '#050510';
+      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
     }
 
-    // World boundary indicator
-    var edges = [
-      { x: -cam.x, y: -cam.y, w: Game.WORLD_W, h: 2 },
-      { x: -cam.x, y: Game.WORLD_H - cam.y, w: Game.WORLD_W, h: 2 },
-      { x: -cam.x, y: -cam.y, w: 2, h: Game.WORLD_H },
-      { x: Game.WORLD_W - cam.x, y: -cam.y, w: 2, h: Game.WORLD_H }
-    ];
-    ctx.fillStyle = colors.accent + '40';
-    for (var ei = 0; ei < edges.length; ei++) {
-      ctx.fillRect(edges[ei].x, edges[ei].y, edges[ei].w, edges[ei].h);
+    // Stars
+    this.starfield.render(ctx);
+
+    // Ground receding (only at very start)
+    if (this.rocket.altitude < 500 && !this.rocket.parachute) {
+      var groundY = Game.CANVAS_H - 30 + this.rocket.altitude * 0.5;
+      if (groundY < Game.CANVAS_H + 10) {
+        ctx.fillStyle = planet.groundColor;
+        ctx.fillRect(0, groundY, Game.CANVAS_W, Game.CANVAS_H - groundY + 30);
+        ctx.fillStyle = planet.surfaceDetail;
+        ctx.fillRect(0, groundY, Game.CANVAS_W, 2);
+      }
     }
 
-    // Render entities
-    Game.EntityManager.renderAll(ctx, cam);
+    // Entities (behind rocket)
+    Game.EntityManager.renderAll(ctx, 0, 0);
 
-    // Player
-    this.player.render(ctx, cam);
+    // Rocket
+    this.rocket.render(ctx);
 
-    // Wave countdown text
-    if (!this.waveStarted && !this.victory) {
-      var countDown = Math.ceil(this.waveDelay);
-      Game.UI.textBold(ctx, 'Onda ' + this.currentWave + ' chegando... ' + countDown,
-        Game.CANVAS_W / 2, Game.CANVAS_H / 2 - 60, 24, colors.accent, 'center', 'middle');
+    // Event warning
+    if (this.eventActive) {
+      var blink = Math.sin(Game.time * 6) > 0;
+      if (blink) {
+        var evtText = this.eventActive.type === 'meteor_shower' ? 'CHUVA DE METEOROS' : 'FROTA INIMIGA';
+        Game.UI.textBold(ctx, evtText, Game.CANVAS_W / 2, 55, 12, '#ff9800', 'center');
+      }
     }
-
-    // Victory text
-    if (this.victory) {
-      Game.UI.textBold(ctx, 'VITORIA!', Game.CANVAS_W / 2, Game.CANVAS_H / 2 - 40, 48, '#ffd700', 'center', 'middle');
-      Game.UI.text(ctx, '+' + this.coinsEarned + ' moedas', Game.CANVAS_W / 2, Game.CANVAS_H / 2 + 20, 20, '#fff', 'center', 'middle');
-    }
-
-    // Planet names
-    var planetNames = ['Planeta Verde', 'Planeta Vermelho', 'Planeta Roxo'];
 
     // HUD
-    Game.UI.renderHUD(ctx, {
-      hp: this.player.hp,
-      maxHp: this.player.maxHp,
-      coins: Game.saveData.coins,
-      label: planetNames[this.planetLevel] || 'Planeta',
-      wave: this.currentWave,
-      totalWaves: this.totalWaves,
-      enemiesLeft: this.enemiesAlive
-    });
+    Game.UI.renderFlightHUD(ctx, this.rocket, Game.saveData);
+  },
+
+  exit: function() {
+    Game.EntityManager.clear();
+  }
+};
+
+// ===========================
+// PLANET EXPLORE SCENE (platformer)
+// ===========================
+Game.scenes.PLANET_EXPLORE = {
+  astronaut: null,
+  starfield: null,
+  terrain: null,
+  terrainWidth: 2400,
+  planetIndex: 0,
+  time: 0,
+  shopPos: { x: 600, y: 0 },
+  rocketPadPos: { x: 1200, y: 0 },
+  nearShop: false,
+  nearRocket: false,
+  decorations: [],
+
+  enter: function(data) {
+    data = data || {};
+    this.planetIndex = data.planetIndex !== undefined ? data.planetIndex : Game.saveData.currentPlanet;
+    Game.saveData.currentPlanet = this.planetIndex;
+
+    this.time = 0;
+    this.starfield = new Game.Starfield(100);
+
+    // Generate terrain
+    this.terrain = Game.TerrainGenerator.generate(this.planetIndex, this.terrainWidth);
+
+    // Place shop and rocket pad on flat areas
+    this.shopPos.x = Math.floor(this.terrainWidth * 0.3);
+    this.shopPos.y = this.terrain[this.shopPos.x];
+    this.rocketPadPos.x = Math.floor(this.terrainWidth * 0.65);
+    this.rocketPadPos.y = this.terrain[this.rocketPadPos.x];
+
+    // Flatten terrain around shop and rocket
+    this.flattenArea(this.shopPos.x - 40, this.shopPos.x + 40, this.shopPos.y);
+    this.flattenArea(this.rocketPadPos.x - 30, this.rocketPadPos.x + 30, this.rocketPadPos.y);
+
+    // Create astronaut
+    this.astronaut = new Game.Astronaut(this.rocketPadPos.x, this.rocketPadPos.y - 20);
+
+    // Camera setup
+    Game.Camera.mode = 'horizontal';
+    Game.Camera.setWorldBounds(this.terrainWidth, Game.CANVAS_H);
+    Game.Camera.x = this.astronaut.x - Game.CANVAS_W / 2;
+    Game.Camera.y = 0;
+
+    // Generate decorations
+    this.generateDecorations();
+
+    Game.EntityManager.clear();
+    this.nearShop = false;
+    this.nearRocket = false;
+  },
+
+  flattenArea: function(startX, endX, y) {
+    startX = Math.max(0, startX);
+    endX = Math.min(this.terrain.length - 1, endX);
+    for (var x = startX; x <= endX; x++) {
+      this.terrain[x] = y;
+    }
+  },
+
+  generateDecorations: function() {
+    this.decorations = [];
+    var planet = Game.PlanetData[this.planetIndex];
+
+    // Planet-specific decorations
+    for (var x = 50; x < this.terrainWidth - 50; x += 60 + Math.floor(Math.random() * 120)) {
+      // Skip near shop and rocket
+      if (Math.abs(x - this.shopPos.x) < 80 || Math.abs(x - this.rocketPadPos.x) < 60) continue;
+
+      var groundY = this.terrain[x];
+      var type = 'rock';
+
+      if (this.planetIndex === 0) { // Terra
+        type = Math.random() < 0.6 ? 'tree' : 'rock';
+      } else if (this.planetIndex === 1) { // Lua
+        type = Math.random() < 0.3 ? 'crater' : 'rock';
+        if (x > 400 && x < 500 && Math.random() < 0.2) type = 'flag'; // US flag
+      } else if (this.planetIndex === 2) { // Marte
+        type = Math.random() < 0.2 ? 'rover' : 'rock';
+      } else if (this.planetIndex === 3) { // Venus
+        type = Math.random() < 0.3 ? 'volcano' : 'rock';
+      } else if (this.planetIndex === 4) { // Plutao
+        type = Math.random() < 0.4 ? 'crystal' : 'rock';
+      }
+
+      this.decorations.push({
+        x: x,
+        y: groundY,
+        type: type,
+        size: 0.6 + Math.random() * 0.8,
+        color: planet.surfaceDetail
+      });
+    }
+  },
+
+  update: function(dt) {
+    this.time += dt;
+    this.starfield.update(dt, 'left');
+    Game.UI.updateDialog(dt);
+
+    // Shop substate
+    if (Game.subState === Game.SubStates.SHOP) {
+      Game.ShopUI.update(dt);
+      return;
+    }
+
+    // Pause
+    if (Game.Input.wasPressed('Escape')) {
+      Game.paused = !Game.paused;
+      return;
+    }
+
+    var planet = Game.PlanetData[this.planetIndex];
+
+    // Update astronaut
+    this.astronaut.update(dt, this.terrain, planet.gravity);
+
+    // Camera follow
+    Game.Camera.follow(this.astronaut, dt);
+
+    // Check proximity to shop
+    var shopDist = Math.abs(this.astronaut.x - this.shopPos.x);
+    this.nearShop = shopDist < 50;
+
+    // Check proximity to rocket
+    var rktDist = Math.abs(this.astronaut.x - this.rocketPadPos.x);
+    this.nearRocket = rktDist < 50;
+
+    // Interact (E key)
+    if (Game.Input.wasPressed('e') || Game.Input.wasPressed('E')) {
+      if (this.nearShop) {
+        Game.ShopUI.open();
+      } else if (this.nearRocket) {
+        if (Game.saveData.fuel > 0) {
+          // Launch!
+          Game.Save.save(Game.saveData);
+          Game.changeState(Game.States.FLIGHT);
+        } else {
+          Game.UI.showDialog('Sem fuel! Compre na loja.', 2);
+        }
+      }
+    }
+
+    // Update particles
+    Game.EntityManager.updateAll(dt);
+  },
+
+  render: function(ctx) {
+    var planet = Game.PlanetData[this.planetIndex];
+    var camX = Game.Camera.x;
+
+    // Sky gradient
+    var grad = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
+    grad.addColorStop(0, planet.skyTop);
+    grad.addColorStop(1, planet.skyBottom);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+
+    // Stars (only visible on dark-sky planets)
+    this.starfield.render(ctx);
+
+    // Parallax distant mountains
+    this.renderParallax(ctx, planet, camX);
+
+    // Decorations (behind terrain for some, on top for others)
+    this.renderDecorations(ctx, camX, true); // background decorations
+
+    // Terrain
+    Game.TerrainGenerator.render(ctx, this.terrain, this.planetIndex, camX);
+
+    // Decorations on terrain
+    this.renderDecorations(ctx, camX, false); // foreground decorations
+
+    // Shop building
+    var shopScreenX = this.shopPos.x - camX;
+    if (shopScreenX > -60 && shopScreenX < Game.CANVAS_W + 60) {
+      Game.Pixel.drawCentered(ctx, Game.Sprites.shop, shopScreenX, this.shopPos.y - 20, 2);
+      // Sign
+      Game.UI.textBold(ctx, 'LOJA', shopScreenX, this.shopPos.y - 50, 10, '#ffd700', 'center');
+
+      if (this.nearShop) {
+        var pulse = Math.sin(this.time * 4) * 0.3 + 0.7;
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        Game.UI.textBold(ctx, '[E] Entrar', shopScreenX, this.shopPos.y + 25, 12, '#4fc3f7', 'center');
+        ctx.restore();
+      }
+    }
+
+    // Rocket on launch pad
+    var rktScreenX = this.rocketPadPos.x - camX;
+    if (rktScreenX > -40 && rktScreenX < Game.CANVAS_W + 40) {
+      // Launch pad
+      ctx.fillStyle = '#555';
+      ctx.fillRect(rktScreenX - 20, this.rocketPadPos.y - 2, 40, 4);
+      ctx.fillStyle = '#ffeb3b';
+      ctx.fillRect(rktScreenX - 22, this.rocketPadPos.y - 2, 4, 4);
+      ctx.fillRect(rktScreenX + 18, this.rocketPadPos.y - 2, 4, 4);
+
+      // Rocket
+      Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, rktScreenX, this.rocketPadPos.y - 24, 2);
+
+      if (this.nearRocket) {
+        var pulse2 = Math.sin(this.time * 4) * 0.3 + 0.7;
+        ctx.save();
+        ctx.globalAlpha = pulse2;
+        var launchText = Game.saveData.fuel > 0 ? '[E] Lancar' : '[E] Sem Fuel!';
+        var launchColor = Game.saveData.fuel > 0 ? '#4caf50' : '#f44336';
+        Game.UI.textBold(ctx, launchText, rktScreenX, this.rocketPadPos.y + 25, 12, launchColor, 'center');
+        ctx.restore();
+      }
+    }
+
+    // Astronaut
+    this.astronaut.render(ctx, camX, 0);
+
+    // Particles
+    Game.EntityManager.renderAll(ctx, camX, 0);
+
+    // HUD
+    Game.UI.renderExploreHUD(ctx, Game.saveData);
+
+    // Dialog
+    Game.UI.renderDialog(ctx);
+
+    // Shop overlay
+    if (Game.subState === Game.SubStates.SHOP) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+      Game.ShopUI.render(ctx, Game.saveData);
+    }
+  },
+
+  renderParallax: function(ctx, planet, camX) {
+    // Simple parallax mountains/hills
+    var parallaxSpeed = 0.3;
+    var offset = camX * parallaxSpeed;
+
+    ctx.fillStyle = planet.groundDark;
+    for (var i = 0; i < 8; i++) {
+      var mx = i * 300 - (offset % 300) - 150;
+      var mh = 40 + Math.sin(i * 1.7 + 3) * 25;
+      var my = Game.CANVAS_H - 200 + Math.sin(i * 0.8) * 20;
+
+      ctx.beginPath();
+      ctx.moveTo(mx - 100, my + mh);
+      ctx.lineTo(mx, my);
+      ctx.lineTo(mx + 100, my + mh);
+      ctx.closePath();
+      ctx.fill();
+    }
+  },
+
+  renderDecorations: function(ctx, camX, isBackground) {
+    for (var i = 0; i < this.decorations.length; i++) {
+      var dec = this.decorations[i];
+      var sx = dec.x - camX;
+      if (sx < -60 || sx > Game.CANVAS_W + 60) continue;
+
+      var sy = dec.y;
+      var s = dec.size;
+
+      switch (dec.type) {
+        case 'tree':
+          if (isBackground) continue;
+          // Trunk
+          ctx.fillStyle = '#5d4037';
+          ctx.fillRect(sx - 3 * s, sy - 24 * s, 6 * s, 24 * s);
+          // Leaves (pixel blocks)
+          ctx.fillStyle = '#2e7d32';
+          ctx.fillRect(sx - 12 * s, sy - 36 * s, 24 * s, 14 * s);
+          ctx.fillStyle = '#388e3c';
+          ctx.fillRect(sx - 8 * s, sy - 44 * s, 16 * s, 10 * s);
+          ctx.fillStyle = '#43a047';
+          ctx.fillRect(sx - 4 * s, sy - 48 * s, 8 * s, 6 * s);
+          break;
+
+        case 'rock':
+          if (isBackground) continue;
+          ctx.fillStyle = dec.color;
+          ctx.fillRect(sx - 6 * s, sy - 8 * s, 12 * s, 8 * s);
+          ctx.fillRect(sx - 4 * s, sy - 12 * s, 8 * s, 4 * s);
+          break;
+
+        case 'crater':
+          if (!isBackground) continue;
+          ctx.fillStyle = 'rgba(0,0,0,0.2)';
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, 20 * s, 6 * s, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#888';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          break;
+
+        case 'flag':
+          if (isBackground) continue;
+          // Pole
+          ctx.fillStyle = '#ccc';
+          ctx.fillRect(sx, sy - 40, 2, 40);
+          // Flag (US-ish)
+          ctx.fillStyle = '#b71c1c';
+          ctx.fillRect(sx + 2, sy - 40, 16, 10);
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(sx + 2, sy - 38, 16, 2);
+          ctx.fillRect(sx + 2, sy - 34, 16, 2);
+          ctx.fillStyle = '#1a237e';
+          ctx.fillRect(sx + 2, sy - 40, 6, 6);
+          break;
+
+        case 'rover':
+          if (isBackground) continue;
+          // Simple rover
+          ctx.fillStyle = '#bbb';
+          ctx.fillRect(sx - 10 * s, sy - 10 * s, 20 * s, 8 * s);
+          ctx.fillStyle = '#888';
+          ctx.fillRect(sx - 8 * s, sy - 16 * s, 8 * s, 6 * s);
+          // Wheels
+          ctx.fillStyle = '#333';
+          ctx.fillRect(sx - 10 * s, sy - 2 * s, 6 * s, 4 * s);
+          ctx.fillRect(sx + 4 * s, sy - 2 * s, 6 * s, 4 * s);
+          // Antenna
+          ctx.fillStyle = '#ccc';
+          ctx.fillRect(sx + 4 * s, sy - 22 * s, 1, 8 * s);
+          ctx.fillStyle = '#f44336';
+          ctx.fillRect(sx + 3 * s, sy - 24 * s, 3 * s, 2 * s);
+          break;
+
+        case 'volcano':
+          if (isBackground) continue;
+          ctx.fillStyle = '#8b4513';
+          ctx.beginPath();
+          ctx.moveTo(sx - 20 * s, sy);
+          ctx.lineTo(sx - 5 * s, sy - 30 * s);
+          ctx.lineTo(sx + 5 * s, sy - 30 * s);
+          ctx.lineTo(sx + 20 * s, sy);
+          ctx.closePath();
+          ctx.fill();
+          // Lava glow
+          ctx.fillStyle = '#ff5722';
+          ctx.fillRect(sx - 4 * s, sy - 30 * s, 8 * s, 3 * s);
+          // Smoke particles (just pixels)
+          if (Math.sin(this.time * 3 + dec.x) > 0.5) {
+            ctx.fillStyle = 'rgba(100,100,100,0.4)';
+            ctx.fillRect(sx - 2, sy - 34 * s - Math.sin(this.time * 2) * 5, 4, 4);
+            ctx.fillRect(sx + 3, sy - 36 * s - Math.cos(this.time * 1.5) * 4, 3, 3);
+          }
+          break;
+
+        case 'crystal':
+          if (isBackground) continue;
+          // Ice crystal
+          ctx.fillStyle = '#4fc3f7';
+          ctx.fillRect(sx - 2 * s, sy - 20 * s, 4 * s, 20 * s);
+          ctx.fillStyle = '#81d4fa';
+          ctx.fillRect(sx - 5 * s, sy - 14 * s, 3 * s, 14 * s);
+          ctx.fillRect(sx + 2 * s, sy - 18 * s, 3 * s, 18 * s);
+          // Glow
+          ctx.save();
+          ctx.globalAlpha = 0.2 + Math.sin(this.time * 2 + dec.x) * 0.1;
+          ctx.fillStyle = '#4fc3f7';
+          ctx.fillRect(sx - 8 * s, sy - 22 * s, 16 * s, 24 * s);
+          ctx.restore();
+          break;
+      }
+    }
   },
 
   exit: function() {
     Game.EntityManager.clear();
     Game.Camera.reset();
+    Game.Save.save(Game.saveData);
   }
 };
