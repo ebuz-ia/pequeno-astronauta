@@ -472,6 +472,7 @@ Game.Rocket.prototype.update = function(dt) {
     if (this.fuel <= 0) {
       this.fuel = 0;
       this.parachute = true;
+      if (Game.Audio) Game.Audio.sfx.parachute();
     }
   }
 
@@ -482,6 +483,7 @@ Game.Rocket.prototype.update = function(dt) {
     var bulletColor = skinData ? skinData.color : '#ffeb3b';
     Game.EntityManager.add('bullets', Game.createBullet(this.x, this.y - 24, 10, bulletColor));
     this.fireCooldown = this.fireRate;
+    if (Game.Audio) Game.Audio.sfx.shoot();
   }
 };
 
@@ -541,7 +543,24 @@ Game.MeteorPixel.prototype.update = function(dt) {
 };
 
 Game.MeteorPixel.prototype.render = function(ctx, ox, oy) {
-  Game.Pixel.drawCentered(ctx, Game.Sprites.meteor, this.x - (ox || 0), this.y - (oy || 0), 2);
+  var sx = this.x - (ox || 0);
+  var sy = this.y - (oy || 0);
+  // Lucky meteor golden glow
+  if (this.lucky) {
+    ctx.save();
+    ctx.globalAlpha = 0.3 + Math.sin(Game.time * 5) * 0.15;
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(sx - 14, sy - 14, 28, 28);
+    ctx.restore();
+  }
+  Game.Pixel.drawCentered(ctx, Game.Sprites.meteor, sx, sy, 2);
+  if (this.lucky) {
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(sx - 2, sy - 2, 4, 4);
+    ctx.restore();
+  }
 };
 
 Game.MeteorPixel.prototype.destroy = function() {
@@ -928,6 +947,7 @@ Game.Robot.prototype.update = function(dt) {
       }
       if (nearest) {
         Game.EntityManager.add('bullets', Game.createBullet(this.x, this.y - 8, 8, '#4fc3f7'));
+        if (Game.Audio) Game.Audio.sfx.robotShoot();
       }
     }
   } else if (this.mode === 'collect') {

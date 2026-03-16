@@ -21,6 +21,7 @@ Game.scenes.MENU = {
     this.time = 0;
     this.flameFrame = 0;
     this.flameTimer = 0;
+    if (Game.Audio && Game.Audio.initialized) Game.Audio.playMenuMusic();
   },
 
   update: function(dt) {
@@ -44,10 +45,10 @@ Game.scenes.MENU = {
   },
 
   startGame: function() {
+    if (Game.Audio) { Game.Audio.init(); Game.Audio.sfx.menuSelect(); }
     Game.saveData = Game.Save.load();
-    // Assign easter egg planet if not set
     if (Game.saveData.easterEggPlanet === -1) {
-      Game.saveData.easterEggPlanet = 1 + Math.floor(Math.random() * 4); // 1-4 (not Terra)
+      Game.saveData.easterEggPlanet = 1 + Math.floor(Math.random() * 4);
       Game.Save.save(Game.saveData);
     }
     if (Game.saveData.currentPlanet > 0 || Game.saveData.coins > 100) {
@@ -507,6 +508,9 @@ Game.scenes.FLIGHT = {
     }
 
     Game.EntityManager.clear();
+    if (Game.Combo) Game.Combo.reset();
+    if (Game.Audio && Game.Audio.initialized) Game.Audio.playFlightMusic();
+    if (Game.Audio) Game.Audio.sfx.launch();
   },
 
   update: function(dt) {
@@ -522,6 +526,11 @@ Game.scenes.FLIGHT = {
     if (Game.Input.wasPressed('Escape')) {
       Game.paused = !Game.paused;
       return;
+    }
+
+    // Music toggle
+    if (Game.Input.wasPressed('m') || Game.Input.wasPressed('M')) {
+      if (Game.Audio) Game.Audio.toggleMusic();
     }
 
     // Robot mode toggle (R key)
@@ -583,7 +592,10 @@ Game.scenes.FLIGHT = {
       if (this.spawnTimer <= 0) {
         var mx = 40 + Math.random() * (Game.CANVAS_W - 80);
         var speed = 150 + Math.random() * 200 + currentPlanet * 30;
-        Game.EntityManager.add('meteors', new Game.MeteorPixel(mx, -30, speed));
+        var met = new Game.MeteorPixel(mx, -30, speed);
+        // 8% chance of lucky meteor (golden, 3x reward)
+        if (Math.random() < 0.08) { met.lucky = true; }
+        Game.EntityManager.add('meteors', met);
         this.spawnTimer = this.meteorSpawnRate * (0.6 + Math.random() * 0.8);
         if (this.meteorSpawnRate > 0.4) this.meteorSpawnRate -= dt * 0.02;
       }
@@ -641,7 +653,16 @@ Game.scenes.FLIGHT = {
           if (Math.sqrt(bdx * bdx + bdy * bdy) < bullets[b].radius + meteors[m].radius) {
             bullets[b].active = false;
             meteors[m].destroy();
-            Game.EntityManager.add('coins', Game.createCoin(meteors[m].x, meteors[m].y, 3 + Math.floor(Math.random() * 4)));
+            // Variable rewards + combo
+            var isLucky = meteors[m].lucky;
+            var baseReward = 3 + Math.floor(Math.random() * 4);
+            if (Math.random() < 0.05) baseReward = 15 + Math.floor(Math.random() * 10); // 5% jackpot
+            if (isLucky) baseReward *= 3;
+            var mult = Game.Combo ? Game.Combo.add() : 1;
+            var finalReward = Math.floor(baseReward * mult);
+            Game.EntityManager.add('coins', Game.createCoin(meteors[m].x, meteors[m].y, finalReward));
+            Game.addFloatingText('+' + finalReward, meteors[m].x, meteors[m].y - 10, isLucky ? '#ff4081' : '#ffd700');
+            if (Game.Audio) Game.Audio.sfx.explosion();
           }
         }
       }
@@ -657,6 +678,12 @@ Game.scenes.FLIGHT = {
           if (Math.sqrt(edx * edx + edy * edy) < bullets[b2].radius + enemies[e].radius) {
             bullets[b2].active = false;
             enemies[e].takeDamage(bullets[b2].damage);
+            if (!enemies[e].active && Game.Combo) {
+              var emult = Game.Combo.add();
+              var eReward = Math.floor(enemies[e].coinDrop * emult);
+              Game.addFloatingText('+' + eReward, enemies[e].x, enemies[e].y - 15, '#ffd700', 16);
+            }
+            if (Game.Audio) Game.Audio.sfx.hit();
           }
         }
       }
@@ -671,6 +698,7 @@ Game.scenes.FLIGHT = {
         if (Math.sqrt(mdx * mdx + mdy * mdy) < rkt.radius + meteors[m2].radius) {
           meteors[m2].destroy();
           rkt.takeDamage(20);
+          if (Game.Audio) Game.Audio.sfx.damage();
         }
       }
     }
@@ -684,6 +712,7 @@ Game.scenes.FLIGHT = {
         if (Math.sqrt(pdx * pdx + pdy * pdy) < rkt.radius + (particles[p].radius || 4)) {
           particles[p].active = false;
           rkt.takeDamage(10);
+          if (Game.Audio) Game.Audio.sfx.damage();
         }
       }
     }
@@ -698,6 +727,8 @@ Game.scenes.FLIGHT = {
           Game.saveData.coins += coins[c].value;
           coins[c].active = false;
           Game.spawnParticles(coins[c].x, coins[c].y, 4, '#ffd700');
+          if (Game.Audio) { coins[c].value >= 10 ? Game.Audio.sfx.coinBig() : Game.Audio.sfx.coin(); }
+          if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
         }
       }
     }
@@ -807,6 +838,9 @@ Game.scenes.FLIGHT = {
       Game.UI.text(ctx, 'Robo: ' + modeNames[this.robot.mode] + ' [R]', 50, Game.CANVAS_H - 45, 10, modeColors[this.robot.mode]);
     }
 
+    // Combo display
+    if (Game.Combo) Game.Combo.render(ctx);
+
     // HUD
     Game.UI.renderFlightHUD(ctx, this.rocket, Game.saveData);
 
@@ -885,6 +919,7 @@ Game.scenes.PLANET_EXPLORE = {
     Game.EntityManager.clear();
     this.nearShop = false;
     this.nearRocket = false;
+    if (Game.Audio && Game.Audio.initialized) Game.Audio.playPlanetMusic(this.planetIndex);
   },
 
   flattenArea: function(startX, endX, y) {
@@ -942,6 +977,11 @@ Game.scenes.PLANET_EXPLORE = {
       return;
     }
 
+    // Music toggle
+    if (Game.Input.wasPressed('m') || Game.Input.wasPressed('M')) {
+      if (Game.Audio) Game.Audio.toggleMusic();
+    }
+
     var planet = Game.PlanetData[this.planetIndex];
 
     // Update astronaut
@@ -975,6 +1015,7 @@ Game.scenes.PLANET_EXPLORE = {
     if (Game.Input.wasPressed('e') || Game.Input.wasPressed('E')) {
       if (this.nearShop) {
         Game.ShopUI.open();
+        if (Game.Audio) Game.Audio.sfx.menuSelect();
       } else if (this.nearRocket) {
         if (Game.saveData.fuel > 0) {
           Game.Save.save(Game.saveData);
@@ -989,6 +1030,7 @@ Game.scenes.PLANET_EXPLORE = {
         this.easterEggPos = null;
         Game.showMessage('NUCLEO ESTELAR encontrado! -30% consumo fuel!', 4);
         Game.spawnParticles(this.astronaut.x, this.astronaut.y - 20, 30, '#e040fb', 2);
+        if (Game.Audio) Game.Audio.sfx.easterEgg();
         Game.triggerShake(6, 0.5);
       }
     }

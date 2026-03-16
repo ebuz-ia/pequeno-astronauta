@@ -426,6 +426,11 @@ Game.loop = function(timestamp) {
     }
   }
 
+  // Update systems
+  if (Game.Combo) Game.Combo.update(dt);
+  if (Game.Milestones) Game.Milestones.update(dt);
+  if (Game.updateFloatingTexts) Game.updateFloatingTexts(dt);
+
   if (!Game.paused && Game.scenes[Game.state]) {
     Game.scenes[Game.state].update(dt);
   }
@@ -454,6 +459,12 @@ Game.loop = function(timestamp) {
   if (Game.scenes[Game.state]) {
     Game.scenes[Game.state].render(ctx);
   }
+
+  // Floating texts (above scene)
+  if (Game.renderFloatingTexts) Game.renderFloatingTexts(ctx, 0, 0);
+
+  // Milestone celebration (above everything)
+  if (Game.Milestones) Game.Milestones.render(ctx);
 
   ctx.restore();
 
@@ -496,6 +507,13 @@ Game.init = function() {
   Game.Input.init(Game.canvas);
   Game.saveData = Game.Save.load();
   Game.resize();
+
+  // Init audio on first interaction
+  Game.canvas.addEventListener('click', function() { if (Game.Audio) Game.Audio.init(); }, { once: true });
+  Game.canvas.addEventListener('keydown', function() { if (Game.Audio) Game.Audio.init(); }, { once: true });
+
+  // Init milestones
+  if (Game.Milestones) Game.Milestones.init();
   window.addEventListener('resize', Game.resize);
 
   Game.state = Game.States.MENU;

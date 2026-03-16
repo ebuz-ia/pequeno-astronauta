@@ -256,7 +256,7 @@ Game.UI = {
     this.text(ctx, 'Fuel: ' + Math.ceil(saveData.fuel) + '/' + Game.getRocketStats(saveData).maxFuel, 15, 12, 13, '#4caf50');
 
     // Controls hint (bottom)
-    this.text(ctx, 'WASD: Mover | ESPACO: Pular | E: Interagir | ESC: Menu', Game.CANVAS_W / 2, Game.CANVAS_H - 25, 11, 'rgba(255,255,255,0.4)', 'center');
+    this.text(ctx, 'WASD: Mover | ESPACO: Pular | E: Interagir | M: Musica | ESC: Menu', Game.CANVAS_W / 2, Game.CANVAS_H - 25, 11, 'rgba(255,255,255,0.4)', 'center');
   },
 
   // --- Pause Overlay ---
@@ -467,6 +467,7 @@ Game.ShopUI = {
         saveData.rocketParts[part.key] = level + 1;
         Game.Save.save(saveData);
         Game.spawnParticles(cx + cardW / 2, cy + cardH / 2, 10, part.color);
+        if (Game.Audio) Game.Audio.sfx.upgrade();
       }
     }
   },
