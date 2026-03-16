@@ -245,7 +245,7 @@ Game.Starfield = function(count) {
     this.stars.push({
       x: Math.random() * Game.CANVAS_W,
       y: Math.random() * Game.CANVAS_H,
-      size: 0.5 + layer * 0.8 + Math.random() * 0.5,
+      size: 2 + layer * 1 + Math.random() * 1,
       speed: 20 + layer * 40 + Math.random() * 20,
       brightness: 0.3 + layer * 0.25 + Math.random() * 0.2,
       twinkleOffset: Math.random() * Math.PI * 2,
@@ -467,7 +467,8 @@ Game.Rocket.prototype.update = function(dt) {
   // Ascend (auto)
   if (this.fuel > 0 && this.ascending) {
     this.altitude += this.speed * dt;
-    this.fuel -= dt * 8; // fuel consumption
+    var fuelRate = Game.saveData && Game.saveData.foundEasterEgg ? 2.1 : 3; // -30% with Nucleo Estelar
+    this.fuel -= dt * fuelRate;
     if (this.fuel <= 0) {
       this.fuel = 0;
       this.parachute = true;
@@ -558,7 +559,7 @@ Game.EnemyShip = function(x, y) {
   this.hp = 30;
   this.speed = 60 + Math.random() * 60;
   this.shootTimer = 1 + Math.random() * 2;
-  this.coinDrop = 5 + Math.floor(Math.random() * 10);
+  this.coinDrop = 8 + Math.floor(Math.random() * 13);
   this.pattern = Math.random() < 0.5 ? 'zigzag' : 'straight';
   this.time = Math.random() * 10;
   this.active = true;
@@ -747,30 +748,251 @@ Game.TerrainGenerator = {
   render: function(ctx, terrain, planetIndex, cameraX) {
     var planet = Game.PlanetData[planetIndex];
     var startX = Math.max(0, Math.floor(cameraX));
-    var endX = Math.min(terrain.length, Math.floor(cameraX + Game.CANVAS_W + 1));
+    var endX = Math.min(terrain.length, Math.floor(cameraX + Game.CANVAS_W + 3));
+    var blockW = 3; // blockier pixel terrain
 
-    for (var x = startX; x < endX; x++) {
+    for (var x = startX; x < endX; x += blockW) {
       var screenX = x - cameraX;
-      var groundY = terrain[x];
+      var groundY = terrain[Math.min(x, terrain.length - 1)];
       var depth = Game.CANVAS_H - groundY;
 
       // Main ground
       ctx.fillStyle = planet.groundColor;
-      ctx.fillRect(screenX, groundY, 1, depth);
+      ctx.fillRect(screenX, groundY, blockW, depth);
 
-      // Surface detail (top 3 pixels)
+      // Surface detail (top layer)
       ctx.fillStyle = planet.surfaceDetail;
-      ctx.fillRect(screenX, groundY, 1, 2);
+      ctx.fillRect(screenX, groundY, blockW, 3);
 
       // Darker layer below
       ctx.fillStyle = planet.groundDark;
-      ctx.fillRect(screenX, groundY + 8, 1, depth - 8);
+      ctx.fillRect(screenX, groundY + 10, blockW, depth - 10);
 
       // Random dirt/rock pixels
-      if ((x * 7 + Math.floor(groundY)) % 13 === 0) {
+      if ((x * 7 + Math.floor(groundY)) % 11 === 0) {
         ctx.fillStyle = planet.groundLight;
-        ctx.fillRect(screenX, groundY + 4 + (x % 5), 1, 2);
+        ctx.fillRect(screenX, groundY + 4 + (x % 5), blockW, 3);
       }
     }
   }
+};
+
+// ===========================
+// ROBOT COMPANION (8x8 pixel sprite)
+// ===========================
+Game.Sprites.robot = [
+  [_,_,C,C,C,C,_,_],
+  [_,C,W,C,C,W,C,_],
+  [_,C,B,'#1565c0',B,'#1565c0',C,_],
+  [C,C,C,G,G,C,C,C],
+  [C,G,C,C,C,C,G,C],
+  [_,C,C,Y,Y,C,C,_],
+  [_,_,C,C,C,C,_,_],
+  [_,_,G,_,_,G,_,_]
+];
+
+Game.Sprites.robotClaw = [
+  [_,_,G,G,_,_],
+  [_,G,D,D,G,_],
+  [G,D,_,_,D,G],
+  [G,_,_,_,_,G],
+  [_,G,_,_,G,_],
+  [_,_,G,G,_,_]
+];
+
+// Space station sprite (32x24)
+Game.Sprites.spaceStation = [
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,G,G,G,G,G,G,_,_,_,_,_,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,G,W,W,W,W,W,W,G,_,_,_,_,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,G,W,C,C,C,C,C,W,W,G,_,_,_,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,G,W,C,C,C,C,C,C,C,W,W,G,_,_,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,_,G,W,W,W,W,W,W,W,W,W,W,W,W,G,_,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,G,D,D,D,D,D,D,D,D,D,D,D,D,D,D,G,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,G,D,G,G,D,D,D,R,R,D,D,D,G,G,D,D,D,G,_,_,_,_,_,_,_],
+  [_,_,_,_,_,G,G,D,D,G,G,D,D,D,R,R,D,D,D,G,G,D,D,D,D,G,G,_,_,_,_,_],
+  [_,_,_,_,G,W,W,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,W,W,G,_,_,_,_,_],
+  [_,_,_,G,W,W,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,W,W,G,_,_,_,_],
+  [_,_,G,W,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,W,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,Y,Y,D,D,D,D,D,D,D,D,D,D,D,D,D,D,Y,Y,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,Y,Y,D,D,D,D,D,D,D,D,D,D,D,D,D,D,Y,Y,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,K,K,K,K,K,K,K,K,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,K,Br,Br,Br,Br,Br,Br,K,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,K,Br,Br,Br,Br,Br,Br,K,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,K,Br,Br,Br,Br,Br,Br,K,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,K,Br,Br,Br,Br,Br,Br,K,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,G,D,D,D,D,D,D,D,D,K,K,K,K,K,K,K,K,D,D,D,D,D,D,D,D,G,_,_,_,_],
+  [_,_,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,_,_,_,_],
+  [_,_,_,_,D,D,D,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,D,D,D,_,_,_,_,_,_],
+  [_,_,_,D,D,D,D,D,_,_,_,_,_,_,_,_,_,_,_,_,_,_,D,D,D,D,D,_,_,_,_,_],
+  [_,_,D,D,D,D,D,D,D,_,_,_,_,_,_,_,_,_,_,_,_,D,D,D,D,D,D,D,_,_,_,_]
+];
+
+// RPG shop tent sprite (20x18) with bell
+Game.Sprites.shopTent = [
+  [_,_,_,_,_,_,_,_,_,Y,Y,_,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,_,Y,O,O,Y,_,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,_,Y,O,O,O,O,Y,_,_,_,_,_,_,_],
+  [_,_,_,_,_,_,Y,R,R,R,R,R,R,Y,_,_,_,_,_,_],
+  [_,_,_,_,_,Y,R,W,R,R,R,R,W,R,Y,_,_,_,_,_],
+  [_,_,_,_,Y,R,R,R,R,R,R,R,R,R,R,Y,_,_,_,_],
+  [_,_,_,Y,R,R,R,R,R,R,R,R,R,R,R,R,Y,_,_,_],
+  [_,_,Y,W,R,W,R,W,R,W,R,W,R,W,R,W,R,Y,_,_],
+  [_,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,Y,_],
+  [_,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,Br,_],
+  [_,Br,_,_,Br,_,_,_,Br,_,_,_,Br,_,_,_,Br,_,_,_],
+  [_,Br,_,_,Br,_,_,_,Br,K,K,K,Br,_,_,_,Br,_,_,_],
+  [_,Br,_,_,Br,_,_,_,K,Br,Br,Br,K,_,_,_,Br,_,_,_],
+  [_,Br,_,_,Br,_,_,_,K,Br,Br,Br,K,_,_,_,Br,_,_,_],
+  [_,Br,_,_,Br,_,_,_,K,Br,Br,Br,K,_,_,_,Br,_,_,_],
+  [_,Br,_,_,Br,_,_,_,K,Br,Br,Br,K,_,_,_,Br,_,_,_],
+  [_,Br,_,_,Br,_,_,_,K,K,K,K,K,_,_,_,Br,_,_,_],
+  [_,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,_]
+];
+
+// Bell sprite (5x6)
+Game.Sprites.bell = [
+  [_,_,Y,_,_],
+  [_,Y,O,Y,_],
+  [Y,O,O,O,Y],
+  [Y,O,O,O,Y],
+  [Y,Y,Y,Y,Y],
+  [_,_,K,_,_]
+];
+
+// Easter egg glow sprite (6x6)
+Game.Sprites.easterEggGlow = [
+  [_,_,P,P,_,_],
+  [_,P,'#e040fb','#e040fb',P,_],
+  [P,'#e040fb',W,W,'#e040fb',P],
+  [P,'#e040fb',W,W,'#e040fb',P],
+  [_,P,'#e040fb','#e040fb',P,_],
+  [_,_,P,P,_,_]
+];
+
+// ===========================
+// ROBOT COMPANION ENTITY
+// ===========================
+Game.Robot = function(ownerRocket) {
+  this.x = ownerRocket.x - 30;
+  this.y = ownerRocket.y;
+  this.radius = 8;
+  this.owner = ownerRocket;
+  this.active = true;
+  this.deployed = false;
+  this.mode = 'follow'; // follow, shoot, collect, repair
+  this.shootTimer = 0;
+  this.shootRate = 800; // ms
+  this.collectRange = 80;
+  this.time = 0;
+  this.bobOffset = 0;
+  this.targetX = 0;
+  this.targetY = 0;
+};
+
+Game.Robot.prototype.update = function(dt) {
+  this.time += dt;
+  this.bobOffset = Math.sin(this.time * 4) * 4;
+
+  if (!this.deployed) return;
+
+  var speed = 200;
+
+  if (this.mode === 'follow') {
+    // Follow rocket with offset
+    this.targetX = this.owner.x - 35;
+    this.targetY = this.owner.y - 10;
+  } else if (this.mode === 'shoot') {
+    // Stay near rocket, auto-shoot nearest enemy
+    this.targetX = this.owner.x - 35;
+    this.targetY = this.owner.y;
+    this.shootTimer -= dt * 1000;
+    if (this.shootTimer <= 0) {
+      this.shootTimer = this.shootRate;
+      // Find nearest enemy or meteor
+      var nearest = null;
+      var nearDist = 999;
+      var enemies = Game.EntityManager.enemies;
+      for (var i = 0; i < enemies.length; i++) {
+        if (enemies[i].active && !enemies[i].isEnemyBullet) {
+          var d = Math.abs(enemies[i].y - this.y) + Math.abs(enemies[i].x - this.x);
+          if (d < nearDist) { nearDist = d; nearest = enemies[i]; }
+        }
+      }
+      var meteors = Game.EntityManager.meteors;
+      for (var j = 0; j < meteors.length; j++) {
+        if (meteors[j].active) {
+          var dm = Math.abs(meteors[j].y - this.y) + Math.abs(meteors[j].x - this.x);
+          if (dm < nearDist) { nearDist = dm; nearest = meteors[j]; }
+        }
+      }
+      if (nearest) {
+        Game.EntityManager.add('bullets', Game.createBullet(this.x, this.y - 8, 8, '#4fc3f7'));
+      }
+    }
+  } else if (this.mode === 'collect') {
+    // Move toward nearest coin
+    var nearestCoin = null;
+    var coinDist = 999;
+    var coins = Game.EntityManager.coins;
+    for (var c = 0; c < coins.length; c++) {
+      if (coins[c].active) {
+        var dc = Math.sqrt(Math.pow(coins[c].x - this.x, 2) + Math.pow(coins[c].y - this.y, 2));
+        if (dc < coinDist) { coinDist = dc; nearestCoin = coins[c]; }
+      }
+    }
+    if (nearestCoin && coinDist < 300) {
+      this.targetX = nearestCoin.x;
+      this.targetY = nearestCoin.y;
+      // Auto-collect when close
+      if (coinDist < 20) {
+        Game.saveData.coins += nearestCoin.value;
+        nearestCoin.active = false;
+        Game.spawnParticles(nearestCoin.x, nearestCoin.y, 4, '#ffd700');
+      }
+    } else {
+      this.targetX = this.owner.x - 35;
+      this.targetY = this.owner.y;
+    }
+  }
+
+  // Move toward target
+  var dx = this.targetX - this.x;
+  var dy = this.targetY - this.y;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > 2) {
+    this.x += (dx / dist) * speed * dt;
+    this.y += (dy / dist) * speed * dt;
+  }
+
+  // Clamp to screen
+  this.x = Math.max(10, Math.min(this.x, Game.CANVAS_W - 10));
+  this.y = Math.max(10, Math.min(this.y, Game.CANVAS_H - 10));
+};
+
+Game.Robot.prototype.render = function(ctx) {
+  if (!this.deployed) return;
+
+  var drawY = this.y + this.bobOffset;
+
+  // Glow
+  ctx.save();
+  ctx.globalAlpha = 0.15 + Math.sin(this.time * 3) * 0.05;
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillRect(this.x - 12, drawY - 12, 24, 24);
+  ctx.restore();
+
+  // Robot sprite
+  Game.Pixel.drawCentered(ctx, Game.Sprites.robot, this.x, drawY, 2);
+
+  // Mode indicator
+  var modeColor = this.mode === 'shoot' ? '#f44336' : (this.mode === 'collect' ? '#ffd700' : '#4fc3f7');
+  ctx.fillStyle = modeColor;
+  ctx.fillRect(this.x - 1, drawY - 12, 2, 2);
+};
+
+Game.Robot.prototype.cycleMode = function() {
+  var modes = ['follow', 'shoot', 'collect'];
+  var idx = modes.indexOf(this.mode);
+  this.mode = modes[(idx + 1) % modes.length];
 };

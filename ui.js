@@ -321,7 +321,7 @@ Game.UI = {
 // SHOP UI (3 tabs: Parts, Fuel, Skins)
 // ===========================
 Game.ShopUI = {
-  tab: 0, // 0=parts, 1=fuel, 2=skins
+  tab: 0, // 0=parts, 1=fuel, 2=skins, 3=robot
 
   open: function() {
     Game.subState = Game.SubStates.SHOP;
@@ -359,9 +359,9 @@ Game.ShopUI = {
     Game.UI.textBold(ctx, '' + saveData.coins, Game.CANVAS_W / 2 - 35, panelY + 40, 16, '#ffd700', 'left');
 
     // Tab buttons
-    var tabNames = ['Pecas', 'Fuel', 'Skins'];
-    var tabColors = ['#4fc3f7', '#4caf50', '#9c27b0'];
-    var tabW = 120, tabH = 30;
+    var tabNames = ['Pecas', 'Fuel', 'Skins', 'Robo'];
+    var tabColors = ['#4fc3f7', '#4caf50', '#9c27b0', '#ff9800'];
+    var tabW = 105, tabH = 30;
     var tabStartX = panelX + (panelW - tabNames.length * (tabW + 10)) / 2;
     var tabY = panelY + 65;
 
@@ -395,8 +395,10 @@ Game.ShopUI = {
       this.renderPartsTab(ctx, saveData, panelX, contentY, panelW, contentH);
     } else if (this.tab === 1) {
       this.renderFuelTab(ctx, saveData, panelX, contentY, panelW, contentH);
-    } else {
+    } else if (this.tab === 2) {
       this.renderSkinsTab(ctx, saveData, panelX, contentY, panelW, contentH);
+    } else {
+      this.renderRobotTab(ctx, saveData, panelX, contentY, panelW, contentH);
     }
 
     // Close hint
@@ -590,6 +592,95 @@ Game.ShopUI = {
           Game.spawnParticles(cx + cardW / 2, cy + cardH / 2, 10, skin.color);
         }
       }
+    }
+  },
+
+  renderRobotTab: function(ctx, saveData, px, py, pw, ph) {
+    var hasRobot = saveData.hasRobot;
+    var robotLevel = saveData.robotLevel || 0;
+
+    // Robot preview
+    if (Game.Sprites.robot) {
+      Game.Pixel.drawCentered(ctx, Game.Sprites.robot, Game.CANVAS_W / 2, py + 40, 4);
+    }
+
+    if (!hasRobot) {
+      // Buy robot
+      var cost = 200;
+      var canBuy = saveData.coins >= cost;
+      Game.UI.textBold(ctx, 'Robo Companheiro', Game.CANVAS_W / 2, py + 70, 16, '#ff9800', 'center');
+      Game.UI.text(ctx, 'Atira, coleta moedas e repara o foguete!', Game.CANVAS_W / 2, py + 92, 11, '#aaa', 'center');
+
+      var btnW = 180, btnH = 40;
+      var btnX = Game.CANVAS_W / 2 - btnW / 2;
+      var btnY = py + 115;
+      var hovered = Game.UI.isMouseInRect(btnX, btnY, btnW, btnH);
+
+      ctx.fillStyle = hovered && canBuy ? '#2a3a2a' : '#15152a';
+      ctx.fillRect(btnX, btnY, btnW, btnH);
+      ctx.strokeStyle = canBuy ? '#ff9800' : '#444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(btnX, btnY, btnW, btnH);
+
+      Game.UI.textBold(ctx, 'Comprar: ' + cost + '$', btnX + btnW / 2, btnY + btnH / 2, 14, canBuy ? '#ffd700' : '#666', 'center', 'middle');
+
+      if (hovered && canBuy && Game.Input.mouse.clicked) {
+        saveData.coins -= cost;
+        saveData.hasRobot = true;
+        saveData.robotLevel = 1;
+        Game.Save.save(saveData);
+        Game.spawnParticles(Game.CANVAS_W / 2, py + 40, 15, '#ff9800', 1.5);
+        Game.showMessage('Robo adquirido! Use R para trocar modo.', 3);
+      }
+    } else {
+      // Robot info and upgrades
+      Game.UI.textBold(ctx, 'Robo Nivel ' + robotLevel, Game.CANVAS_W / 2, py + 70, 16, '#ff9800', 'center');
+
+      // Modes info
+      var modes = [
+        { name: 'Seguir', desc: 'Segue o foguete', color: '#4fc3f7' },
+        { name: 'Atirar', desc: 'Atira nos inimigos', color: '#f44336' },
+        { name: 'Coletar', desc: 'Coleta moedas automaticamente', color: '#ffd700' }
+      ];
+
+      for (var i = 0; i < modes.length; i++) {
+        var my = py + 95 + i * 28;
+        ctx.fillStyle = modes[i].color;
+        ctx.fillRect(px + 100, my, 8, 8);
+        Game.UI.text(ctx, modes[i].name + ': ' + modes[i].desc, px + 115, my - 2, 11, '#ccc');
+      }
+
+      // Upgrade button
+      if (robotLevel < 3) {
+        var upgCost = Math.floor(150 * Math.pow(1.8, robotLevel));
+        var canUpg = saveData.coins >= upgCost;
+        var upgBtnW = 200, upgBtnH = 36;
+        var upgBtnX = Game.CANVAS_W / 2 - upgBtnW / 2;
+        var upgBtnY = py + 190;
+        var upgHovered = Game.UI.isMouseInRect(upgBtnX, upgBtnY, upgBtnW, upgBtnH);
+
+        ctx.fillStyle = upgHovered && canUpg ? '#2a3a2a' : '#15152a';
+        ctx.fillRect(upgBtnX, upgBtnY, upgBtnW, upgBtnH);
+        ctx.strokeStyle = canUpg ? '#ff9800' : '#444';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(upgBtnX, upgBtnY, upgBtnW, upgBtnH);
+
+        var upgText = 'Upgrade Nv' + (robotLevel + 1) + ': ' + upgCost + '$';
+        Game.UI.textBold(ctx, upgText, upgBtnX + upgBtnW / 2, upgBtnY + upgBtnH / 2, 12, canUpg ? '#ffd700' : '#555', 'center', 'middle');
+
+        Game.UI.text(ctx, 'Tiros mais rapidos e coleta maior', Game.CANVAS_W / 2, upgBtnY + upgBtnH + 8, 10, '#666', 'center');
+
+        if (upgHovered && canUpg && Game.Input.mouse.clicked) {
+          saveData.coins -= upgCost;
+          saveData.robotLevel++;
+          Game.Save.save(saveData);
+          Game.spawnParticles(Game.CANVAS_W / 2, upgBtnY, 10, '#ff9800');
+        }
+      } else {
+        Game.UI.textBold(ctx, 'NIVEL MAXIMO!', Game.CANVAS_W / 2, py + 200, 14, '#ffd700', 'center');
+      }
+
+      Game.UI.text(ctx, 'Pressione R durante o voo para trocar modo', Game.CANVAS_W / 2, py + ph - 15, 10, '#555', 'center');
     }
   }
 };

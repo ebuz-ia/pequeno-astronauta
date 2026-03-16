@@ -18,7 +18,8 @@ Game.States = {
 
 Game.SubStates = {
   NONE: 'NONE',
-  SHOP: 'SHOP'
+  SHOP: 'SHOP',
+  REPAIR: 'REPAIR'
 };
 
 // --- Runtime State ---
@@ -227,10 +228,10 @@ Game.PlanetData = [
     surfaceDetail: '#5cb85c',
     terrainVariance: 30, terrainBase: 380,
     shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'],
-    fuelPrice: 2
+    fuelPrice: 1
   },
   {
-    name: 'Lua', altitude: 5000, gravity: 0.4,
+    name: 'Lua', altitude: 3000, gravity: 0.4,
     groundColor: '#b0b0b0', groundDark: '#8a8a8a', groundLight: '#c8c8c8',
     skyTop: '#0a0a1a', skyBottom: '#1a1a2a',
     surfaceDetail: '#999',
@@ -271,7 +272,7 @@ Game.PlanetData = [
 Game.ShopData = {
   parts: [
     { key: 'engine', name: 'Motor', desc: '+15% velocidade', baseCost: 100, costScale: 1.8, maxLevel: 4, color: '#f44336', icon: 'engine' },
-    { key: 'fuelTank', name: 'Tanque', desc: '+30 fuel max', baseCost: 80, costScale: 1.6, maxLevel: 4, color: '#2196f3', icon: 'tank' },
+    { key: 'fuelTank', name: 'Tanque', desc: '+50 fuel max', baseCost: 80, costScale: 1.6, maxLevel: 4, color: '#2196f3', icon: 'tank' },
     { key: 'heatShield', name: 'Escudo', desc: '-15% dano', baseCost: 120, costScale: 2.0, maxLevel: 4, color: '#ff9800', icon: 'shield' },
     { key: 'nozzle', name: 'Bocal', desc: '-20% cooldown', baseCost: 90, costScale: 1.7, maxLevel: 4, color: '#9c27b0', icon: 'nozzle' }
   ],
@@ -296,7 +297,7 @@ Game.getRocketStats = function(saveData) {
   var parts = saveData.rocketParts;
   return {
     speed: 150 * (1 + parts.engine * 0.15),
-    maxFuel: 50 + parts.fuelTank * 30,
+    maxFuel: 150 + parts.fuelTank * 50,
     damageReduction: parts.heatShield * 0.15,
     fireCooldown: Math.max(100, 400 - parts.nozzle * 80)
   };
@@ -308,13 +309,17 @@ Game.Save = {
 
   defaults: function() {
     return {
-      coins: 50,
+      coins: 100,
       currentPlanet: 0,
       highestPlanet: 0,
-      fuel: 50,
+      fuel: 150,
       rocketParts: { engine: 0, fuelTank: 0, heatShield: 0, nozzle: 0 },
       shotSkin: 'default',
-      unlockedSkins: ['default']
+      unlockedSkins: ['default'],
+      hasRobot: false,
+      robotLevel: 0,
+      foundEasterEgg: false,
+      easterEggPlanet: -1
     };
   },
 
@@ -331,7 +336,11 @@ Game.Save = {
           fuel: parsed.fuel !== undefined ? parsed.fuel : def.fuel,
           rocketParts: Object.assign({}, def.rocketParts, parsed.rocketParts || {}),
           shotSkin: parsed.shotSkin || def.shotSkin,
-          unlockedSkins: parsed.unlockedSkins || def.unlockedSkins
+          unlockedSkins: parsed.unlockedSkins || def.unlockedSkins,
+          hasRobot: parsed.hasRobot || def.hasRobot,
+          robotLevel: parsed.robotLevel || def.robotLevel,
+          foundEasterEgg: parsed.foundEasterEgg || def.foundEasterEgg,
+          easterEggPlanet: parsed.easterEggPlanet !== undefined ? parsed.easterEggPlanet : def.easterEggPlanet
         };
       }
     } catch (e) {
