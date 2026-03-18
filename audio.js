@@ -570,11 +570,8 @@ Game.Milestones = {
     // Decorative ring
     var ringAlpha = Math.sin(Game.time * 6) * 0.3 + 0.5;
     ctx.globalAlpha = alpha * ringAlpha;
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(Game.CANVAS_W / 2, Game.CANVAS_H / 2, 80 + (3 - this.celebrationTimer) * 20, 0, Math.PI * 2);
-    ctx.stroke();
+    var ringRadius = 80 + (3 - this.celebrationTimer) * 20;
+    Game.Pixel.drawRing(Game.ctx || ctx, Game.CANVAS_W / 2, Game.CANVAS_H / 2, ringRadius, '#ffd700', 3, 3);
 
     ctx.restore();
   }

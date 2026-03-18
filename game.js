@@ -11,7 +11,7 @@ Game.CANVAS_H = 540;
 Game.GRAVITY = 600; // base gravity px/s^2
 
 Game.States = {
-  MENU: 'MENU',
+  LAUNCH_BASE: 'LAUNCH_BASE',
   COCKPIT: 'COCKPIT',
   PLANET_EXPLORE: 'PLANET_EXPLORE',
   FLIGHT: 'FLIGHT'
@@ -20,7 +20,7 @@ Game.States = {
 Game.SubStates = {
   NONE: 'NONE',
   SHOP: 'SHOP',
-  REPAIR: 'REPAIR',
+  ASTEROID_LAND: 'ASTEROID_LAND',
   GAMEOVER: 'GAMEOVER'
 };
 
@@ -66,11 +66,53 @@ Game.Pixel = {
   },
 
   getSize: function(sprite, scale) {
-    var s = scale || 2;
+    var s = scale || 3;
     return {
       w: sprite[0].length * s,
       h: sprite.length * s
     };
+  },
+
+  // GBA-style flat color bands (replaces gradients)
+  drawColorBands: function(ctx, bands, x, y, w, h) {
+    var cy = y;
+    for (var i = 0; i < bands.length; i++) {
+      var bh = Math.ceil(h * bands[i].ratio);
+      ctx.fillStyle = bands[i].color;
+      ctx.fillRect(x, cy, w, bh);
+      cy += bh;
+    }
+  },
+
+  // Pixelated circle using fillRect (serrated edges)
+  drawCircle: function(ctx, cx, cy, radius, color, pixelSize) {
+    var ps = pixelSize || 2;
+    ctx.fillStyle = color;
+    var r2 = radius * radius;
+    for (var py = -radius; py <= radius; py += ps) {
+      for (var px = -radius; px <= radius; px += ps) {
+        if (px * px + py * py <= r2) {
+          ctx.fillRect(cx + px, cy + py, ps, ps);
+        }
+      }
+    }
+  },
+
+  // Pixelated ring (outline only)
+  drawRing: function(ctx, cx, cy, radius, color, thickness, pixelSize) {
+    var ps = pixelSize || 2;
+    var t = thickness || 2;
+    var outer2 = radius * radius;
+    var inner2 = (radius - t) * (radius - t);
+    ctx.fillStyle = color;
+    for (var py = -radius; py <= radius; py += ps) {
+      for (var px = -radius; px <= radius; px += ps) {
+        var d2 = px * px + py * py;
+        if (d2 <= outer2 && d2 >= inner2) {
+          ctx.fillRect(cx + px, cy + py, ps, ps);
+        }
+      }
+    }
   }
 };
 
@@ -381,9 +423,10 @@ Game.Save = {
       unlockedSkins: ['default'],
       hasRobot: false,
       robotLevel: 0,
+      asteroidsLanded: 0,
       foundEasterEgg: false,
       easterEggPlanet: -1,
-      shipTierNotified: -1 // last tier upgrade notification shown
+      shipTierNotified: -1
     };
   },
 
@@ -406,6 +449,7 @@ Game.Save = {
           unlockedSkins: parsed.unlockedSkins || def.unlockedSkins,
           hasRobot: parsed.hasRobot || def.hasRobot,
           robotLevel: parsed.robotLevel || def.robotLevel,
+          asteroidsLanded: parsed.asteroidsLanded || def.asteroidsLanded,
           foundEasterEgg: parsed.foundEasterEgg || def.foundEasterEgg,
           easterEggPlanet: parsed.easterEggPlanet !== undefined ? parsed.easterEggPlanet : def.easterEggPlanet,
           shipTierNotified: parsed.shipTierNotified !== undefined ? parsed.shipTierNotified : def.shipTierNotified
@@ -584,9 +628,9 @@ Game.init = function() {
   if (Game.Milestones) Game.Milestones.init();
   window.addEventListener('resize', Game.resize);
 
-  Game.state = Game.States.MENU;
-  if (Game.scenes[Game.States.MENU] && Game.scenes[Game.States.MENU].enter) {
-    Game.scenes[Game.States.MENU].enter();
+  Game.state = Game.States.LAUNCH_BASE;
+  if (Game.scenes[Game.States.LAUNCH_BASE] && Game.scenes[Game.States.LAUNCH_BASE].enter) {
+    Game.scenes[Game.States.LAUNCH_BASE].enter();
   }
 
   Game.lastTime = performance.now();

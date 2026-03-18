@@ -245,7 +245,7 @@ Game.Starfield = function(count) {
     this.stars.push({
       x: Math.random() * Game.CANVAS_W,
       y: Math.random() * Game.CANVAS_H,
-      size: 2 + layer * 1 + Math.random() * 1,
+      size: 3 + layer * 1 + Math.random() * 1,
       speed: 20 + layer * 40 + Math.random() * 20,
       brightness: 0.3 + layer * 0.25 + Math.random() * 0.2,
       twinkleOffset: Math.random() * Math.PI * 2,
@@ -393,7 +393,7 @@ Game.createCoin = function(x, y, value) {
       var sy = this.y - (oy || 0);
       if (this.lifetime < 2) { ctx.save(); ctx.globalAlpha = this.lifetime / 2; }
       var frame = Math.floor(this.time * 6) % 4;
-      Game.Pixel.drawCentered(ctx, Game.Sprites.coin[frame], sx, sy, 2);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.coin[frame], sx, sy, 3);
       if (this.lifetime < 2) ctx.restore();
     }
   };
@@ -405,10 +405,10 @@ Game.createCoin = function(x, y, value) {
 Game.Rocket = function(saveData) {
   var stats = Game.getRocketStats(saveData);
   this.x = Game.CANVAS_W / 2;
-  this.y = Game.CANVAS_H - 80;
-  this.width = 32; // 16 * scale 2
-  this.height = 48;
-  this.radius = 16;
+  this.y = Game.CANVAS_H - 100;
+  this.width = 48; // 16 * scale 3
+  this.height = 72;
+  this.radius = 24;
 
   this.speed = stats.speed;
   this.fuel = saveData.fuel;
@@ -504,7 +504,7 @@ Game.Rocket.prototype.render = function(ctx) {
   if (this.parachute && this.parachuteDeploy > 0) {
     ctx.save();
     ctx.globalAlpha = this.parachuteDeploy;
-    Game.Pixel.drawCentered(ctx, Game.Sprites.parachute, this.x, this.y - 40 - this.parachuteDeploy * 20, 2);
+    Game.Pixel.drawCentered(ctx, Game.Sprites.parachute, this.x, this.y - 50 - this.parachuteDeploy * 25, 3);
     // Strings
     ctx.strokeStyle = '#999';
     ctx.lineWidth = 1;
@@ -516,11 +516,11 @@ Game.Rocket.prototype.render = function(ctx) {
   }
 
   // Rocket
-  Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, this.x, this.y, 2);
+  Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, this.x, this.y, 3);
 
   // Flame (only when ascending with fuel)
   if (this.fuel > 0 && !this.parachute) {
-    Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], this.x, this.y + 30, 2);
+    Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], this.x, this.y + 44, 3);
   }
 };
 
@@ -530,7 +530,7 @@ Game.Rocket.prototype.render = function(ctx) {
 Game.MeteorPixel = function(x, y, speed) {
   this.x = x;
   this.y = y;
-  this.radius = 10;
+  this.radius = 15;
   this.speed = speed || (120 + Math.random() * 200);
   this.rotation = 0;
   this.active = true;
@@ -553,7 +553,7 @@ Game.MeteorPixel.prototype.render = function(ctx, ox, oy) {
     ctx.fillRect(sx - 14, sy - 14, 28, 28);
     ctx.restore();
   }
-  Game.Pixel.drawCentered(ctx, Game.Sprites.meteor, sx, sy, 2);
+  Game.Pixel.drawCentered(ctx, Game.Sprites.meteor, sx, sy, 3);
   if (this.lucky) {
     ctx.save();
     ctx.globalAlpha = 0.4;
@@ -574,7 +574,7 @@ Game.MeteorPixel.prototype.destroy = function() {
 Game.EnemyShip = function(x, y) {
   this.x = x;
   this.y = y;
-  this.radius = 14;
+  this.radius = 21;
   this.hp = 30;
   this.speed = 60 + Math.random() * 60;
   this.shootTimer = 1 + Math.random() * 2;
@@ -630,7 +630,7 @@ Game.EnemyShip.prototype.takeDamage = function(amount) {
 };
 
 Game.EnemyShip.prototype.render = function(ctx, ox, oy) {
-  Game.Pixel.drawCentered(ctx, Game.Sprites.enemyShip, this.x - (ox || 0), this.y - (oy || 0), 2);
+  Game.Pixel.drawCentered(ctx, Game.Sprites.enemyShip, this.x - (ox || 0), this.y - (oy || 0), 3);
 };
 
 // ===========================
@@ -639,8 +639,8 @@ Game.EnemyShip.prototype.render = function(ctx, ox, oy) {
 Game.Astronaut = function(x, y) {
   this.x = x;
   this.y = y;
-  this.width = 24; // 12 * 2
-  this.height = 32; // 16 * 2
+  this.width = 36; // 12 * 3
+  this.height = 48; // 16 * 3
   this.vx = 0;
   this.vy = 0;
   this.speed = 160;
@@ -727,7 +727,7 @@ Game.Astronaut.prototype.render = function(ctx, ox, oy) {
     sprite = Game.Sprites.astronautIdle;
   }
 
-  Game.Pixel.draw(ctx, sprite, sx - this.width / 2, sy, 2, flipX);
+  Game.Pixel.draw(ctx, sprite, sx - this.width / 2, sy, 3, flipX);
 };
 
 // ===========================
@@ -768,7 +768,7 @@ Game.TerrainGenerator = {
     var planet = Game.PlanetData[planetIndex];
     var startX = Math.max(0, Math.floor(cameraX));
     var endX = Math.min(terrain.length, Math.floor(cameraX + Game.CANVAS_W + 3));
-    var blockW = 3; // blockier pixel terrain
+    var blockW = 4; // GBA-style blocky terrain
 
     for (var x = startX; x < endX; x += blockW) {
       var screenX = x - cameraX;
@@ -890,12 +890,310 @@ Game.Sprites.easterEggGlow = [
 ];
 
 // ===========================
-// ROBOT COMPANION ENTITY
+// LAUNCH BASE SPRITES
+// ===========================
+
+// Launch pad (40x8) - metal platform with markings
+Game.Sprites.launchPad = [
+  [D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D],
+  [G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G],
+  [G,D,D,G,G,Y,Y,G,G,D,D,G,G,D,D,G,G,Y,Y,G,G,D,D,G,G,Y,Y,G,G,D,D,G,G,Y,Y,G,G,D,D,G],
+  [G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G],
+  [D,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,G,D],
+  [K,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,K],
+  [K,K,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,D,K,K],
+  [K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K,K]
+];
+
+// Launch tower (12x32) - support structure with scaffolding
+Game.Sprites.launchTower = [
+  [_,_,_,_,R,R,R,R,_,_,_,_],
+  [_,_,_,R,R,R,R,R,R,_,_,_],
+  [_,_,_,D,D,_,_,D,D,_,_,_],
+  [_,_,D,D,_,_,_,_,D,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,D,D,_,_,D,_,_],
+  [_,_,D,_,D,_,_,D,_,D,_,_],
+  [_,_,D,D,_,_,_,_,D,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,D,D,_,_,D,_,_],
+  [_,_,D,_,D,_,_,D,_,D,_,_],
+  [_,_,D,D,_,_,_,_,D,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,_,_,_,_,_,_,D,_,_],
+  [_,_,D,G,G,G,G,G,G,D,_,_],
+  [_,D,D,D,D,D,D,D,D,D,D,_],
+  [D,D,D,D,D,D,D,D,D,D,D,D],
+  [D,D,D,D,D,D,D,D,D,D,D,D],
+  [K,K,K,K,K,K,K,K,K,K,K,K]
+];
+
+// Large asteroid sprite (20x14)
+Game.Sprites.largeAsteroid = [
+  [_,_,_,_,_,_,Br,Br,Br,Br,Br,Br,Br,_,_,_,_,_,_,_],
+  [_,_,_,_,Br,Br,D,D,D,Br,D,D,D,Br,Br,_,_,_,_,_],
+  [_,_,_,Br,D,D,K,D,D,D,D,D,K,D,D,Br,_,_,_,_],
+  [_,_,Br,D,D,D,D,D,K,D,D,D,D,D,D,D,Br,_,_,_],
+  [_,Br,D,K,D,D,D,D,D,D,K,D,D,D,K,D,D,Br,_,_],
+  [Br,D,D,D,D,K,D,D,D,D,D,D,D,D,D,D,D,D,Br,_],
+  [Br,D,D,D,D,D,D,D,K,D,D,D,K,D,D,D,D,D,Br,Br],
+  [Br,D,K,D,D,D,K,D,D,D,D,D,D,D,K,D,D,D,D,Br],
+  [Br,D,D,D,D,D,D,D,D,K,D,D,D,D,D,D,D,K,D,Br],
+  [_,Br,D,D,K,D,D,D,D,D,D,D,K,D,D,D,D,D,Br,_],
+  [_,_,Br,D,D,D,D,K,D,D,D,D,D,D,D,K,D,Br,_,_],
+  [_,_,_,Br,D,D,D,D,D,D,K,D,D,D,Br,Br,_,_,_,_],
+  [_,_,_,_,Br,Br,D,D,D,D,D,D,Br,Br,_,_,_,_,_,_],
+  [_,_,_,_,_,_,Br,Br,Br,Br,Br,Br,_,_,_,_,_,_,_,_]
+];
+
+// Mineral resource (6x6)
+Game.Sprites.mineral = [
+  [_,_,Br,Br,_,_],
+  [_,Br,O,O,Br,_],
+  [Br,O,Y,Y,O,Br],
+  [Br,O,Y,O,O,Br],
+  [_,Br,O,O,Br,_],
+  [_,_,Br,Br,_,_]
+];
+
+// Fuel crystal (6x8)
+Game.Sprites.fuelCrystal = [
+  [_,_,C,C,_,_],
+  [_,C,B,B,C,_],
+  [_,C,W,B,C,_],
+  [C,B,B,B,B,C],
+  [C,B,W,B,B,C],
+  [C,B,B,B,B,C],
+  [_,C,B,B,C,_],
+  [_,_,C,C,_,_]
+];
+
+// Rocket door frames (6x4, 3 frames)
+Game.Sprites.rocketDoor = [];
+Game.Sprites.rocketDoor[0] = [ // closed
+  [G,G,G,G,G,G],
+  [G,D,D,D,D,G],
+  [G,D,D,D,D,G],
+  [G,G,G,G,G,G]
+];
+Game.Sprites.rocketDoor[1] = [ // half open
+  [G,G,_,_,G,G],
+  [G,_,_,_,_,G],
+  [G,_,_,_,_,G],
+  [G,G,_,_,G,G]
+];
+Game.Sprites.rocketDoor[2] = [ // open
+  [G,_,_,_,_,G],
+  [_,_,_,_,_,_],
+  [_,_,_,_,_,_],
+  [G,_,_,_,_,G]
+];
+
+// ===========================
+// ROBOT LANDER (asteroid-only, state machine)
+// ===========================
+Game.RobotLander = function(rocketX, rocketY, targetX, surfaceY) {
+  this.x = rocketX;
+  this.y = rocketY;
+  this.startX = rocketX;
+  this.startY = rocketY;
+  this.targetX = targetX;
+  this.surfaceY = surfaceY;
+  this.state = 'IDLE';
+  this.doorFrame = 0;
+  this.stateTimer = 0;
+  this.walkSpeed = 50;
+  this.collectTimer = 0;
+  this.visible = false;
+  this.facing = targetX > rocketX ? 1 : -1;
+  this.animFrame = 0;
+  this.animTimer = 0;
+  this.onComplete = null;
+  this.active = true;
+};
+
+Game.RobotLander.prototype.start = function() {
+  this.state = 'DOOR_OPENING';
+  this.stateTimer = 0;
+};
+
+Game.RobotLander.prototype.update = function(dt) {
+  this.stateTimer += dt;
+  this.animTimer += dt;
+  if (this.animTimer > 0.2) { this.animTimer = 0; this.animFrame = (this.animFrame + 1) % 2; }
+
+  switch (this.state) {
+    case 'IDLE': break;
+
+    case 'DOOR_OPENING':
+      this.doorFrame = Math.min(2, Math.floor(this.stateTimer / 0.25));
+      if (this.stateTimer >= 0.6) {
+        this.state = 'EXITING';
+        this.stateTimer = 0;
+        this.visible = true;
+        this.y = this.surfaceY;
+      }
+      break;
+
+    case 'EXITING':
+      this.x += this.facing * this.walkSpeed * 0.5 * dt;
+      if (this.stateTimer >= 0.4) {
+        this.state = 'WALKING_TO_TARGET';
+        this.stateTimer = 0;
+      }
+      break;
+
+    case 'WALKING_TO_TARGET':
+      var dx = this.targetX - this.x;
+      if (Math.abs(dx) > 3) {
+        this.x += (dx > 0 ? 1 : -1) * this.walkSpeed * dt;
+        this.facing = dx > 0 ? 1 : -1;
+      } else {
+        this.state = 'COLLECTING';
+        this.stateTimer = 0;
+        this.collectTimer = 0;
+      }
+      break;
+
+    case 'COLLECTING':
+      this.collectTimer += dt;
+      if (this.collectTimer >= 1.8) {
+        this.state = 'WALKING_BACK';
+        this.stateTimer = 0;
+        this.facing = this.startX > this.x ? 1 : -1;
+      }
+      break;
+
+    case 'WALKING_BACK':
+      var dx2 = this.startX - this.x;
+      if (Math.abs(dx2) > 3) {
+        this.x += (dx2 > 0 ? 1 : -1) * this.walkSpeed * dt;
+        this.facing = dx2 > 0 ? 1 : -1;
+      } else {
+        this.state = 'ENTERING';
+        this.stateTimer = 0;
+      }
+      break;
+
+    case 'ENTERING':
+      if (this.stateTimer >= 0.4) {
+        this.visible = false;
+        this.state = 'DOOR_CLOSING';
+        this.stateTimer = 0;
+      }
+      break;
+
+    case 'DOOR_CLOSING':
+      this.doorFrame = Math.max(0, 2 - Math.floor(this.stateTimer / 0.25));
+      if (this.stateTimer >= 0.6) {
+        this.state = 'COMPLETE';
+        this.doorFrame = 0;
+        if (this.onComplete) this.onComplete();
+      }
+      break;
+
+    case 'COMPLETE':
+      this.active = false;
+      break;
+  }
+};
+
+Game.RobotLander.prototype.render = function(ctx, ox, oy) {
+  var sx = this.x - (ox || 0);
+  var sy = this.y - (oy || 0);
+
+  // Door overlay on rocket (always render when active)
+  if (this.state !== 'IDLE' && this.state !== 'COMPLETE') {
+    Game.Pixel.draw(ctx, Game.Sprites.rocketDoor[this.doorFrame], this.startX - (ox || 0) - 9, this.startY - (oy || 0) + 10, 3);
+  }
+
+  // Robot sprite
+  if (this.visible) {
+    var sprite = this.animFrame === 0 ? Game.Sprites.robot : Game.Sprites.robot;
+    Game.Pixel.drawCentered(ctx, sprite, sx, sy - 12, 3, this.facing === -1);
+
+    // Claw during collecting
+    if (this.state === 'COLLECTING') {
+      var clawBob = Math.sin(this.collectTimer * 6) * 3;
+      Game.Pixel.drawCentered(ctx, Game.Sprites.robotClaw, sx, sy - 24 + clawBob, 3);
+      // Sparkle particles
+      if (Math.random() < 0.15) {
+        Game.spawnParticles(sx + (ox || 0), sy + (oy || 0) - 20, 1, '#ffd700', 0.5);
+      }
+    }
+  }
+};
+
+// ===========================
+// LARGE ASTEROID (landable during flight)
+// ===========================
+Game.LargeAsteroid = function(x, y) {
+  this.x = x;
+  this.y = y;
+  this.radius = 45;
+  this.speed = 30 + Math.random() * 20;
+  this.active = true;
+  this.landable = false;
+  this.landed = false;
+  this.resourceType = Math.random() < 0.5 ? 'mineral' : 'fuel_crystal';
+  this.resourceX = -30 + Math.random() * 60; // offset from center
+  this.surfaceY = -20; // top of asteroid
+  this.time = 0;
+};
+
+Game.LargeAsteroid.prototype.update = function(dt) {
+  this.time += dt;
+  if (!this.landed) {
+    this.y += this.speed * dt;
+    this.x += Math.sin(this.time * 0.5) * 10 * dt;
+  }
+  if (this.y > Game.CANVAS_H + 80) this.active = false;
+};
+
+Game.LargeAsteroid.prototype.render = function(ctx, ox, oy) {
+  var sx = this.x - (ox || 0);
+  var sy = this.y - (oy || 0);
+
+  // Asteroid body
+  Game.Pixel.drawCentered(ctx, Game.Sprites.largeAsteroid, sx, sy, 3);
+
+  // Landable indicator
+  if (this.landable && !this.landed) {
+    var blink = Math.sin(this.time * 4) > 0;
+    if (blink) {
+      ctx.fillStyle = '#4caf50';
+      ctx.fillRect(sx - 2, sy - this.radius - 10, 4, 4);
+      ctx.fillRect(sx - 2, sy - this.radius - 18, 4, 4);
+    }
+  }
+
+  // Resource on surface
+  if (!this.landed) {
+    var resSprite = this.resourceType === 'mineral' ? Game.Sprites.mineral : Game.Sprites.fuelCrystal;
+    Game.Pixel.drawCentered(ctx, resSprite, sx + this.resourceX, sy - 25, 3);
+  }
+};
+
+// ===========================
+// ROBOT COMPANION ENTITY (LEGACY - kept for save compat)
 // ===========================
 Game.Robot = function(ownerRocket) {
-  this.x = ownerRocket.x - 30;
+  this.x = ownerRocket.x - 40;
   this.y = ownerRocket.y;
-  this.radius = 8;
+  this.radius = 12;
   this.owner = ownerRocket;
   this.active = true;
   this.deployed = false;
@@ -1003,7 +1301,7 @@ Game.Robot.prototype.render = function(ctx) {
   ctx.restore();
 
   // Robot sprite
-  Game.Pixel.drawCentered(ctx, Game.Sprites.robot, this.x, drawY, 2);
+  Game.Pixel.drawCentered(ctx, Game.Sprites.robot, this.x, drawY, 3);
 
   // Mode indicator
   var modeColor = this.mode === 'shoot' ? '#f44336' : (this.mode === 'collect' ? '#ffd700' : '#4fc3f7');

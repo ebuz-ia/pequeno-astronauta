@@ -214,7 +214,7 @@ Game.UI = {
 
     // Coins (top right)
     var coinFrame = Math.floor(Game.time * 6) % 4;
-    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W - 120, 12, 2);
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W - 120, 12, 3);
     this.textBold(ctx, '' + saveData.coins, Game.CANVAS_W - 100, 15, 16, '#ffd700', 'left');
 
     // Planet name (top center)
@@ -244,7 +244,7 @@ Game.UI = {
 
     // Coins (top right)
     var coinFrame = Math.floor(Game.time * 6) % 4;
-    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W - 120, 12, 2);
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W - 120, 12, 3);
     this.textBold(ctx, '' + saveData.coins, Game.CANVAS_W - 100, 15, 16, '#ffd700', 'left');
 
     // Fuel indicator (top left)
@@ -350,7 +350,7 @@ Game.ShopUI = {
 
     // Coins
     var coinFrame = Math.floor(Game.time * 6) % 4;
-    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W / 2 - 55, panelY + 40, 2);
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], Game.CANVAS_W / 2 - 55, panelY + 40, 3);
     Game.UI.textBold(ctx, '' + saveData.coins, Game.CANVAS_W / 2 - 35, panelY + 40, 16, '#ffd700', 'left');
 
     // Tab buttons

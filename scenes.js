@@ -7,20 +7,30 @@ window.Game = window.Game || {};
 Game.scenes = Game.scenes || {};
 
 // ===========================
-// MENU SCENE
+// LAUNCH BASE SCENE (replaces MENU)
 // ===========================
-Game.scenes.MENU = {
+Game.scenes.LAUNCH_BASE = {
   starfield: null,
   time: 0,
   btnBounds: null,
   flameFrame: 0,
   flameTimer: 0,
+  lightTimer: 0,
+  lightsOn: true,
+  launching: false,
+  launchTimer: 0,
+  rocketYOffset: 0,
 
   enter: function() {
-    this.starfield = new Game.Starfield(200);
+    this.starfield = new Game.Starfield(150);
     this.time = 0;
     this.flameFrame = 0;
     this.flameTimer = 0;
+    this.lightTimer = 0;
+    this.lightsOn = true;
+    this.launching = false;
+    this.launchTimer = 0;
+    this.rocketYOffset = 0;
     if (Game.Audio && Game.Audio.initialized) Game.Audio.playMenuMusic();
   },
 
@@ -32,103 +42,172 @@ Game.scenes.MENU = {
     this.flameTimer += dt;
     if (this.flameTimer > 0.1) { this.flameTimer = 0; this.flameFrame = (this.flameFrame + 1) % 3; }
 
-    // Start game
-    if (Game.Input.wasPressed(' ') || Game.Input.wasPressed('Enter')) {
-      this.startGame();
+    // Blink tower lights
+    this.lightTimer += dt;
+    if (this.lightTimer > 0.5) { this.lightTimer = 0; this.lightsOn = !this.lightsOn; }
+
+    // Launch animation
+    if (this.launching) {
+      this.launchTimer += dt;
+      if (this.launchTimer < 1.5) {
+        // Tremor + fire building up
+        Game.triggerShake(2 + this.launchTimer * 4, 0.05);
+        if (Math.random() < 0.5 + this.launchTimer * 0.3) {
+          var px = Game.CANVAS_W / 2 + (Math.random() - 0.5) * 30;
+          var groundY = Game.CANVAS_H - 90;
+          Game.spawnParticles(px, groundY, 2, Math.random() < 0.5 ? '#ff6b35' : '#ffeb3b', 1);
+        }
+      } else if (this.launchTimer < 4) {
+        // Rocket ascending
+        this.rocketYOffset += 200 * dt;
+        if (Math.random() < 0.7) {
+          var rocketScreenY = Game.CANVAS_H - 135 - this.rocketYOffset;
+          Game.spawnParticles(Game.CANVAS_W / 2 + (Math.random() - 0.5) * 15, rocketScreenY + 50, 1, '#ff9800', 0.8);
+        }
+      } else {
+        // Transition to cockpit
+        Game.changeState(Game.States.COCKPIT);
+      }
+      return;
     }
 
+    // Start
+    if (Game.Input.wasPressed(' ') || Game.Input.wasPressed('Enter')) {
+      this.startLaunch();
+    }
     if (this.btnBounds && Game.Input.mouse.clicked) {
       if (Game.UI.isMouseInRect(this.btnBounds.x, this.btnBounds.y, this.btnBounds.w, this.btnBounds.h)) {
-        this.startGame();
+        this.startLaunch();
       }
     }
   },
 
-  startGame: function() {
-    if (Game.Audio) { Game.Audio.init(); Game.Audio.sfx.menuSelect(); }
+  startLaunch: function() {
+    if (Game.Audio) { Game.Audio.init(); Game.Audio.sfx.launch(); }
     Game.saveData = Game.Save.load();
     if (Game.saveData.easterEggPlanet === -1) {
       Game.saveData.easterEggPlanet = 1 + Math.floor(Math.random() * 4);
       Game.Save.save(Game.saveData);
     }
-    // Always go to cockpit now
-    Game.changeState(Game.States.COCKPIT);
+    this.launching = true;
+    this.launchTimer = 0;
+    this.rocketYOffset = 0;
   },
 
   render: function(ctx) {
-    // Dark sky gradient
-    var grad = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
-    grad.addColorStop(0, '#050510');
-    grad.addColorStop(0.6, '#0a0a2a');
-    grad.addColorStop(1, '#1a3a5c');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+    // Night sky - flat color bands (GBA style)
+    Game.Pixel.drawColorBands(ctx, [
+      { color: '#050510', ratio: 0.4 },
+      { color: '#0a0a1a', ratio: 0.35 },
+      { color: '#0f1020', ratio: 0.25 }
+    ], 0, 0, Game.CANVAS_W, Game.CANVAS_H);
 
     // Stars
     this.starfield.render(ctx);
 
-    // Terra ground at bottom
-    var groundY = Game.CANVAS_H - 60;
-    ctx.fillStyle = '#3a7d2e';
-    ctx.fillRect(0, groundY, Game.CANVAS_W, 60);
-    ctx.fillStyle = '#5cb85c';
-    ctx.fillRect(0, groundY, Game.CANVAS_W, 3);
-    ctx.fillStyle = '#2d6323';
-    ctx.fillRect(0, groundY + 10, Game.CANVAS_W, 50);
+    // Ground - metal platform area
+    var groundY = Game.CANVAS_H - 90;
 
-    // Pixel title "PEQUENO ASTRONAUTA"
-    var titleY = 80 + Math.sin(this.time * 1.5) * 5;
-    var titleScale = 4;
+    // Concrete/metal ground
+    ctx.fillStyle = '#2a2a30';
+    ctx.fillRect(0, groundY, Game.CANVAS_W, 90);
+    ctx.fillStyle = '#3a3a40';
+    ctx.fillRect(0, groundY, Game.CANVAS_W, 4);
+    ctx.fillStyle = '#1a1a20';
+    ctx.fillRect(0, groundY + 20, Game.CANVAS_W, 70);
 
-    this.drawColorTitle(ctx, 'PEQUENO', Game.CANVAS_W / 2, titleY, titleScale);
-    this.drawColorTitle(ctx, 'ASTRONAUTA', Game.CANVAS_W / 2, titleY + titleScale * 7, titleScale);
-
-    // Subtitle
-    Game.UI.text(ctx, 'Uma aventura espacial em pixel art', Game.CANVAS_W / 2, titleY + titleScale * 15, 14, '#78909c', 'center');
-
-    // Animated rocket in center
-    var rocketY = 260 + Math.sin(this.time * 2) * 8;
-    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, Game.CANVAS_W / 2, rocketY, 3);
-    Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], Game.CANVAS_W / 2, rocketY + 45, 3);
-
-    // Robot companion floating near rocket
-    if (Game.Sprites.robot) {
-      var robotX = Game.CANVAS_W / 2 - 50 + Math.sin(this.time * 1.5) * 10;
-      var robotY = rocketY - 10 + Math.cos(this.time * 2) * 6;
-      Game.Pixel.drawCentered(ctx, Game.Sprites.robot, robotX, robotY, 2);
+    // Floor markings (yellow stripes)
+    for (var mx = 0; mx < Game.CANVAS_W; mx += 60) {
+      ctx.fillStyle = '#c0a010';
+      ctx.fillRect(mx, groundY + 8, 30, 4);
     }
 
-    // Small astronaut on the ground
-    var astSprite = Math.floor(this.time * 3) % 2 === 0 ? Game.Sprites.astronautIdle : Game.Sprites.astronautWalk1;
-    Game.Pixel.draw(ctx, astSprite, Game.CANVAS_W / 2 + 100, groundY - 32, 2);
+    // Center floor markings (landing circle)
+    var padCX = Game.CANVAS_W / 2;
+    ctx.fillStyle = '#c0a010';
+    ctx.fillRect(padCX - 60, groundY + 2, 120, 4);
+    ctx.fillRect(padCX - 3, groundY + 2, 6, 16);
 
-    // "JOGAR" button
-    var btnW = 160, btnH = 44;
-    var btnX = Game.CANVAS_W / 2 - btnW / 2;
-    var btnY = 380;
-    var hovered = Game.UI.isMouseInRect(btnX, btnY, btnW, btnH);
+    // Launch pad
+    Game.Pixel.draw(ctx, Game.Sprites.launchPad, padCX - 60, groundY - 20, 3);
 
-    var pulse = Math.sin(this.time * 3) * 0.2 + 0.8;
-    ctx.save();
-    ctx.globalAlpha = pulse * 0.3;
-    ctx.fillStyle = '#4caf50';
-    ctx.fillRect(btnX - 4, btnY - 4, btnW + 8, btnH + 8);
-    ctx.restore();
+    // Launch tower (left of pad)
+    var towerX = padCX - 140;
+    var towerY = groundY - 96 * 3;
+    Game.Pixel.draw(ctx, Game.Sprites.launchTower, towerX, towerY, 3);
 
-    this.btnBounds = Game.UI.button(ctx, 'JOGAR', btnX, btnY, btnW, btnH, hovered, '#4caf50');
+    // Blinking lights on tower
+    var lightColor = this.lightsOn ? '#ff0000' : '#440000';
+    ctx.fillStyle = lightColor;
+    ctx.fillRect(towerX + 15, towerY + 3, 6, 6);
+    ctx.fillRect(towerX + 21, towerY + 3, 6, 6);
+    // More lights down the tower
+    var lightColor2 = !this.lightsOn ? '#ffff00' : '#444400';
+    ctx.fillStyle = lightColor2;
+    ctx.fillRect(towerX + 18, towerY + 42, 6, 6);
+    ctx.fillRect(towerX + 18, towerY + 72, 6, 6);
 
-    // Check for save
-    var save = Game.Save.load();
-    if (save.coins !== 100 || save.currentPlanet > 0) {
-      Game.UI.text(ctx, 'Continuar jogo salvo', Game.CANVAS_W / 2, btnY + btnH + 8, 11, '#666', 'center');
+    // Support arm connecting tower to rocket
+    ctx.fillStyle = '#555';
+    ctx.fillRect(towerX + 30, groundY - 80, padCX - towerX - 50, 6);
+
+    // Rocket on pad
+    var rocketX = padCX;
+    var rocketY = groundY - 45 - this.rocketYOffset;
+    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, rocketX, rocketY, 3);
+
+    // Flame during launch
+    if (this.launching && this.launchTimer >= 0.5) {
+      Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], rocketX, rocketY + 44, 3);
     }
 
-    // Controls hint
-    Game.UI.text(ctx, 'WASD: Mover | ESPACO: Pular/Atirar | E: Interagir | R: Robo | ESC: Pausar',
-      Game.CANVAS_W / 2, Game.CANVAS_H - 25, 11, '#3a3a5a', 'center');
+    // Title - pixel art
+    if (!this.launching || this.launchTimer < 1) {
+      var titleY = 50 + Math.sin(this.time * 1.5) * 3;
+      var titleScale = 4;
+      this.drawColorTitle(ctx, 'EXPLORADORES', Game.CANVAS_W / 2, titleY, titleScale);
+      this.drawColorTitle(ctx, 'DA GALAXIA', Game.CANVAS_W / 2, titleY + titleScale * 7, titleScale);
 
-    // Version
-    Game.UI.text(ctx, 'v2.5', Game.CANVAS_W - 30, Game.CANVAS_H - 20, 10, '#333', 'right');
+      // Subtitle
+      Game.UI.text(ctx, 'Uma aventura espacial em pixel art', Game.CANVAS_W / 2, titleY + titleScale * 15, 13, '#556', 'center');
+    }
+
+    // "LANCAR" button
+    if (!this.launching) {
+      var btnW = 180, btnH = 44;
+      var btnX = Game.CANVAS_W / 2 - btnW / 2;
+      var btnY = Game.CANVAS_H - 60;
+      var hovered = Game.UI.isMouseInRect(btnX, btnY, btnW, btnH);
+
+      var pulse = Math.sin(this.time * 3) * 0.2 + 0.8;
+      ctx.save();
+      ctx.globalAlpha = pulse * 0.3;
+      ctx.fillStyle = '#ff6b35';
+      ctx.fillRect(btnX - 4, btnY - 4, btnW + 8, btnH + 8);
+      ctx.restore();
+
+      this.btnBounds = Game.UI.button(ctx, 'LANCAR', btnX, btnY, btnW, btnH, hovered, '#ff6b35');
+
+      // Save hint
+      var save = Game.Save.load();
+      if (save.coins !== 100 || save.currentPlanet > 0) {
+        Game.UI.text(ctx, 'Continuar jogo salvo', Game.CANVAS_W / 2, btnY - 15, 11, '#555', 'center');
+      }
+    } else {
+      // Launch countdown text
+      if (this.launchTimer < 1.5) {
+        var countText = Math.ceil(1.5 - this.launchTimer);
+        Game.UI.textBold(ctx, '' + countText, Game.CANVAS_W / 2, 200, 40, '#ff6b35', 'center');
+      } else {
+        Game.UI.textBold(ctx, 'DECOLAGEM!', Game.CANVAS_W / 2, 200, 28, '#ffd700', 'center');
+      }
+    }
+
+    // Controls & version
+    if (!this.launching) {
+      Game.UI.text(ctx, 'ESPACO/ENTER: Lancar | WASD: Mover | E: Interagir | M: Musica', Game.CANVAS_W / 2, 20, 10, '#333', 'center');
+      Game.UI.text(ctx, 'v4.0', Game.CANVAS_W - 30, Game.CANVAS_H - 15, 10, '#333', 'right');
+    }
   },
 
   drawColorTitle: function(ctx, text, centerX, y, scale) {
@@ -288,7 +367,7 @@ Game.scenes.COCKPIT = {
       Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
     }
     if (Game.Input.wasPressed('Escape')) {
-      Game.changeState(Game.States.MENU);
+      Game.changeState(Game.States.LAUNCH_BASE);
     }
   },
 
@@ -351,8 +430,7 @@ Game.scenes.COCKPIT = {
     // === INFO PANEL (right side) ===
     this.renderInfoPanel(ctx);
 
-    // === ROBOT DORMINDO (bottom right) ===
-    this.renderSleepingRobot(ctx);
+    // (Robot removed - only appears on asteroid landings now)
 
     // === COCKPIT FRAME (overlay) ===
     this.renderCockpitFrame(ctx);
@@ -391,13 +469,12 @@ Game.scenes.COCKPIT = {
     ctx.fillStyle = '#050510';
     ctx.fillRect(vx, vy, vw, vh);
 
-    // Deep space gradient
-    var grad = ctx.createLinearGradient(vx, vy, vx + vw, vy + vh);
-    grad.addColorStop(0, '#050510');
-    grad.addColorStop(0.5, '#0a0a20');
-    grad.addColorStop(1, '#050515');
-    ctx.fillStyle = grad;
-    ctx.fillRect(vx, vy, vw, vh);
+    // Deep space (pixel color bands)
+    Game.Pixel.drawColorBands(ctx, [
+      { color: '#050510', ratio: 0.35 },
+      { color: '#0a0a20', ratio: 0.35 },
+      { color: '#050515', ratio: 0.3 }
+    ], vx, vy, vw, vh);
 
     // Stars in visor (parallax drift)
     ctx.save();
@@ -418,41 +495,27 @@ Game.scenes.COCKPIT = {
       var tpy = vy + vh / 2 + Math.cos(this.time * 0.4) * 10;
       var tpSize = 15 + Math.sin(this.time) * 3;
 
-      // Planet glow
+      // Planet glow (pixel)
       ctx.globalAlpha = 0.2;
-      ctx.fillStyle = tp.groundColor;
-      ctx.beginPath();
-      ctx.arc(tpx, tpy, tpSize + 8, 0, Math.PI * 2);
-      ctx.fill();
+      Game.Pixel.drawCircle(ctx, tpx, tpy, tpSize + 8, tp.groundColor, 3);
 
-      // Planet body
+      // Planet body (pixel)
       ctx.globalAlpha = 1;
-      ctx.fillStyle = tp.groundColor;
-      ctx.beginPath();
-      ctx.arc(tpx, tpy, tpSize, 0, Math.PI * 2);
-      ctx.fill();
+      Game.Pixel.drawCircle(ctx, tpx, tpy, tpSize, tp.groundColor, 3);
 
-      // Surface detail
-      ctx.fillStyle = tp.groundLight;
-      ctx.beginPath();
-      ctx.arc(tpx - 3, tpy - 3, tpSize * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = tp.groundDark;
-      ctx.beginPath();
-      ctx.arc(tpx + 4, tpy + 4, tpSize * 0.3, 0, Math.PI * 2);
-      ctx.fill();
+      // Surface detail (pixel)
+      Game.Pixel.drawCircle(ctx, tpx - 3, tpy - 3, tpSize * 0.4, tp.groundLight, 3);
+      Game.Pixel.drawCircle(ctx, tpx + 4, tpy + 4, tpSize * 0.3, tp.groundDark, 3);
 
       // Name
       Game.UI.textBold(ctx, tp.name, tpx, tpy + tpSize + 12, 11, '#fff', 'center');
     } else {
-      // Default: show distant nebula
+      // Default: show distant nebula (pixel glow)
       ctx.globalAlpha = 0.08;
-      var nebGrad = ctx.createRadialGradient(vx + vw * 0.6, vy + vh * 0.4, 10, vx + vw * 0.6, vy + vh * 0.4, 80);
-      nebGrad.addColorStop(0, '#9c27b0');
-      nebGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = nebGrad;
-      ctx.fillRect(vx, vy, vw, vh);
+      ctx.fillStyle = '#9c27b0';
+      ctx.fillRect(vx + vw * 0.4, vy + vh * 0.2, vw * 0.4, vh * 0.4);
+      ctx.globalAlpha = 0.04;
+      ctx.fillRect(vx + vw * 0.3, vy + vh * 0.1, vw * 0.6, vh * 0.6);
       ctx.globalAlpha = 1;
     }
 
@@ -482,16 +545,15 @@ Game.scenes.COCKPIT = {
     var centerX = mx + mw / 2;
     var centerY = contentY + contentH / 2;
 
-    // Grid lines (subtle)
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth = 1;
+    // Grid lines (pixel)
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
     for (var gx = -10; gx <= 10; gx++) {
-      var lx = centerX + (gx - this.mapCenterX) * this.mapZoom;
-      ctx.beginPath(); ctx.moveTo(lx, contentY); ctx.lineTo(lx, contentY + contentH); ctx.stroke();
+      var lx = Math.floor(centerX + (gx - this.mapCenterX) * this.mapZoom);
+      ctx.fillRect(lx, contentY, 1, contentH);
     }
     for (var gy = -10; gy <= 10; gy++) {
-      var ly = centerY + (gy - this.mapCenterY) * this.mapZoom;
-      ctx.beginPath(); ctx.moveTo(mx, ly); ctx.lineTo(mx + mw, ly); ctx.stroke();
+      var ly = Math.floor(centerY + (gy - this.mapCenterY) * this.mapZoom);
+      ctx.fillRect(mx, ly, mw, 1);
     }
 
     // Draw route line (current -> selected)
@@ -503,12 +565,17 @@ Game.scenes.COCKPIT = {
       var tx = centerX + (toP.gx - this.mapCenterX) * this.mapZoom;
       var ty = centerY + (toP.gy - this.mapCenterY) * this.mapZoom;
 
-      // Dashed route line
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = '#ffd700';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx, ty); ctx.stroke();
-      ctx.setLineDash([]);
+      // Dashed route line (pixel dots)
+      var routeDx = tx - fx, routeDy = ty - fy;
+      var routeLen = Math.sqrt(routeDx * routeDx + routeDy * routeDy);
+      var routeSteps = Math.floor(routeLen / 6);
+      ctx.fillStyle = '#ffd700';
+      for (var rd = 0; rd < routeSteps; rd++) {
+        if (rd % 2 === 0) {
+          var rt = rd / routeSteps;
+          ctx.fillRect(Math.floor(fx + routeDx * rt), Math.floor(fy + routeDy * rt), 2, 2);
+        }
+      }
     }
 
     // Draw black holes
@@ -517,25 +584,18 @@ Game.scenes.COCKPIT = {
       var bhx = centerX + (bh.gx - this.mapCenterX) * this.mapZoom;
       var bhy = centerY + (bh.gy - this.mapCenterY) * this.mapZoom;
 
-      // Accretion disk
+      // Accretion disk (pixel)
       ctx.save();
       ctx.globalAlpha = 0.15 + Math.sin(this.time * 2 + b) * 0.05;
-      var bhGrad = ctx.createRadialGradient(bhx, bhy, 2, bhx, bhy, bh.radius * this.mapZoom);
-      bhGrad.addColorStop(0, '#ff4444');
-      bhGrad.addColorStop(0.5, '#880000');
-      bhGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = bhGrad;
-      ctx.fillRect(bhx - 30, bhy - 30, 60, 60);
+      ctx.fillStyle = '#880000';
+      ctx.fillRect(bhx - 20, bhy - 20, 40, 40);
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(bhx - 10, bhy - 10, 20, 20);
       ctx.restore();
 
-      // Black center
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.arc(bhx, bhy, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#660000';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      // Black center (pixel)
+      Game.Pixel.drawCircle(ctx, bhx, bhy, 4, '#000', 2);
+      Game.Pixel.drawRing(ctx, bhx, bhy, 5, '#660000', 1, 2);
     }
 
     // Draw planets
@@ -555,39 +615,25 @@ Game.scenes.COCKPIT = {
       var dotSize = isCurrent ? 7 : (isSelected ? 6 : (accessible ? 5 : 3));
 
       if (!accessible) {
-        // Locked planet - dim
+        // Locked planet - dim (pixel)
         ctx.globalAlpha = 0.25;
-        ctx.fillStyle = '#555';
-        ctx.beginPath();
-        ctx.arc(ppx, ppy, dotSize, 0, Math.PI * 2);
-        ctx.fill();
+        Game.Pixel.drawCircle(ctx, ppx, ppy, dotSize, '#555', 2);
         ctx.globalAlpha = 1;
         continue;
       }
 
-      // Selection ring
+      // Selection ring (pixel)
       if (isSelected) {
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(ppx, ppy, dotSize + 4 + Math.sin(this.time * 4) * 2, 0, Math.PI * 2);
-        ctx.stroke();
+        Game.Pixel.drawRing(ctx, ppx, ppy, dotSize + 4 + Math.sin(this.time * 4) * 2, '#ffd700', 2, 2);
       }
 
-      // Current planet ring
+      // Current planet ring (pixel)
       if (isCurrent) {
-        ctx.strokeStyle = '#4caf50';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(ppx, ppy, dotSize + 3, 0, Math.PI * 2);
-        ctx.stroke();
+        Game.Pixel.drawRing(ctx, ppx, ppy, dotSize + 3, '#4caf50', 2, 2);
       }
 
-      // Planet dot
-      ctx.fillStyle = planet.groundColor;
-      ctx.beginPath();
-      ctx.arc(ppx, ppy, dotSize, 0, Math.PI * 2);
-      ctx.fill();
+      // Planet dot (pixel)
+      Game.Pixel.drawCircle(ctx, ppx, ppy, dotSize, planet.groundColor, 2);
 
       // Visited marker
       if (visited && !isCurrent) {
@@ -628,7 +674,7 @@ Game.scenes.COCKPIT = {
 
     // Coins
     var coinFrame = Math.floor(this.time * 6) % 4;
-    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], ix + 10, iy + 78, 2);
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], ix + 10, iy + 78, 3);
     Game.UI.textBold(ctx, '' + Game.saveData.coins, ix + 30, iy + 78, 14, '#ffd700');
 
     // Planets visited
@@ -931,17 +977,19 @@ Game.RepairPuzzle = {
     Game.UI.textBold(ctx, 'REPARO: Conecte os fios', Game.CANVAS_W / 2, py + 15, 16, '#4fc3f7', 'center');
     Game.UI.text(ctx, 'Clique esquerda, depois direita da mesma cor', Game.CANVAS_W / 2, py + 38, 11, '#888', 'center');
 
-    // Draw connections
+    // Draw connections (pixel line)
     for (var c = 0; c < this.connections.length; c++) {
       var conn = this.connections[c];
       var ly = py + 80 + conn.left * 55;
-      var ry = py + 80 + conn.right * 55;
-      ctx.strokeStyle = this.colors[conn.left];
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(px + 60, ly);
-      ctx.lineTo(px + 340, ry);
-      ctx.stroke();
+      var ry2c = py + 80 + conn.right * 55;
+      var wireDx = (px + 340) - (px + 60), wireDy = ry2c - ly;
+      var wireLen = Math.sqrt(wireDx * wireDx + wireDy * wireDy);
+      var wireSteps = Math.floor(wireLen / 4);
+      ctx.fillStyle = this.colors[conn.left];
+      for (var ws = 0; ws <= wireSteps; ws++) {
+        var wt = ws / wireSteps;
+        ctx.fillRect(Math.floor(px + 60 + wireDx * wt), Math.floor(ly + wireDy * wt), 3, 3);
+      }
     }
 
     // Left dots
@@ -1069,14 +1117,11 @@ Game.scenes.FLIGHT = {
     this.flightDistance = data.flightDistance || 5000;
     this.blackHole = data.blackHole || null;
 
-    // Robot companion
-    if (Game.saveData.hasRobot) {
-      this.robot = new Game.Robot(this.rocket);
-      this.robot.deployed = true;
-      this.robot.mode = 'shoot';
-    } else {
-      this.robot = null;
-    }
+    // Asteroid landing
+    this.largeAsteroid = null;
+    this.asteroidTimer = 20 + Math.random() * 15;
+    this.robotLander = null;
+    this.asteroidLandPhase = 0; // 0=none, 1=descending, 2=robot working, 3=ascending
 
     Game.EntityManager.clear();
     if (Game.Combo) Game.Combo.reset();
@@ -1087,9 +1132,9 @@ Game.scenes.FLIGHT = {
   update: function(dt) {
     this.time += dt;
 
-    // Repair puzzle substate
-    if (Game.subState === Game.SubStates.REPAIR) {
-      Game.RepairPuzzle.update(dt);
+    // Asteroid landing substate
+    if (Game.subState === Game.SubStates.ASTEROID_LAND) {
+      this.updateAsteroidLand(dt);
       return;
     }
 
@@ -1104,31 +1149,40 @@ Game.scenes.FLIGHT = {
       if (Game.Audio) Game.Audio.toggleMusic();
     }
 
-    // Robot mode toggle (R key)
-    if (this.robot && Game.Input.wasPressed('r') || Game.Input.wasPressed('R')) {
-      if (this.robot) this.robot.cycleMode();
-    }
-
     // Update rocket
     this.rocket.update(dt);
 
-    // Check HP for repair prompt
-    if (this.rocket.hp <= 30 && this.rocket.hp > 0 && !this.repairPromptShown && Game.saveData.hasRobot) {
-      this.repairPromptShown = true;
-      Game.showMessage('HP baixo! Pressione F para reparar', 3);
+    // Spawn large asteroids
+    if (Game.saveData.hasRobot) {
+      this.asteroidTimer -= dt;
+      if (this.asteroidTimer <= 0 && !this.largeAsteroid) {
+        this.largeAsteroid = new Game.LargeAsteroid(
+          100 + Math.random() * (Game.CANVAS_W - 200),
+          -60
+        );
+        this.asteroidTimer = 25 + Math.random() * 15;
+      }
     }
 
-    // Start repair puzzle
-    if (Game.Input.wasPressed('f') || Game.Input.wasPressed('F')) {
-      if (this.rocket.hp <= 50 && this.rocket.hp > 0 && Game.saveData.hasRobot) {
-        Game.subState = Game.SubStates.REPAIR;
-        var self = this;
-        Game.RepairPuzzle.start(function() {
-          self.rocket.hp = Math.min(self.rocket.maxHp, self.rocket.hp + 40);
-          self.repairPromptShown = false;
-        });
-        return;
+    // Update large asteroid
+    if (this.largeAsteroid && this.largeAsteroid.active) {
+      this.largeAsteroid.update(dt);
+      // Check proximity to rocket
+      var adx = this.rocket.x - this.largeAsteroid.x;
+      var ady = this.rocket.y - this.largeAsteroid.y;
+      var adist = Math.sqrt(adx * adx + ady * ady);
+      this.largeAsteroid.landable = adist < 120;
+
+      // Land on asteroid (S key)
+      if (this.largeAsteroid.landable && (Game.Input.wasPressed('s') || Game.Input.wasPressed('S') || Game.Input.wasPressed('ArrowDown'))) {
+        Game.subState = Game.SubStates.ASTEROID_LAND;
+        this.asteroidLandPhase = 1; // descending
+        this.largeAsteroid.landed = true;
+        this.asteroidLandTimer = 0;
+        if (Game.Audio) Game.Audio.sfx.parachute();
       }
+
+      if (!this.largeAsteroid.active) this.largeAsteroid = null;
     }
 
     // Game over from black hole
@@ -1194,12 +1248,6 @@ Game.scenes.FLIGHT = {
     // Starfield
     var scrollSpeed = this.rocket.fuel > 0 ? 1 : 0.3;
     this.starfield.update(dt * scrollSpeed, 'down');
-
-    // Update robot
-    if (this.robot) {
-      this.robot.owner = this.rocket;
-      this.robot.update(dt);
-    }
 
     // Update entities
     Game.EntityManager.updateAll(dt);
@@ -1397,20 +1445,18 @@ Game.scenes.FLIGHT = {
     var currentPlanet = Game.saveData.currentPlanet;
     var planet = Game.PlanetData[currentPlanet];
 
-    // Sky background
+    // Sky background (pixel color bands)
     if (this.bgPhase === 0) {
-      var grad = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
-      grad.addColorStop(0, planet.skyTop);
-      grad.addColorStop(1, planet.skyBottom);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+      Game.Pixel.drawColorBands(ctx, [
+        { color: planet.skyTop, ratio: 0.5 },
+        { color: planet.skyBottom, ratio: 0.5 }
+      ], 0, 0, Game.CANVAS_W, Game.CANVAS_H);
     } else if (this.bgPhase === 2 && this.targetPlanetIdx < Game.PlanetData.length) {
       var nextPlanet = Game.PlanetData[this.targetPlanetIdx];
-      var grad2 = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
-      grad2.addColorStop(0, nextPlanet.skyTop);
-      grad2.addColorStop(1, nextPlanet.skyBottom);
-      ctx.fillStyle = grad2;
-      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+      Game.Pixel.drawColorBands(ctx, [
+        { color: nextPlanet.skyTop, ratio: 0.5 },
+        { color: nextPlanet.skyBottom, ratio: 0.5 }
+      ], 0, 0, Game.CANVAS_W, Game.CANVAS_H);
     } else {
       ctx.fillStyle = '#050510';
       ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
@@ -1436,8 +1482,10 @@ Game.scenes.FLIGHT = {
     // Rocket
     this.rocket.render(ctx);
 
-    // Robot
-    if (this.robot) this.robot.render(ctx);
+    // Large asteroid
+    if (this.largeAsteroid && this.largeAsteroid.active) {
+      this.largeAsteroid.render(ctx, 0, 0);
+    }
 
     // Event warning
     if (this.eventActive) {
@@ -1448,19 +1496,12 @@ Game.scenes.FLIGHT = {
       }
     }
 
-    // Repair prompt
-    if (this.rocket.hp <= 50 && this.rocket.hp > 0 && Game.saveData.hasRobot) {
-      var repBlink = Math.sin(Game.time * 4) > 0;
-      if (repBlink) {
-        Game.UI.textBold(ctx, '[F] Reparar Foguete', Game.CANVAS_W / 2, 70, 11, '#ff9800', 'center');
+    // Asteroid landing prompt
+    if (this.largeAsteroid && this.largeAsteroid.landable && !this.largeAsteroid.landed) {
+      var landBlink = Math.sin(Game.time * 4) > 0;
+      if (landBlink) {
+        Game.UI.textBold(ctx, '[S] POUSAR NO ASTEROIDE', Game.CANVAS_W / 2, 70, 13, '#4caf50', 'center');
       }
-    }
-
-    // Robot mode indicator
-    if (this.robot && this.robot.deployed) {
-      var modeNames = { follow: 'Seguindo', shoot: 'Atirando', collect: 'Coletando' };
-      var modeColors = { follow: '#4fc3f7', shoot: '#f44336', collect: '#ffd700' };
-      Game.UI.text(ctx, 'Robo: ' + modeNames[this.robot.mode] + ' [R]', 50, Game.CANVAS_H - 45, 10, modeColors[this.robot.mode]);
     }
 
     // Combo display
@@ -1476,23 +1517,19 @@ Game.scenes.FLIGHT = {
         var bhIntensity = 1 - Math.abs(bhProgress - 0.5) * 4;
         ctx.save();
         ctx.globalAlpha = bhIntensity * 0.4;
-        // Swirling black hole
+        // Swirling black hole (pixel)
         var bhCx = Game.CANVAS_W / 2 + Math.sin(this.time * 0.5) * 100;
         var bhCy = Game.CANVAS_H * 0.3;
-        var bhGrad = ctx.createRadialGradient(bhCx, bhCy, 5, bhCx, bhCy, 120);
-        bhGrad.addColorStop(0, '#000');
-        bhGrad.addColorStop(0.3, '#220000');
-        bhGrad.addColorStop(0.6, '#440000');
-        bhGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = bhGrad;
-        ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+        ctx.fillStyle = '#440000';
+        ctx.fillRect(bhCx - 80, bhCy - 80, 160, 160);
+        ctx.fillStyle = '#220000';
+        ctx.fillRect(bhCx - 40, bhCy - 40, 80, 80);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(bhCx - 15, bhCy - 15, 30, 30);
 
-        // Accretion ring
-        ctx.strokeStyle = '#ff4444';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(bhCx, bhCy, 60 + Math.sin(this.time * 3) * 10, 20, this.time * 0.5, 0, Math.PI * 2);
-        ctx.stroke();
+        // Accretion ring (pixel)
+        var ringRadius = 60 + Math.sin(this.time * 3) * 10;
+        Game.Pixel.drawRing(ctx, bhCx, bhCy, ringRadius, '#ff4444', 2, 4);
         ctx.restore();
       }
     }
@@ -1502,11 +1539,8 @@ Game.scenes.FLIGHT = {
       ctx.save();
       var suckAlpha = Math.min(1, (3 - this.blackHoleSuckTimer) / 3);
       ctx.globalAlpha = suckAlpha * 0.7;
-      ctx.fillStyle = '#000';
       var suckSize = suckAlpha * 300;
-      ctx.beginPath();
-      ctx.arc(Game.CANVAS_W / 2, Game.CANVAS_H * 0.3, suckSize, 0, Math.PI * 2);
-      ctx.fill();
+      Game.Pixel.drawCircle(ctx, Game.CANVAS_W / 2, Game.CANVAS_H * 0.3, suckSize, '#000', 6);
       ctx.restore();
     }
 
@@ -1520,9 +1554,116 @@ Game.scenes.FLIGHT = {
       ctx.restore();
     }
 
-    // Repair puzzle overlay
-    if (Game.subState === Game.SubStates.REPAIR) {
-      Game.RepairPuzzle.render(ctx);
+    // Asteroid landing overlay
+    if (Game.subState === Game.SubStates.ASTEROID_LAND) {
+      this.renderAsteroidLand(ctx);
+    }
+  },
+
+  // --- Asteroid Landing Logic ---
+  updateAsteroidLand: function(dt) {
+    this.asteroidLandTimer = (this.asteroidLandTimer || 0) + dt;
+    var ast = this.largeAsteroid;
+
+    if (this.asteroidLandPhase === 1) {
+      // Descending onto asteroid
+      this.rocket.x += (ast.x - this.rocket.x) * 3 * dt;
+      this.rocket.y += (ast.y - 35 - this.rocket.y) * 3 * dt;
+      if (this.asteroidLandTimer > 1.5) {
+        this.asteroidLandPhase = 2;
+        this.asteroidLandTimer = 0;
+        // Create robot lander
+        if (Game.saveData.hasRobot && Game.RobotLander) {
+          this.robotLander = new Game.RobotLander(
+            ast.x, ast.y - 15,
+            ast.x + ast.resourceX,
+            ast.y - 15
+          );
+          this.robotLander.onComplete = function() {};
+          this.robotLander.start();
+        } else {
+          // No robot - just collect directly after a delay
+          this.asteroidLandPhase = 3;
+          this.asteroidLandTimer = 0;
+          this.collectReward(ast);
+        }
+      }
+    } else if (this.asteroidLandPhase === 2) {
+      // Robot working
+      if (this.robotLander) {
+        this.robotLander.update(dt);
+        if (this.robotLander.state === 'COMPLETE') {
+          this.collectReward(ast);
+          this.asteroidLandPhase = 3;
+          this.asteroidLandTimer = 0;
+        }
+      }
+    } else if (this.asteroidLandPhase === 3) {
+      // Ascending back
+      this.rocket.y -= 200 * dt;
+      if (this.asteroidLandTimer > 1.2) {
+        Game.subState = Game.SubStates.NONE;
+        this.asteroidLandPhase = 0;
+        this.largeAsteroid = null;
+        this.robotLander = null;
+      }
+    }
+  },
+
+  collectReward: function(ast) {
+    if (ast.resourceType === 'mineral') {
+      var coins = 20 + Math.floor(Math.random() * 15);
+      Game.saveData.coins += coins;
+      Game.addFloatingText('+' + coins + ' moedas', ast.x, ast.y - 50, '#ffd700', 16);
+      if (Game.Audio) Game.Audio.sfx.coinBig();
+    } else {
+      var fuel = 15 + Math.floor(Math.random() * 10);
+      var stats = Game.getRocketStats(Game.saveData);
+      Game.saveData.fuel = Math.min(Game.saveData.fuel + fuel, stats.maxFuel);
+      this.rocket.fuel = Math.min(this.rocket.fuel + fuel, this.rocket.maxFuel);
+      Game.addFloatingText('+' + fuel + ' fuel', ast.x, ast.y - 50, '#4fc3f7', 16);
+      if (Game.Audio) Game.Audio.sfx.upgrade();
+    }
+    Game.saveData.asteroidsLanded = (Game.saveData.asteroidsLanded || 0) + 1;
+    Game.Save.save(Game.saveData);
+    if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
+  },
+
+  renderAsteroidLand: function(ctx) {
+    var ast = this.largeAsteroid;
+    if (!ast) return;
+
+    // Dim background
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+    ctx.restore();
+
+    // Large asteroid centered
+    Game.Pixel.drawCentered(ctx, Game.Sprites.largeAsteroid, ast.x, ast.y, 3);
+
+    // Resource on surface
+    if (this.asteroidLandPhase <= 2) {
+      var resSprite = ast.resourceType === 'mineral' ? Game.Sprites.mineral : Game.Sprites.fuelCrystal;
+      Game.Pixel.drawCentered(ctx, resSprite, ast.x + ast.resourceX, ast.y - 25, 3);
+    }
+
+    // Rocket
+    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, this.rocket.x, this.rocket.y, 3);
+
+    // Robot lander
+    if (this.robotLander && this.asteroidLandPhase === 2) {
+      this.robotLander.render(ctx, 0, 0);
+    }
+
+    // Status text
+    if (this.asteroidLandPhase === 1) {
+      Game.UI.textBold(ctx, 'Pousando...', Game.CANVAS_W / 2, 30, 14, '#4caf50', 'center');
+    } else if (this.asteroidLandPhase === 2) {
+      Game.UI.textBold(ctx, 'Coletando recursos...', Game.CANVAS_W / 2, 30, 14, '#ffd700', 'center');
+    } else if (this.asteroidLandPhase === 3) {
+      Game.UI.textBold(ctx, 'Decolando!', Game.CANVAS_W / 2, 30, 14, '#ff6b35', 'center');
     }
   },
 
@@ -1716,12 +1857,11 @@ Game.scenes.PLANET_EXPLORE = {
     var planet = Game.PlanetData[this.planetIndex];
     var camX = Game.Camera.x;
 
-    // Sky gradient
-    var grad = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
-    grad.addColorStop(0, planet.skyTop);
-    grad.addColorStop(1, planet.skyBottom);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+    // Sky (pixel color bands)
+    Game.Pixel.drawColorBands(ctx, [
+      { color: planet.skyTop, ratio: 0.5 },
+      { color: planet.skyBottom, ratio: 0.5 }
+    ], 0, 0, Game.CANVAS_W, Game.CANVAS_H);
 
     // Stars
     this.starfield.render(ctx);
@@ -1742,14 +1882,14 @@ Game.scenes.PLANET_EXPLORE = {
     var shopScreenX = this.shopPos.x - camX;
     if (shopScreenX > -80 && shopScreenX < Game.CANVAS_W + 80) {
       // Shop tent
-      Game.Pixel.drawCentered(ctx, Game.Sprites.shopTent, shopScreenX, this.shopPos.y - 18, 2);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.shopTent, shopScreenX, this.shopPos.y - 27, 3);
 
       // Animated bell on top
       var bellSwing = Math.sin(this.bellAnim) * (this.nearShop ? 8 : 0);
       ctx.save();
       ctx.translate(shopScreenX, this.shopPos.y - 54);
       ctx.rotate(bellSwing * Math.PI / 180);
-      Game.Pixel.drawCentered(ctx, Game.Sprites.bell, 0, 0, 2);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.bell, 0, 0, 3);
       ctx.restore();
 
       // Sign
@@ -1768,10 +1908,10 @@ Game.scenes.PLANET_EXPLORE = {
     var rktScreenX = this.rocketPadPos.x - camX;
     if (rktScreenX > -80 && rktScreenX < Game.CANVAS_W + 80) {
       // Space station building
-      Game.Pixel.drawCentered(ctx, Game.Sprites.spaceStation, rktScreenX, this.rocketPadPos.y - 24, 2);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.spaceStation, rktScreenX, this.rocketPadPos.y - 36, 3);
 
       // Rocket on top
-      Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, rktScreenX, this.rocketPadPos.y - 60, 2);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, rktScreenX, this.rocketPadPos.y - 90, 3);
 
       if (this.nearRocket) {
         var pulse2 = Math.sin(this.time * 4) * 0.3 + 0.7;
@@ -1797,7 +1937,7 @@ Game.scenes.PLANET_EXPLORE = {
         ctx.restore();
 
         // Egg sprite
-        Game.Pixel.drawCentered(ctx, Game.Sprites.easterEggGlow, eggScreenX, this.easterEggPos.y - 8, 2);
+        Game.Pixel.drawCentered(ctx, Game.Sprites.easterEggGlow, eggScreenX, this.easterEggPos.y - 12, 3);
 
         if (this.nearEasterEgg) {
           var eggPulse = Math.sin(this.time * 5) * 0.4 + 0.6;
@@ -1895,13 +2035,14 @@ Game.scenes.PLANET_EXPLORE = {
 
         case 'crater':
           if (!isBackground) continue;
+          // Pixel crater (flat oval via stacked rects)
           ctx.fillStyle = 'rgba(0,0,0,0.2)';
-          ctx.beginPath();
-          ctx.ellipse(sx, sy, 20 * s, 6 * s, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#888';
-          ctx.lineWidth = 1;
-          ctx.stroke();
+          ctx.fillRect(sx - 16 * s, sy - 3 * s, 32 * s, 6 * s);
+          ctx.fillRect(sx - 20 * s, sy - 1 * s, 40 * s, 2 * s);
+          // Rim
+          ctx.fillStyle = '#888';
+          ctx.fillRect(sx - 20 * s, sy - 4 * s, 40 * s, 1);
+          ctx.fillRect(sx - 20 * s, sy + 3 * s, 40 * s, 1);
           break;
 
         case 'flag':
@@ -1934,14 +2075,16 @@ Game.scenes.PLANET_EXPLORE = {
 
         case 'volcano':
           if (isBackground) continue;
+          // Pixel volcano (stacked rects trapezoid)
           ctx.fillStyle = '#8b4513';
-          ctx.beginPath();
-          ctx.moveTo(sx - 20 * s, sy);
-          ctx.lineTo(sx - 5 * s, sy - 30 * s);
-          ctx.lineTo(sx + 5 * s, sy - 30 * s);
-          ctx.lineTo(sx + 20 * s, sy);
-          ctx.closePath();
-          ctx.fill();
+          var vRows = 10;
+          for (var vr = 0; vr < vRows; vr++) {
+            var vt = vr / vRows;
+            var vHalfW = 5 * s + (20 * s - 5 * s) * vt;
+            var vy2 = sy - 30 * s + (30 * s) * vt;
+            var vRowH = (30 * s) / vRows;
+            ctx.fillRect(sx - vHalfW, vy2, vHalfW * 2, vRowH + 1);
+          }
           ctx.fillStyle = '#ff5722';
           ctx.fillRect(sx - 4 * s, sy - 30 * s, 8 * s, 3 * s);
           if (Math.sin(this.time * 3 + dec.x) > 0.5) {
