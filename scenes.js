@@ -51,11 +51,8 @@ Game.scenes.MENU = {
       Game.saveData.easterEggPlanet = 1 + Math.floor(Math.random() * 4);
       Game.Save.save(Game.saveData);
     }
-    if (Game.saveData.currentPlanet > 0 || Game.saveData.coins > 100) {
-      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
-    } else {
-      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: 0 });
-    }
+    // Always go to cockpit now
+    Game.changeState(Game.States.COCKPIT);
   },
 
   render: function(ctx) {
@@ -163,6 +160,564 @@ Game.scenes.MENU = {
         cx += 3 * scale;
       }
     }
+  },
+
+  exit: function() {}
+};
+
+// ===========================
+// COCKPIT SCENE
+// Interior da nave com mapa galactico, visor panoramico, robot dormindo
+// ===========================
+Game.scenes.COCKPIT = {
+  time: 0,
+  starfield: null,
+  selectedPlanet: -1,
+  mapZoom: 18,
+  mapCenterX: 0,
+  mapCenterY: 0,
+  visorStars: [],
+  robotSleepFrame: 0,
+  alertTimer: 0,
+  alertText: '',
+  showUpgradeNotif: false,
+  upgradeNotifTimer: 0,
+
+  enter: function() {
+    this.time = 0;
+    this.starfield = new Game.Starfield(100);
+    this.selectedPlanet = -1;
+    this.mapCenterX = Game.PlanetData[Game.saveData.currentPlanet].gx;
+    this.mapCenterY = Game.PlanetData[Game.saveData.currentPlanet].gy;
+
+    // Generate visor stars
+    this.visorStars = [];
+    for (var i = 0; i < 60; i++) {
+      this.visorStars.push({
+        x: Math.random() * 360 + 30,
+        y: Math.random() * 160 + 30,
+        size: 1 + Math.random() * 2,
+        speed: 10 + Math.random() * 30,
+        bright: 0.3 + Math.random() * 0.7
+      });
+    }
+
+    // Check ship tier upgrade
+    var tier = Game.getShipTier(Game.saveData.planetsVisited || 0);
+    if (tier > (Game.saveData.shipTierNotified || -1) && tier > 0) {
+      this.showUpgradeNotif = true;
+      this.upgradeNotifTimer = 5;
+      Game.saveData.shipTierNotified = tier;
+      Game.Save.save(Game.saveData);
+      if (Game.Audio) Game.Audio.sfx.milestone();
+    }
+
+    if (Game.Audio && Game.Audio.initialized) Game.Audio.playPlanetMusic(Game.saveData.currentPlanet);
+  },
+
+  update: function(dt) {
+    this.time += dt;
+    this.starfield.update(dt, 'left');
+    this.robotSleepFrame = Math.floor(this.time * 0.5) % 3;
+
+    // Music toggle
+    if (Game.Input.wasPressed('m') || Game.Input.wasPressed('M')) {
+      if (Game.Audio) Game.Audio.toggleMusic();
+    }
+
+    // Update visor stars (slow drift left)
+    for (var i = 0; i < this.visorStars.length; i++) {
+      var vs = this.visorStars[i];
+      vs.x -= vs.speed * dt;
+      if (vs.x < 30) { vs.x = 390; vs.y = Math.random() * 160 + 30; }
+    }
+
+    // Upgrade notification timer
+    if (this.upgradeNotifTimer > 0) this.upgradeNotifTimer -= dt;
+    if (this.upgradeNotifTimer <= 0) this.showUpgradeNotif = false;
+
+    // Alert timer
+    if (this.alertTimer > 0) this.alertTimer -= dt;
+
+    // Handle planet selection on map via click
+    if (Game.Input.mouse.clicked) {
+      var mx = Game.Input.mouse.x;
+      var my = Game.Input.mouse.y;
+
+      // Map area: left panel (30, 80) to (430, 420)
+      var mapX = 30, mapY = 80, mapW = 400, mapH = 340;
+      if (mx >= mapX && mx <= mapX + mapW && my >= mapY && my <= mapY + mapH) {
+        // Check which planet was clicked
+        var closestPlanet = -1;
+        var closestDist = 20; // click radius
+        for (var p = 0; p < Game.PlanetData.length; p++) {
+          var planet = Game.PlanetData[p];
+          // Check if planet is accessible (tier-based)
+          var requiredVisits = p < 5 ? 0 : (p < 10 ? 5 : 10);
+          if ((Game.saveData.planetsVisited || 0) < requiredVisits) continue;
+
+          var px = mapX + mapW / 2 + (planet.gx - this.mapCenterX) * this.mapZoom;
+          var py = mapY + mapH / 2 + (planet.gy - this.mapCenterY) * this.mapZoom;
+          var dd = Math.sqrt((mx - px) * (mx - px) + (my - py) * (my - py));
+          if (dd < closestDist) { closestDist = dd; closestPlanet = p; }
+        }
+        if (closestPlanet >= 0 && closestPlanet !== Game.saveData.currentPlanet) {
+          this.selectedPlanet = closestPlanet;
+          if (Game.Audio) Game.Audio.sfx.menuSelect();
+        }
+      }
+
+      // "VIAJAR" button (bottom right area)
+      var travelBtnX = 500, travelBtnY = 440, travelBtnW = 180, travelBtnH = 40;
+      if (this.selectedPlanet >= 0 && mx >= travelBtnX && mx <= travelBtnX + travelBtnW && my >= travelBtnY && my <= travelBtnY + travelBtnH) {
+        this.startTravel();
+      }
+
+      // "EXPLORAR" button (go to current planet surface)
+      var exploreBtnX = 500, exploreBtnY = 490, exploreBtnW = 180, exploreBtnH = 35;
+      if (mx >= exploreBtnX && mx <= exploreBtnX + exploreBtnW && my >= exploreBtnY && my <= exploreBtnY + exploreBtnH) {
+        Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+      }
+    }
+
+    // Keyboard shortcuts
+    if (Game.Input.wasPressed('Enter') && this.selectedPlanet >= 0) {
+      this.startTravel();
+    }
+    if (Game.Input.wasPressed('e') || Game.Input.wasPressed('E')) {
+      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+    }
+    if (Game.Input.wasPressed('Escape')) {
+      Game.changeState(Game.States.MENU);
+    }
+  },
+
+  startTravel: function() {
+    // Check if route crosses a black hole
+    var from = Game.PlanetData[Game.saveData.currentPlanet];
+    var to = Game.PlanetData[this.selectedPlanet];
+    var blackHoleHit = this.checkBlackHoleRoute(from.gx, from.gy, to.gx, to.gy);
+
+    if (blackHoleHit) {
+      this.alertText = 'PERIGO! Rota cruza o buraco negro ' + blackHoleHit.name + '!';
+      this.alertTimer = 3;
+      if (Game.Audio) Game.Audio.sfx.warning();
+      Game.triggerShake(4, 0.5);
+    }
+
+    // Calculate distance for flight
+    var dx = to.gx - from.gx;
+    var dy = to.gy - from.gy;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var flightDist = Math.max(3000, Math.floor(dist * 2500));
+
+    Game.saveData.targetPlanet = this.selectedPlanet;
+    Game.Save.save(Game.saveData);
+
+    if (Game.Audio) Game.Audio.sfx.launch();
+    Game.changeState(Game.States.FLIGHT, {
+      targetPlanet: this.selectedPlanet,
+      flightDistance: flightDist,
+      blackHole: blackHoleHit
+    });
+  },
+
+  checkBlackHoleRoute: function(x1, y1, x2, y2) {
+    for (var i = 0; i < Game.BlackHoles.length; i++) {
+      var bh = Game.BlackHoles[i];
+      // Point-to-line-segment distance
+      var dx = x2 - x1, dy = y2 - y1;
+      var len2 = dx * dx + dy * dy;
+      if (len2 === 0) continue;
+      var t = Math.max(0, Math.min(1, ((bh.gx - x1) * dx + (bh.gy - y1) * dy) / len2));
+      var projX = x1 + t * dx, projY = y1 + t * dy;
+      var distToBH = Math.sqrt((bh.gx - projX) * (bh.gx - projX) + (bh.gy - projY) * (bh.gy - projY));
+      if (distToBH < bh.radius * 1.5) return bh;
+    }
+    return null;
+  },
+
+  render: function(ctx) {
+    // Dark cockpit background
+    ctx.fillStyle = '#0a0a15';
+    ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+
+    // === VISOR PANORAMICO (top area, 30-420 x 30-200) ===
+    this.renderVisor(ctx);
+
+    // === MAPA GALACTICO (left panel, 30-430 x 220-460) ===
+    this.renderGalaxyMap(ctx);
+
+    // === INFO PANEL (right side) ===
+    this.renderInfoPanel(ctx);
+
+    // === ROBOT DORMINDO (bottom right) ===
+    this.renderSleepingRobot(ctx);
+
+    // === COCKPIT FRAME (overlay) ===
+    this.renderCockpitFrame(ctx);
+
+    // === ALERTS ===
+    if (this.alertTimer > 0) {
+      var blink = Math.sin(this.time * 10) > 0;
+      if (blink) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, this.alertTimer);
+        ctx.fillStyle = 'rgba(255,0,0,0.15)';
+        ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+        Game.UI.textBold(ctx, this.alertText, Game.CANVAS_W / 2, Game.CANVAS_H / 2, 18, '#ff4444', 'center');
+        ctx.restore();
+      }
+    }
+
+    // === SHIP UPGRADE NOTIFICATION ===
+    if (this.showUpgradeNotif) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.upgradeNotifTimer / 0.5);
+      var tier = Game.ShipTiers[Game.getShipTier(Game.saveData.planetsVisited || 0)];
+      Game.UI.panel(ctx, Game.CANVAS_W / 2 - 180, 10, 360, 50);
+      Game.UI.textBold(ctx, 'NAVE EVOLUIU: ' + tier.name + '!', Game.CANVAS_W / 2, 25, 16, tier.color, 'center');
+      Game.UI.text(ctx, 'Velocidade, fuel e HP aumentados!', Game.CANVAS_W / 2, 45, 11, '#aaa', 'center');
+      ctx.restore();
+    }
+  },
+
+  renderVisor: function(ctx) {
+    var vx = 30, vy = 15, vw = 420, vh = 190;
+
+    // Visor border
+    ctx.fillStyle = '#111';
+    ctx.fillRect(vx - 2, vy - 2, vw + 4, vh + 4);
+    ctx.fillStyle = '#050510';
+    ctx.fillRect(vx, vy, vw, vh);
+
+    // Deep space gradient
+    var grad = ctx.createLinearGradient(vx, vy, vx + vw, vy + vh);
+    grad.addColorStop(0, '#050510');
+    grad.addColorStop(0.5, '#0a0a20');
+    grad.addColorStop(1, '#050515');
+    ctx.fillStyle = grad;
+    ctx.fillRect(vx, vy, vw, vh);
+
+    // Stars in visor (parallax drift)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(vx, vy, vw, vh);
+    ctx.clip();
+
+    for (var i = 0; i < this.visorStars.length; i++) {
+      var s = this.visorStars[i];
+      ctx.fillStyle = 'rgba(255,255,255,' + (s.bright * (0.7 + Math.sin(this.time * 2 + i) * 0.3)) + ')';
+      ctx.fillRect(vx + s.x - vw / 2 + 200, vy + s.y - vh / 2 + 80, Math.ceil(s.size), Math.ceil(s.size));
+    }
+
+    // Target planet in visor (if selected, show it growing)
+    if (this.selectedPlanet >= 0) {
+      var tp = Game.PlanetData[this.selectedPlanet];
+      var tpx = vx + vw / 2 + Math.sin(this.time * 0.3) * 20;
+      var tpy = vy + vh / 2 + Math.cos(this.time * 0.4) * 10;
+      var tpSize = 15 + Math.sin(this.time) * 3;
+
+      // Planet glow
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = tp.groundColor;
+      ctx.beginPath();
+      ctx.arc(tpx, tpy, tpSize + 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Planet body
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = tp.groundColor;
+      ctx.beginPath();
+      ctx.arc(tpx, tpy, tpSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Surface detail
+      ctx.fillStyle = tp.groundLight;
+      ctx.beginPath();
+      ctx.arc(tpx - 3, tpy - 3, tpSize * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = tp.groundDark;
+      ctx.beginPath();
+      ctx.arc(tpx + 4, tpy + 4, tpSize * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Name
+      Game.UI.textBold(ctx, tp.name, tpx, tpy + tpSize + 12, 11, '#fff', 'center');
+    } else {
+      // Default: show distant nebula
+      ctx.globalAlpha = 0.08;
+      var nebGrad = ctx.createRadialGradient(vx + vw * 0.6, vy + vh * 0.4, 10, vx + vw * 0.6, vy + vh * 0.4, 80);
+      nebGrad.addColorStop(0, '#9c27b0');
+      nebGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = nebGrad;
+      ctx.fillRect(vx, vy, vw, vh);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Visor label
+    Game.UI.text(ctx, 'VISOR PANORAMICO', vx + vw / 2, vy + vh + 3, 9, '#444', 'center');
+  },
+
+  renderGalaxyMap: function(ctx) {
+    var mx = 30, my = 220, mw = 400, mh = 240;
+
+    // Map background
+    Game.UI.panel(ctx, mx, my, mw, mh);
+
+    // Title
+    Game.UI.textBold(ctx, 'MAPA GALACTICO', mx + mw / 2, my + 8, 11, '#4fc3f7', 'center');
+
+    // Map content area
+    var contentY = my + 22;
+    var contentH = mh - 30;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(mx + 2, contentY, mw - 4, contentH);
+    ctx.clip();
+
+    var centerX = mx + mw / 2;
+    var centerY = contentY + contentH / 2;
+
+    // Grid lines (subtle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (var gx = -10; gx <= 10; gx++) {
+      var lx = centerX + (gx - this.mapCenterX) * this.mapZoom;
+      ctx.beginPath(); ctx.moveTo(lx, contentY); ctx.lineTo(lx, contentY + contentH); ctx.stroke();
+    }
+    for (var gy = -10; gy <= 10; gy++) {
+      var ly = centerY + (gy - this.mapCenterY) * this.mapZoom;
+      ctx.beginPath(); ctx.moveTo(mx, ly); ctx.lineTo(mx + mw, ly); ctx.stroke();
+    }
+
+    // Draw route line (current -> selected)
+    if (this.selectedPlanet >= 0) {
+      var fromP = Game.PlanetData[Game.saveData.currentPlanet];
+      var toP = Game.PlanetData[this.selectedPlanet];
+      var fx = centerX + (fromP.gx - this.mapCenterX) * this.mapZoom;
+      var fy = centerY + (fromP.gy - this.mapCenterY) * this.mapZoom;
+      var tx = centerX + (toP.gx - this.mapCenterX) * this.mapZoom;
+      var ty = centerY + (toP.gy - this.mapCenterY) * this.mapZoom;
+
+      // Dashed route line
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Draw black holes
+    for (var b = 0; b < Game.BlackHoles.length; b++) {
+      var bh = Game.BlackHoles[b];
+      var bhx = centerX + (bh.gx - this.mapCenterX) * this.mapZoom;
+      var bhy = centerY + (bh.gy - this.mapCenterY) * this.mapZoom;
+
+      // Accretion disk
+      ctx.save();
+      ctx.globalAlpha = 0.15 + Math.sin(this.time * 2 + b) * 0.05;
+      var bhGrad = ctx.createRadialGradient(bhx, bhy, 2, bhx, bhy, bh.radius * this.mapZoom);
+      bhGrad.addColorStop(0, '#ff4444');
+      bhGrad.addColorStop(0.5, '#880000');
+      bhGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = bhGrad;
+      ctx.fillRect(bhx - 30, bhy - 30, 60, 60);
+      ctx.restore();
+
+      // Black center
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(bhx, bhy, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#660000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Draw planets
+    for (var p = 0; p < Game.PlanetData.length; p++) {
+      var planet = Game.PlanetData[p];
+      var requiredVisits = p < 5 ? 0 : (p < 10 ? 5 : 10);
+      var accessible = (Game.saveData.planetsVisited || 0) >= requiredVisits;
+      var visited = Game.saveData.visitedPlanets && Game.saveData.visitedPlanets.indexOf(p) !== -1;
+      var isCurrent = p === Game.saveData.currentPlanet;
+      var isSelected = p === this.selectedPlanet;
+
+      var ppx = centerX + (planet.gx - this.mapCenterX) * this.mapZoom;
+      var ppy = centerY + (planet.gy - this.mapCenterY) * this.mapZoom;
+
+      if (ppx < mx - 10 || ppx > mx + mw + 10 || ppy < contentY - 10 || ppy > contentY + contentH + 10) continue;
+
+      var dotSize = isCurrent ? 7 : (isSelected ? 6 : (accessible ? 5 : 3));
+
+      if (!accessible) {
+        // Locked planet - dim
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#555';
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, dotSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
+
+      // Selection ring
+      if (isSelected) {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, dotSize + 4 + Math.sin(this.time * 4) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Current planet ring
+      if (isCurrent) {
+        ctx.strokeStyle = '#4caf50';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, dotSize + 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Planet dot
+      ctx.fillStyle = planet.groundColor;
+      ctx.beginPath();
+      ctx.arc(ppx, ppy, dotSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Visited marker
+      if (visited && !isCurrent) {
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(ppx - 1, ppy - dotSize - 4, 2, 2);
+      }
+
+      // Name label
+      ctx.fillStyle = isSelected ? '#ffd700' : (isCurrent ? '#4caf50' : '#888');
+      ctx.font = (isSelected || isCurrent ? 'bold ' : '') + '8px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(planet.name, ppx, ppy + dotSize + 9);
+    }
+
+    ctx.restore();
+
+    // Map legend
+    Game.UI.text(ctx, 'Clique em um planeta para selecionar destino', mx + mw / 2, my + mh - 6, 8, '#444', 'center');
+  },
+
+  renderInfoPanel: function(ctx) {
+    var ix = 460, iy = 15, iw = 470, ih = 450;
+
+    // Ship info
+    var tier = Game.ShipTiers[Game.getShipTier(Game.saveData.planetsVisited || 0)];
+    var stats = Game.getRocketStats(Game.saveData);
+    var planet = Game.PlanetData[Game.saveData.currentPlanet];
+
+    // Current location
+    Game.UI.textBold(ctx, 'Estacao: ' + planet.name, ix + 10, iy + 5, 13, '#4caf50');
+
+    // Ship name
+    Game.UI.textBold(ctx, 'Nave: ' + tier.name, ix + 10, iy + 25, 12, tier.color);
+
+    // Stats
+    Game.UI.text(ctx, 'Vel: ' + Math.floor(stats.speed) + ' | Fuel: ' + Math.ceil(Game.saveData.fuel) + '/' + Math.floor(stats.maxFuel), ix + 10, iy + 45, 10, '#aaa');
+    Game.UI.text(ctx, 'HP: ' + Math.floor(stats.maxHp) + ' | Escudo: ' + Math.floor(stats.damageReduction * 100) + '%', ix + 10, iy + 60, 10, '#aaa');
+
+    // Coins
+    var coinFrame = Math.floor(this.time * 6) % 4;
+    Game.Pixel.draw(ctx, Game.Sprites.coin[coinFrame], ix + 10, iy + 78, 2);
+    Game.UI.textBold(ctx, '' + Game.saveData.coins, ix + 30, iy + 78, 14, '#ffd700');
+
+    // Planets visited
+    Game.UI.text(ctx, 'Planetas visitados: ' + (Game.saveData.planetsVisited || 0) + '/' + Game.PlanetData.length, ix + 10, iy + 100, 10, '#888');
+
+    // Selected planet info
+    if (this.selectedPlanet >= 0) {
+      var sp = Game.PlanetData[this.selectedPlanet];
+      var dy = iy + 125;
+
+      Game.UI.panel(ctx, ix, dy, iw - 10, 100);
+      Game.UI.textBold(ctx, 'Destino: ' + sp.name, ix + 15, dy + 10, 14, '#ffd700');
+      Game.UI.text(ctx, 'Gravidade: ' + sp.gravity.toFixed(1) + 'x', ix + 15, dy + 30, 11, '#aaa');
+      Game.UI.text(ctx, 'Distancia: ' + sp.distance + 'm', ix + 15, dy + 45, 11, '#aaa');
+      Game.UI.text(ctx, 'Preco fuel: ' + sp.fuelPrice + '$/u', ix + 15, dy + 60, 11, '#aaa');
+
+      // Tier requirement
+      var reqVisits = this.selectedPlanet < 5 ? 0 : (this.selectedPlanet < 10 ? 5 : 10);
+      if (reqVisits > 0) {
+        var tierName = reqVisits >= 10 ? 'Tier 3' : 'Tier 2';
+        Game.UI.text(ctx, 'Requer: ' + tierName + ' (' + reqVisits + ' planetas)', ix + 15, dy + 78, 10, '#ff9800');
+      }
+
+      // Check for black hole on route
+      var from = Game.PlanetData[Game.saveData.currentPlanet];
+      var bhHit = this.checkBlackHoleRoute(from.gx, from.gy, sp.gx, sp.gy);
+      if (bhHit) {
+        Game.UI.textBold(ctx, 'AVISO: Buraco negro na rota!', ix + 200, dy + 10, 11, '#ff4444');
+      }
+
+      // Travel button
+      var travelBtnX = ix + 20, travelBtnY = dy + 110, travelBtnW = 180, travelBtnH = 40;
+      var canTravel = Game.saveData.fuel > 0;
+      var travelHovered = Game.UI.isMouseInRect(travelBtnX, travelBtnY, travelBtnW, travelBtnH);
+      Game.UI.button(ctx, canTravel ? 'VIAJAR (Enter)' : 'SEM FUEL', travelBtnX, travelBtnY, travelBtnW, travelBtnH,
+        travelHovered && canTravel, canTravel ? '#ffd700' : '#660000');
+    }
+
+    // Explore current planet button
+    var expBtnX = ix + 20, expBtnY = ih - 30, expBtnW = 180, expBtnH = 35;
+    var expHovered = Game.UI.isMouseInRect(expBtnX, expBtnY, expBtnW, expBtnH);
+    Game.UI.button(ctx, 'EXPLORAR (E)', expBtnX, expBtnY, expBtnW, expBtnH, expHovered, '#4caf50');
+
+    // Controls
+    Game.UI.text(ctx, 'E: Explorar planeta | M: Musica | ESC: Menu', ix + 10, ih + 10, 9, '#444');
+  },
+
+  renderSleepingRobot: function(ctx) {
+    if (!Game.saveData.hasRobot) return;
+
+    var rx = 850, ry = 420;
+
+    // Robot sprite
+    Game.Pixel.drawCentered(ctx, Game.Sprites.robot, rx, ry, 3);
+
+    // Sleeping Z's
+    var zFrames = ['z', 'zZ', 'zZz'];
+    var zText = zFrames[this.robotSleepFrame];
+    ctx.save();
+    ctx.globalAlpha = 0.5 + Math.sin(this.time * 2) * 0.3;
+    ctx.fillStyle = '#4fc3f7';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(zText, rx + 12, ry - 15 - Math.sin(this.time) * 5);
+    ctx.restore();
+
+    Game.UI.text(ctx, 'Robo descansando...', rx, ry + 20, 8, '#555', 'center');
+  },
+
+  renderCockpitFrame: function(ctx) {
+    // Top bar (instruments)
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(0, 0, Game.CANVAS_W, 12);
+
+    // Instrument dots
+    var instruments = ['#4caf50', '#f44336', '#ffd700', '#4fc3f7', '#ff9800'];
+    for (var i = 0; i < instruments.length; i++) {
+      var blink = Math.sin(this.time * (2 + i * 0.5) + i) > 0.3;
+      ctx.fillStyle = blink ? instruments[i] : '#333';
+      ctx.fillRect(10 + i * 25, 4, 6, 4);
+    }
+
+    // Ship name in top bar
+    var tier = Game.ShipTiers[Game.getShipTier(Game.saveData.planetsVisited || 0)];
+    Game.UI.text(ctx, tier.name, Game.CANVAS_W / 2, 1, 9, tier.color, 'center');
+
+    // Bottom bar
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(0, Game.CANVAS_H - 15, Game.CANVAS_W, 15);
+    Game.UI.text(ctx, 'EXPLORADORES DA GALAXIA', Game.CANVAS_W / 2, Game.CANVAS_H - 13, 10, '#333', 'center');
   },
 
   exit: function() {}
@@ -484,6 +1039,13 @@ Game.scenes.FLIGHT = {
   reachedTarget: false,
   bgPhase: 0,
   repairPromptShown: false,
+  targetPlanetIdx: -1,
+  flightDistance: 5000,
+  blackHole: null,
+  blackHoleWarned: false,
+  blackHoleSucking: false,
+  blackHoleSuckTimer: 0,
+  gameOverTimer: 0,
 
   enter: function(data) {
     data = data || {};
@@ -497,12 +1059,21 @@ Game.scenes.FLIGHT = {
     this.reachedTarget = false;
     this.bgPhase = 0;
     this.repairPromptShown = false;
+    this.blackHoleWarned = false;
+    this.blackHoleSucking = false;
+    this.blackHoleSuckTimer = 0;
+    this.gameOverTimer = 0;
+
+    // Flight parameters from cockpit
+    this.targetPlanetIdx = data.targetPlanet !== undefined ? data.targetPlanet : (Game.saveData.currentPlanet + 1);
+    this.flightDistance = data.flightDistance || 5000;
+    this.blackHole = data.blackHole || null;
 
     // Robot companion
     if (Game.saveData.hasRobot) {
       this.robot = new Game.Robot(this.rocket);
       this.robot.deployed = true;
-      this.robot.mode = 'shoot'; // default to shoot in flight
+      this.robot.mode = 'shoot';
     } else {
       this.robot = null;
     }
@@ -560,15 +1131,62 @@ Game.scenes.FLIGHT = {
       }
     }
 
+    // Game over from black hole
+    if (Game.subState === Game.SubStates.GAMEOVER) {
+      this.gameOverTimer -= dt;
+      if (this.gameOverTimer <= 0) {
+        Game.subState = Game.SubStates.NONE;
+        Game.changeState(Game.States.COCKPIT);
+      }
+      return;
+    }
+
     // Background phase
     var currentPlanet = Game.saveData.currentPlanet;
-    var startAlt = Game.PlanetData[currentPlanet].altitude;
-    var nextPlanetIdx = currentPlanet + 1;
-    var targetAlt = nextPlanetIdx < Game.PlanetData.length
-      ? Game.PlanetData[nextPlanetIdx].altitude - startAlt
-      : 50000;
+    var nextPlanetIdx = this.targetPlanetIdx >= 0 ? this.targetPlanetIdx : (currentPlanet + 1);
+    var targetAlt = this.flightDistance;
 
     var altPct = this.rocket.altitude / targetAlt;
+
+    // Black hole encounter (at 40-60% of flight)
+    if (this.blackHole && !this.blackHoleSucking && altPct > 0.4 && altPct < 0.6 && !this.blackHoleWarned) {
+      this.blackHoleWarned = true;
+      Game.showMessage('PERIGO! PERIGO! Buraco negro ' + this.blackHole.name + '!', 4);
+      if (Game.Audio) Game.Audio.sfx.warning();
+      Game.triggerShake(8, 2);
+    }
+
+    // Black hole suck zone (50% of flight - must dodge through)
+    if (this.blackHole && altPct > 0.48 && altPct < 0.55 && !this.blackHoleSucking) {
+      // Gravitational pull toward center
+      var pullStrength = 100;
+      this.rocket.x += (Game.CANVAS_W / 2 - this.rocket.x) * pullStrength * dt * 0.01;
+      // If player doesn't fight it, game over
+      if (Math.abs(this.rocket.x - Game.CANVAS_W / 2) < 5 && altPct > 0.51) {
+        this.blackHoleSucking = true;
+        this.blackHoleSuckTimer = 3;
+        if (Game.Audio) Game.Audio.sfx.damage();
+      }
+    }
+
+    if (this.blackHoleSucking) {
+      this.blackHoleSuckTimer -= dt;
+      Game.triggerShake(12, 0.1);
+      // Spiral effect
+      this.rocket.x += Math.sin(this.time * 10) * 200 * dt;
+      this.rocket.y += Math.cos(this.time * 10) * 100 * dt;
+      if (this.blackHoleSuckTimer <= 0) {
+        // Game over - return to cockpit
+        Game.subState = Game.SubStates.GAMEOVER;
+        this.gameOverTimer = 4;
+        Game.showMessage('Foguete destruido pelo buraco negro!', 4);
+        // Lose some coins but not all
+        Game.saveData.coins = Math.floor(Game.saveData.coins * 0.7);
+        Game.saveData.fuel = Math.max(10, Game.saveData.fuel * 0.5);
+        Game.Save.save(Game.saveData);
+        return;
+      }
+    }
     if (altPct < 0.15) this.bgPhase = 0;
     else if (altPct < 0.85) this.bgPhase = 1;
     else this.bgPhase = 2;
@@ -733,17 +1351,24 @@ Game.scenes.FLIGHT = {
       }
     }
 
-    // Check if reached next planet
+    // Check if reached target planet
     if (!this.reachedTarget && this.rocket.altitude >= targetAlt && nextPlanetIdx < Game.PlanetData.length) {
       this.reachedTarget = true;
       Game.saveData.currentPlanet = nextPlanetIdx;
       if (nextPlanetIdx > Game.saveData.highestPlanet) {
         Game.saveData.highestPlanet = nextPlanetIdx;
       }
+      // Track visited planets
+      if (!Game.saveData.visitedPlanets) Game.saveData.visitedPlanets = [0];
+      if (Game.saveData.visitedPlanets.indexOf(nextPlanetIdx) === -1) {
+        Game.saveData.visitedPlanets.push(nextPlanetIdx);
+        Game.saveData.planetsVisited = Game.saveData.visitedPlanets.length;
+      }
       Game.saveData.fuel = this.rocket.fuel;
       Game.Save.save(Game.saveData);
       Game.showMessage('Chegou em ' + Game.PlanetData[nextPlanetIdx].name + '!', 2);
-      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: nextPlanetIdx });
+      if (Game.Audio) Game.Audio.sfx.milestone();
+      Game.changeState(Game.States.COCKPIT);
       return;
     }
 
@@ -752,7 +1377,7 @@ Game.scenes.FLIGHT = {
       Game.saveData.fuel = 0;
       Game.Save.save(Game.saveData);
       Game.showMessage('Fuel esgotado! Voltando para ' + Game.PlanetData[currentPlanet].name, 2);
-      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: currentPlanet });
+      Game.changeState(Game.States.COCKPIT);
       return;
     }
   },
@@ -779,8 +1404,8 @@ Game.scenes.FLIGHT = {
       grad.addColorStop(1, planet.skyBottom);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
-    } else if (this.bgPhase === 2 && currentPlanet + 1 < Game.PlanetData.length) {
-      var nextPlanet = Game.PlanetData[currentPlanet + 1];
+    } else if (this.bgPhase === 2 && this.targetPlanetIdx < Game.PlanetData.length) {
+      var nextPlanet = Game.PlanetData[this.targetPlanetIdx];
       var grad2 = ctx.createLinearGradient(0, 0, 0, Game.CANVAS_H);
       grad2.addColorStop(0, nextPlanet.skyTop);
       grad2.addColorStop(1, nextPlanet.skyBottom);
@@ -843,6 +1468,57 @@ Game.scenes.FLIGHT = {
 
     // HUD
     Game.UI.renderFlightHUD(ctx, this.rocket, Game.saveData);
+
+    // Black hole visual
+    if (this.blackHole && this.blackHoleWarned) {
+      var bhProgress = this.rocket.altitude / this.flightDistance;
+      if (bhProgress > 0.35 && bhProgress < 0.65) {
+        var bhIntensity = 1 - Math.abs(bhProgress - 0.5) * 4;
+        ctx.save();
+        ctx.globalAlpha = bhIntensity * 0.4;
+        // Swirling black hole
+        var bhCx = Game.CANVAS_W / 2 + Math.sin(this.time * 0.5) * 100;
+        var bhCy = Game.CANVAS_H * 0.3;
+        var bhGrad = ctx.createRadialGradient(bhCx, bhCy, 5, bhCx, bhCy, 120);
+        bhGrad.addColorStop(0, '#000');
+        bhGrad.addColorStop(0.3, '#220000');
+        bhGrad.addColorStop(0.6, '#440000');
+        bhGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = bhGrad;
+        ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+
+        // Accretion ring
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(bhCx, bhCy, 60 + Math.sin(this.time * 3) * 10, 20, this.time * 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // Black hole sucking animation
+    if (this.blackHoleSucking) {
+      ctx.save();
+      var suckAlpha = Math.min(1, (3 - this.blackHoleSuckTimer) / 3);
+      ctx.globalAlpha = suckAlpha * 0.7;
+      ctx.fillStyle = '#000';
+      var suckSize = suckAlpha * 300;
+      ctx.beginPath();
+      ctx.arc(Game.CANVAS_W / 2, Game.CANVAS_H * 0.3, suckSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Game over overlay
+    if (Game.subState === Game.SubStates.GAMEOVER) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
+      Game.UI.textBold(ctx, 'DESTRUIDO PELO BURACO NEGRO', Game.CANVAS_W / 2, Game.CANVAS_H / 2 - 30, 24, '#ff4444', 'center');
+      Game.UI.text(ctx, 'Perdeu 30% das moedas. Retornando ao cockpit...', Game.CANVAS_W / 2, Game.CANVAS_H / 2 + 10, 14, '#aaa', 'center');
+      ctx.restore();
+    }
 
     // Repair puzzle overlay
     if (Game.subState === Game.SubStates.REPAIR) {
@@ -1017,12 +1693,9 @@ Game.scenes.PLANET_EXPLORE = {
         Game.ShopUI.open();
         if (Game.Audio) Game.Audio.sfx.menuSelect();
       } else if (this.nearRocket) {
-        if (Game.saveData.fuel > 0) {
-          Game.Save.save(Game.saveData);
-          Game.changeState(Game.States.FLIGHT);
-        } else {
-          Game.UI.showDialog('Sem fuel! Compre na loja.', 2);
-        }
+        // Go to cockpit to choose destination
+        Game.Save.save(Game.saveData);
+        Game.changeState(Game.States.COCKPIT);
       } else if (this.nearEasterEgg && !Game.saveData.foundEasterEgg) {
         // Found easter egg!
         Game.saveData.foundEasterEgg = true;

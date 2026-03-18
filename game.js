@@ -12,6 +12,7 @@ Game.GRAVITY = 600; // base gravity px/s^2
 
 Game.States = {
   MENU: 'MENU',
+  COCKPIT: 'COCKPIT',
   PLANET_EXPLORE: 'PLANET_EXPLORE',
   FLIGHT: 'FLIGHT'
 };
@@ -19,7 +20,8 @@ Game.States = {
 Game.SubStates = {
   NONE: 'NONE',
   SHOP: 'SHOP',
-  REPAIR: 'REPAIR'
+  REPAIR: 'REPAIR',
+  GAMEOVER: 'GAMEOVER'
 };
 
 // --- Runtime State ---
@@ -219,54 +221,109 @@ Game.Collision = {
   }
 };
 
-// --- Planet Data ---
+// --- Galaxy Map (planet positions in 2D space) ---
+// Each planet has galactic coordinates (gx, gy) for the cockpit map
 Game.PlanetData = [
-  {
-    name: 'Terra', altitude: 0, gravity: 1.0,
+  { name: 'Terra', gravity: 1.0, gx: 0, gy: 0, distance: 0,
     groundColor: '#3a7d2e', groundDark: '#2d6323', groundLight: '#4a9d3e',
-    skyTop: '#1a3a5c', skyBottom: '#5b8ab5',
-    surfaceDetail: '#5cb85c',
+    skyTop: '#1a3a5c', skyBottom: '#5b8ab5', surfaceDetail: '#5cb85c',
     terrainVariance: 30, terrainBase: 380,
-    shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'],
-    fuelPrice: 1
-  },
-  {
-    name: 'Lua', altitude: 3000, gravity: 0.4,
+    shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'], fuelPrice: 1 },
+  { name: 'Lua', gravity: 0.4, gx: 1, gy: -1, distance: 3000,
     groundColor: '#b0b0b0', groundDark: '#8a8a8a', groundLight: '#c8c8c8',
-    skyTop: '#0a0a1a', skyBottom: '#1a1a2a',
-    surfaceDetail: '#999',
+    skyTop: '#0a0a1a', skyBottom: '#1a1a2a', surfaceDetail: '#999',
     terrainVariance: 20, terrainBase: 400,
-    shopItems: ['engine', 'fuelTank'],
-    fuelPrice: 3
-  },
-  {
-    name: 'Marte', altitude: 12000, gravity: 0.7,
+    shopItems: ['engine', 'fuelTank'], fuelPrice: 3 },
+  { name: 'Marte', gravity: 0.7, gx: 3, gy: 1, distance: 6000,
     groundColor: '#c1440e', groundDark: '#8b3209', groundLight: '#d4651a',
-    skyTop: '#1a0a05', skyBottom: '#4a2010',
-    surfaceDetail: '#d47030',
+    skyTop: '#1a0a05', skyBottom: '#4a2010', surfaceDetail: '#d47030',
     terrainVariance: 40, terrainBase: 370,
-    shopItems: ['heatShield', 'nozzle', 'fuelTank'],
-    fuelPrice: 4
-  },
-  {
-    name: 'Venus', altitude: 22000, gravity: 1.2,
+    shopItems: ['heatShield', 'nozzle', 'fuelTank'], fuelPrice: 4 },
+  { name: 'Venus', gravity: 1.2, gx: 2, gy: 3, distance: 8000,
     groundColor: '#d4a017', groundDark: '#a07010', groundLight: '#e8c040',
-    skyTop: '#3a2000', skyBottom: '#8a5020',
-    surfaceDetail: '#e8b030',
+    skyTop: '#3a2000', skyBottom: '#8a5020', surfaceDetail: '#e8b030',
     terrainVariance: 50, terrainBase: 360,
-    shopItems: ['nozzle', 'heatShield', 'engine'],
-    fuelPrice: 5
-  },
-  {
-    name: 'Plutao', altitude: 35000, gravity: 0.3,
+    shopItems: ['nozzle', 'heatShield', 'engine'], fuelPrice: 5 },
+  { name: 'Plutao', gravity: 0.3, gx: -2, gy: 4, distance: 10000,
     groundColor: '#4a6fa5', groundDark: '#3a5580', groundLight: '#6090c0',
-    skyTop: '#050510', skyBottom: '#101030',
-    surfaceDetail: '#7ab0e0',
+    skyTop: '#050510', skyBottom: '#101030', surfaceDetail: '#7ab0e0',
     terrainVariance: 25, terrainBase: 390,
-    shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'],
-    fuelPrice: 6
-  }
+    shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'], fuelPrice: 6 },
+  // --- Tier 2 planets (unlocked after visiting 5) ---
+  { name: 'Europa', gravity: 0.5, gx: -3, gy: -2, distance: 12000,
+    groundColor: '#8ecae6', groundDark: '#6daed1', groundLight: '#b8e0f0',
+    skyTop: '#0a1020', skyBottom: '#1a3050', surfaceDetail: '#a0d4ee',
+    terrainVariance: 15, terrainBase: 410,
+    shopItems: ['engine', 'fuelTank'], fuelPrice: 7 },
+  { name: 'Titan', gravity: 0.6, gx: 5, gy: -1, distance: 14000,
+    groundColor: '#d4a574', groundDark: '#b08050', groundLight: '#e8c090',
+    skyTop: '#2a1500', skyBottom: '#6a4020', surfaceDetail: '#dab080',
+    terrainVariance: 35, terrainBase: 375,
+    shopItems: ['heatShield', 'nozzle'], fuelPrice: 8 },
+  { name: 'Io', gravity: 0.8, gx: 4, gy: 4, distance: 16000,
+    groundColor: '#e8c020', groundDark: '#c0a010', groundLight: '#f0d840',
+    skyTop: '#1a1000', skyBottom: '#4a3010', surfaceDetail: '#f0e040',
+    terrainVariance: 55, terrainBase: 355,
+    shopItems: ['engine', 'heatShield'], fuelPrice: 9 },
+  { name: 'Ganimedes', gravity: 0.5, gx: -4, gy: 2, distance: 18000,
+    groundColor: '#7a8a6a', groundDark: '#5a6a4a', groundLight: '#9aaa8a',
+    skyTop: '#0a0a10', skyBottom: '#1a2020', surfaceDetail: '#8a9a7a',
+    terrainVariance: 30, terrainBase: 385,
+    shopItems: ['fuelTank', 'nozzle'], fuelPrice: 10 },
+  { name: 'Ceres', gravity: 0.3, gx: 0, gy: -5, distance: 20000,
+    groundColor: '#808080', groundDark: '#606060', groundLight: '#a0a0a0',
+    skyTop: '#050505', skyBottom: '#151515', surfaceDetail: '#909090',
+    terrainVariance: 18, terrainBase: 405,
+    shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'], fuelPrice: 11 },
+  // --- Tier 3 planets (unlocked after visiting 10) ---
+  { name: 'Kepler-22b', gravity: 1.1, gx: 6, gy: 6, distance: 25000,
+    groundColor: '#2e8b57', groundDark: '#1a6b3a', groundLight: '#4aab70',
+    skyTop: '#0a2020', skyBottom: '#1a5050', surfaceDetail: '#3a9b67',
+    terrainVariance: 45, terrainBase: 365,
+    shopItems: ['engine', 'nozzle'], fuelPrice: 12 },
+  { name: 'Proxima-b', gravity: 0.9, gx: -6, gy: -4, distance: 28000,
+    groundColor: '#8b4513', groundDark: '#6b3010', groundLight: '#ab6530',
+    skyTop: '#200a05', skyBottom: '#501a10', surfaceDetail: '#9b5520',
+    terrainVariance: 50, terrainBase: 360,
+    shopItems: ['heatShield', 'fuelTank'], fuelPrice: 13 },
+  { name: 'Trappist-1e', gravity: 0.7, gx: -5, gy: 7, distance: 32000,
+    groundColor: '#4a0080', groundDark: '#300060', groundLight: '#6a20a0',
+    skyTop: '#100020', skyBottom: '#2a0050', surfaceDetail: '#5a10a0',
+    terrainVariance: 38, terrainBase: 375,
+    shopItems: ['engine', 'heatShield', 'nozzle'], fuelPrice: 14 },
+  { name: 'Nebulosa X', gravity: 0.2, gx: 7, gy: -6, distance: 36000,
+    groundColor: '#ff6b9d', groundDark: '#d04070', groundLight: '#ff90b0',
+    skyTop: '#200020', skyBottom: '#500050', surfaceDetail: '#ff80a0',
+    terrainVariance: 60, terrainBase: 350,
+    shopItems: ['fuelTank', 'nozzle'], fuelPrice: 15 },
+  { name: 'Centro Galactico', gravity: 1.5, gx: 0, gy: 10, distance: 40000,
+    groundColor: '#ffd700', groundDark: '#ccaa00', groundLight: '#ffe44d',
+    skyTop: '#1a1000', skyBottom: '#4a3000', surfaceDetail: '#ffe030',
+    terrainVariance: 70, terrainBase: 345,
+    shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'], fuelPrice: 20 }
 ];
+
+// --- Black Holes (hazards on galaxy map) ---
+Game.BlackHoles = [
+  { gx: 1, gy: 2, radius: 1.2, name: 'Cygnus X-1' },
+  { gx: -1, gy: -3, radius: 1.0, name: 'Sagitario A' },
+  { gx: 5, gy: 2, radius: 1.5, name: 'M87' },
+  { gx: -3, gy: 5, radius: 1.3, name: 'TON 618' },
+  { gx: 3, gy: -4, radius: 1.1, name: 'V404 Cygni' }
+];
+
+// --- Ship Tiers (upgrade every 5 planets) ---
+Game.ShipTiers = [
+  { name: 'Explorer I', tier: 0, speedMult: 1.0, fuelMult: 1.0, hpMult: 1.0, color: '#e0e0e0' },
+  { name: 'Voyager II', tier: 1, speedMult: 1.3, fuelMult: 1.5, hpMult: 1.3, color: '#4fc3f7' },
+  { name: 'Odyssey III', tier: 2, speedMult: 1.6, fuelMult: 2.0, hpMult: 1.6, color: '#ffd700' }
+];
+
+Game.getShipTier = function(planetsVisited) {
+  if (planetsVisited >= 10) return 2;
+  if (planetsVisited >= 5) return 1;
+  return 0;
+};
 
 // --- Shop Data ---
 Game.ShopData = {
@@ -295,11 +352,14 @@ Game.ShopData = {
 // --- Rocket Stats Calculator ---
 Game.getRocketStats = function(saveData) {
   var parts = saveData.rocketParts;
+  var tier = Game.ShipTiers[Game.getShipTier(saveData.planetsVisited || 0)];
   return {
-    speed: 150 * (1 + parts.engine * 0.15),
-    maxFuel: 150 + parts.fuelTank * 50,
+    speed: 150 * (1 + parts.engine * 0.15) * tier.speedMult,
+    maxFuel: (150 + parts.fuelTank * 50) * tier.fuelMult,
     damageReduction: parts.heatShield * 0.15,
-    fireCooldown: Math.max(100, 400 - parts.nozzle * 80)
+    fireCooldown: Math.max(100, 400 - parts.nozzle * 80),
+    maxHp: 100 * tier.hpMult,
+    tier: tier
   };
 };
 
@@ -312,6 +372,9 @@ Game.Save = {
       coins: 100,
       currentPlanet: 0,
       highestPlanet: 0,
+      planetsVisited: 0,
+      visitedPlanets: [0], // array of visited planet indices
+      targetPlanet: -1, // selected destination from cockpit
       fuel: 150,
       rocketParts: { engine: 0, fuelTank: 0, heatShield: 0, nozzle: 0 },
       shotSkin: 'default',
@@ -319,7 +382,8 @@ Game.Save = {
       hasRobot: false,
       robotLevel: 0,
       foundEasterEgg: false,
-      easterEggPlanet: -1
+      easterEggPlanet: -1,
+      shipTierNotified: -1 // last tier upgrade notification shown
     };
   },
 
@@ -333,6 +397,9 @@ Game.Save = {
           coins: parsed.coins !== undefined ? parsed.coins : def.coins,
           currentPlanet: parsed.currentPlanet || def.currentPlanet,
           highestPlanet: parsed.highestPlanet || def.highestPlanet,
+          planetsVisited: parsed.planetsVisited || def.planetsVisited,
+          visitedPlanets: parsed.visitedPlanets || def.visitedPlanets,
+          targetPlanet: parsed.targetPlanet !== undefined ? parsed.targetPlanet : def.targetPlanet,
           fuel: parsed.fuel !== undefined ? parsed.fuel : def.fuel,
           rocketParts: Object.assign({}, def.rocketParts, parsed.rocketParts || {}),
           shotSkin: parsed.shotSkin || def.shotSkin,
@@ -340,7 +407,8 @@ Game.Save = {
           hasRobot: parsed.hasRobot || def.hasRobot,
           robotLevel: parsed.robotLevel || def.robotLevel,
           foundEasterEgg: parsed.foundEasterEgg || def.foundEasterEgg,
-          easterEggPlanet: parsed.easterEggPlanet !== undefined ? parsed.easterEggPlanet : def.easterEggPlanet
+          easterEggPlanet: parsed.easterEggPlanet !== undefined ? parsed.easterEggPlanet : def.easterEggPlanet,
+          shipTierNotified: parsed.shipTierNotified !== undefined ? parsed.shipTierNotified : def.shipTierNotified
         };
       }
     } catch (e) {

@@ -417,8 +417,8 @@ Game.Rocket = function(saveData) {
   this.fireCooldown = 0;
   this.fireRate = stats.fireCooldown;
 
-  this.hp = 100;
-  this.maxHp = 100;
+  this.maxHp = stats.maxHp || 100;
+  this.hp = this.maxHp;
   this.altitude = 0;
   this.ascending = true;
   this.parachute = false;

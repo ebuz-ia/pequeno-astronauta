@@ -181,16 +181,11 @@ Game.UI = {
 
     this.textBold(ctx, 'ALT', altX + 15, altY - 18, 10, '#4fc3f7', 'center');
 
-    // Determine target altitude from current planet
+    // Determine target altitude from flight scene
     var currentPlanetIdx = saveData.currentPlanet;
-    var targetAlt = 0;
-    if (currentPlanetIdx < Game.PlanetData.length - 1) {
-      targetAlt = Game.PlanetData[currentPlanetIdx + 1].altitude;
-    } else {
-      targetAlt = 50000; // Beyond Pluto
-    }
-    var startAlt = Game.PlanetData[currentPlanetIdx].altitude;
-    var altProgress = Math.min(1, (rocket.altitude) / (targetAlt - startAlt));
+    var flightScene = Game.scenes.FLIGHT;
+    var flightDist = flightScene ? flightScene.flightDistance : 5000;
+    var altProgress = Math.min(1, rocket.altitude / flightDist);
 
     // Altimeter bar
     ctx.fillStyle = '#1a1a2e';
@@ -208,13 +203,13 @@ Game.UI = {
     ctx.fillRect(altX - 5, altY - 1, 40, 3);
 
     // Current altitude number
-    var dispAlt = Math.floor(rocket.altitude + startAlt);
+    var dispAlt = Math.floor(rocket.altitude);
     this.text(ctx, dispAlt + 'm', altX + 15, altY + altH + 5, 10, '#aaa', 'center');
 
-    // Next planet name
-    if (currentPlanetIdx < Game.PlanetData.length - 1) {
-      var nextPlanet = Game.PlanetData[currentPlanetIdx + 1];
-      this.text(ctx, nextPlanet.name, altX + 15, altY - 32, 9, '#ffd700', 'center');
+    // Target planet name
+    var targetIdx = flightScene ? flightScene.targetPlanetIdx : -1;
+    if (targetIdx >= 0 && targetIdx < Game.PlanetData.length) {
+      this.text(ctx, Game.PlanetData[targetIdx].name, altX + 15, altY - 32, 9, '#ffd700', 'center');
     }
 
     // Coins (top right)
