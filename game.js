@@ -411,13 +411,13 @@ Game.Save = {
 
   defaults: function() {
     return {
-      coins: 100,
+      coins: 999999,
       currentPlanet: 0,
       highestPlanet: 0,
       planetsVisited: 0,
       visitedPlanets: [0], // array of visited planet indices
       targetPlanet: -1, // selected destination from cockpit
-      fuel: 150,
+      fuel: 9999,
       rocketParts: { engine: 0, fuelTank: 0, heatShield: 0, nozzle: 0 },
       shotSkin: 'default',
       unlockedSkins: ['default'],

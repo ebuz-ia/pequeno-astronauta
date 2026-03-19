@@ -351,9 +351,12 @@ Game.scenes.COCKPIT = {
       }
 
       // "EXPLORAR" button (go to current planet surface)
-      var exploreBtnX = 500, exploreBtnY = 490, exploreBtnW = 180, exploreBtnH = 35;
-      if (mx >= exploreBtnX && mx <= exploreBtnX + exploreBtnW && my >= exploreBtnY && my <= exploreBtnY + exploreBtnH) {
-        Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+      if (this.exploreBtnBounds) {
+        var eb = this.exploreBtnBounds;
+        if (mx >= eb.x && mx <= eb.x + eb.w && my >= eb.y && my <= eb.y + eb.h) {
+          Game.changeStateImmediate(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+          return;
+        }
       }
     }
 
@@ -362,10 +365,12 @@ Game.scenes.COCKPIT = {
       this.startTravel();
     }
     if (Game.Input.wasPressed('e') || Game.Input.wasPressed('E')) {
-      Game.changeState(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+      Game.changeStateImmediate(Game.States.PLANET_EXPLORE, { planetIndex: Game.saveData.currentPlanet });
+      return;
     }
     if (Game.Input.wasPressed('Escape')) {
-      Game.changeState(Game.States.LAUNCH_BASE);
+      Game.changeStateImmediate(Game.States.LAUNCH_BASE);
+      return;
     }
   },
 
@@ -392,7 +397,7 @@ Game.scenes.COCKPIT = {
     Game.Save.save(Game.saveData);
 
     if (Game.Audio) Game.Audio.sfx.launch();
-    Game.changeState(Game.States.FLIGHT, {
+    Game.changeStateImmediate(Game.States.FLIGHT, {
       targetPlanet: this.selectedPlanet,
       flightDistance: flightDist,
       blackHole: blackHoleHit
@@ -715,6 +720,7 @@ Game.scenes.COCKPIT = {
     var expBtnX = ix + 20, expBtnY = ih - 30, expBtnW = 180, expBtnH = 35;
     var expHovered = Game.UI.isMouseInRect(expBtnX, expBtnY, expBtnW, expBtnH);
     Game.UI.button(ctx, 'EXPLORAR (E)', expBtnX, expBtnY, expBtnW, expBtnH, expHovered, '#4caf50');
+    this.exploreBtnBounds = { x: expBtnX, y: expBtnY, w: expBtnW, h: expBtnH };
 
     // Controls
     Game.UI.text(ctx, 'E: Explorar planeta | M: Musica | ESC: Menu', ix + 10, ih + 10, 9, '#444');
@@ -1188,7 +1194,7 @@ Game.scenes.FLIGHT = {
       this.gameOverTimer -= dt;
       if (this.gameOverTimer <= 0) {
         Game.subState = Game.SubStates.NONE;
-        Game.changeState(Game.States.COCKPIT);
+        Game.changeStateImmediate(Game.States.COCKPIT);
       }
       return;
     }
@@ -1414,7 +1420,7 @@ Game.scenes.FLIGHT = {
       Game.Save.save(Game.saveData);
       Game.showMessage('Chegou em ' + Game.PlanetData[nextPlanetIdx].name + '!', 2);
       if (Game.Audio) Game.Audio.sfx.milestone();
-      Game.changeState(Game.States.COCKPIT);
+      Game.changeStateImmediate(Game.States.COCKPIT);
       return;
     }
 
@@ -1423,7 +1429,7 @@ Game.scenes.FLIGHT = {
       Game.saveData.fuel = 0;
       Game.Save.save(Game.saveData);
       Game.showMessage('Fuel esgotado! Voltando para ' + Game.PlanetData[currentPlanet].name, 2);
-      Game.changeState(Game.States.COCKPIT);
+      Game.changeStateImmediate(Game.States.COCKPIT);
       return;
     }
   },
@@ -1834,7 +1840,7 @@ Game.scenes.PLANET_EXPLORE = {
       } else if (this.nearRocket) {
         // Go to cockpit to choose destination
         Game.Save.save(Game.saveData);
-        Game.changeState(Game.States.COCKPIT);
+        Game.changeStateImmediate(Game.States.COCKPIT);
       } else if (this.nearEasterEgg && !Game.saveData.foundEasterEgg) {
         // Found easter egg!
         Game.saveData.foundEasterEgg = true;
