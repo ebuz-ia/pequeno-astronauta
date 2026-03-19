@@ -321,20 +321,24 @@ Game.scenes.COCKPIT = {
       var mx = Game.Input.mouse.x;
       var my = Game.Input.mouse.y;
 
-      // Map area: left panel (30, 80) to (430, 420)
-      var mapX = 30, mapY = 80, mapW = 400, mapH = 340;
+      // Map area must match renderGalaxyMap: mx=30, my=220, mw=400, mh=240
+      var mapX = 30, mapY = 220, mapW = 400, mapH = 240;
+      var mapContentY = mapY + 22;
+      var mapContentH = mapH - 30;
+      var mapCenterX = mapX + mapW / 2;
+      var mapCenterY = mapContentY + mapContentH / 2;
       if (mx >= mapX && mx <= mapX + mapW && my >= mapY && my <= mapY + mapH) {
         // Check which planet was clicked
         var closestPlanet = -1;
-        var closestDist = 20; // click radius
+        var closestDist = 25; // click radius
         for (var p = 0; p < Game.PlanetData.length; p++) {
           var planet = Game.PlanetData[p];
           // Check if planet is accessible (tier-based)
           var requiredVisits = p < 5 ? 0 : (p < 10 ? 5 : 10);
           if ((Game.saveData.planetsVisited || 0) < requiredVisits) continue;
 
-          var px = mapX + mapW / 2 + (planet.gx - this.mapCenterX) * this.mapZoom;
-          var py = mapY + mapH / 2 + (planet.gy - this.mapCenterY) * this.mapZoom;
+          var px = mapCenterX + (planet.gx - this.mapCenterX) * this.mapZoom;
+          var py = mapCenterY + (planet.gy - this.mapCenterY) * this.mapZoom;
           var dd = Math.sqrt((mx - px) * (mx - px) + (my - py) * (my - py));
           if (dd < closestDist) { closestDist = dd; closestPlanet = p; }
         }
@@ -344,10 +348,12 @@ Game.scenes.COCKPIT = {
         }
       }
 
-      // "VIAJAR" button (bottom right area)
-      var travelBtnX = 500, travelBtnY = 440, travelBtnW = 180, travelBtnH = 40;
-      if (this.selectedPlanet >= 0 && mx >= travelBtnX && mx <= travelBtnX + travelBtnW && my >= travelBtnY && my <= travelBtnY + travelBtnH) {
-        this.startTravel();
+      // "VIAJAR" button
+      if (this.selectedPlanet >= 0 && this.travelBtnBounds) {
+        var tb = this.travelBtnBounds;
+        if (mx >= tb.x && mx <= tb.x + tb.w && my >= tb.y && my <= tb.y + tb.h) {
+          this.startTravel();
+        }
       }
 
       // "EXPLORAR" button (go to current planet surface)
@@ -714,6 +720,9 @@ Game.scenes.COCKPIT = {
       var travelHovered = Game.UI.isMouseInRect(travelBtnX, travelBtnY, travelBtnW, travelBtnH);
       Game.UI.button(ctx, canTravel ? 'VIAJAR (Enter)' : 'SEM FUEL', travelBtnX, travelBtnY, travelBtnW, travelBtnH,
         travelHovered && canTravel, canTravel ? '#ffd700' : '#660000');
+      this.travelBtnBounds = { x: travelBtnX, y: travelBtnY, w: travelBtnW, h: travelBtnH };
+    } else {
+      this.travelBtnBounds = null;
     }
 
     // Explore current planet button
