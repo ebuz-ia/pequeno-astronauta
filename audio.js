@@ -228,133 +228,182 @@ Game.Audio = {
     osc.stop(t + duration + 0.05);
   },
 
-  // Menu music - dreamy, floating
+  // Menu music - cinematic space theme (Interstellar-inspired)
   playMenuMusic: function() {
     if (this.currentMusic === 'menu') return;
     this.stopMusic();
     this.currentMusic = 'menu';
     var self = this;
+    var bpm = 72;
+    var b = 60 / bpm;
 
-    var melody = [
-      330, 392, 494, 587, 494, 392, 330, 262,
-      294, 349, 440, 523, 440, 349, 294, 262,
-      330, 440, 523, 659, 523, 440, 392, 330,
-      262, 330, 392, 494, 392, 330, 262, 196
+    // Cm - Ab - Eb - Bb progression (cinematic)
+    var chords = [
+      [262, 311, 392], // Cm
+      [208, 262, 311], // Ab
+      [311, 392, 494], // Eb
+      [233, 294, 349]  // Bb
     ];
-    var bass = [131, 131, 165, 165, 175, 175, 131, 131];
-    var bpm = 100;
-    var beatLen = 60 / bpm;
-    var loopLen = melody.length * beatLen * 1000;
+    var melody = [
+      392, 0, 494, 523, 494, 0, 392, 0,
+      311, 0, 392, 440, 392, 0, 311, 0,
+      494, 0, 523, 587, 659, 0, 587, 523,
+      349, 0, 392, 440, 392, 0, 349, 0
+    ];
+    var loopLen = 32 * b * 1000;
 
     function playLoop() {
       if (self.currentMusic !== 'menu') return;
-
-      for (var i = 0; i < melody.length; i++) {
-        var delay = i * beatLen;
-        self.playNote(melody[i], beatLen * 0.8, 'sine', 0.08, delay);
-        // Harmony
-        if (i % 4 === 0) {
-          self.playNote(melody[i] * 0.75, beatLen * 3, 'triangle', 0.04, delay);
+      // Pad chords (warm sine pads)
+      for (var c = 0; c < 4; c++) {
+        for (var n = 0; n < 3; n++) {
+          self.playNote(chords[c][n], b * 7.5, 'sine', 0.03, c * b * 8);
+          self.playNote(chords[c][n] * 0.5, b * 7.5, 'triangle', 0.02, c * b * 8);
         }
       }
-      // Bass
-      for (var b = 0; b < bass.length; b++) {
-        self.playNote(bass[b], beatLen * 3.5, 'triangle', 0.06, b * beatLen * 4);
+      // Arpeggio layer (triangle, gentle)
+      for (var c2 = 0; c2 < 4; c2++) {
+        for (var a = 0; a < 8; a++) {
+          var note = chords[c2][a % 3] * (a < 4 ? 1 : 2);
+          self.playNote(note, b * 0.4, 'triangle', 0.025, c2 * b * 8 + a * b);
+        }
       }
-
+      // Melody (sine, expressive)
+      for (var i = 0; i < melody.length; i++) {
+        if (melody[i] === 0) continue;
+        self.playNote(melody[i], b * 1.5, 'sine', 0.05, i * b);
+        self.playNote(melody[i] * 2, b * 0.8, 'sine', 0.015, i * b + b * 0.1);
+      }
+      // Sub bass
+      var bassNotes = [131, 104, 156, 117];
+      for (var bb = 0; bb < 4; bb++) {
+        self.playNote(bassNotes[bb], b * 7, 'sine', 0.04, bb * b * 8);
+      }
       self.musicTimers.push(setTimeout(playLoop, loopLen));
     }
-
     playLoop();
   },
 
-  // Flight music - energetic, driving
+  // Flight music - intense action (layered drums + synth)
   playFlightMusic: function() {
     if (this.currentMusic === 'flight') return;
     this.stopMusic();
     this.currentMusic = 'flight';
     var self = this;
+    var bpm = 135;
+    var b = 60 / bpm;
 
     var melody = [
-      392, 0, 494, 0, 587, 0, 494, 392,
-      523, 0, 659, 0, 587, 523, 494, 0,
-      440, 0, 523, 0, 659, 0, 784, 659,
-      587, 0, 523, 0, 494, 440, 392, 0
+      392, 440, 494, 0, 587, 0, 494, 440,
+      523, 587, 659, 0, 587, 523, 494, 0,
+      440, 494, 523, 0, 659, 784, 659, 587,
+      523, 0, 494, 440, 392, 0, 349, 392
     ];
-    var bass = [196, 0, 196, 220, 233, 0, 233, 196,
-                175, 0, 175, 196, 220, 0, 220, 196];
-    var bpm = 140;
-    var beatLen = 60 / bpm;
-    var loopLen = melody.length * beatLen * 1000;
+    var bassLine = [196, 0, 196, 196, 233, 0, 233, 196, 175, 0, 175, 175, 220, 0, 220, 196];
+    var loopLen = 32 * b * 1000;
 
     function playLoop() {
       if (self.currentMusic !== 'flight') return;
-
+      // Lead melody (square, punchy)
       for (var i = 0; i < melody.length; i++) {
         if (melody[i] === 0) continue;
-        var delay = i * beatLen;
-        self.playNote(melody[i], beatLen * 0.6, 'square', 0.06, delay);
+        self.playNote(melody[i], b * 0.5, 'square', 0.045, i * b);
       }
-      // Bass line
-      for (var b = 0; b < bass.length; b++) {
-        if (bass[b] === 0) continue;
-        self.playNote(bass[b], beatLen * 1.5, 'sawtooth', 0.05, b * beatLen * 2);
+      // Counter melody (octave up, quiet)
+      for (var i2 = 0; i2 < melody.length; i2++) {
+        if (melody[i2] === 0) continue;
+        if (i2 % 3 === 0) self.playNote(melody[i2] * 2, b * 0.3, 'sine', 0.015, i2 * b + b * 0.5);
       }
-      // Kick drum pattern
+      // Bass (sawtooth, fat)
+      for (var j = 0; j < bassLine.length; j++) {
+        if (bassLine[j] === 0) continue;
+        self.playNote(bassLine[j], b * 1.8, 'sawtooth', 0.04, j * b * 2);
+        self.playNote(bassLine[j] * 0.5, b * 1.8, 'sine', 0.03, j * b * 2);
+      }
+      // Kick (four on the floor)
       for (var k = 0; k < 16; k++) {
-        if (k % 2 === 0) {
-          self.playNote(55, beatLen * 0.3, 'sine', 0.08, k * beatLen * 2);
-        }
+        self.playNote(50, b * 0.15, 'sine', 0.07, k * b * 2);
       }
-
+      // Snare (offbeat)
+      for (var s = 0; s < 8; s++) {
+        self.playNoise(0.08, 0.04, s * b * 4 + b * 2);
+      }
+      // Hi-hat (8th notes)
+      for (var h = 0; h < 32; h++) {
+        self.playNoise(0.03, 0.015, h * b);
+      }
+      // Arp layer (adds energy)
+      var arpNotes = [392, 494, 587, 659, 587, 494];
+      for (var ar = 0; ar < 16; ar++) {
+        self.playNote(arpNotes[ar % 6], b * 0.2, 'triangle', 0.02, ar * b * 2 + b);
+      }
       self.musicTimers.push(setTimeout(playLoop, loopLen));
     }
-
     playLoop();
   },
 
-  // Planet explore music - calm, ambient
+  // Planet explore music - ambient + unique per planet
   playPlanetMusic: function(planetIndex) {
     if (this.currentMusic === 'planet' + planetIndex) return;
     this.stopMusic();
     this.currentMusic = 'planet' + planetIndex;
     var self = this;
 
-    // Different melodies per planet
-    var melodies = [
-      // Terra - peaceful
-      [262, 330, 392, 330, 294, 349, 392, 349, 262, 330, 440, 392, 349, 330, 294, 262],
-      // Lua - mysterious
-      [220, 262, 330, 294, 247, 294, 330, 262, 220, 294, 349, 330, 262, 247, 220, 196],
-      // Marte - intense
-      [294, 349, 294, 262, 330, 392, 349, 294, 330, 392, 440, 392, 349, 330, 294, 262],
-      // Venus - eerie
-      [233, 277, 330, 349, 330, 277, 233, 220, 262, 311, 349, 330, 311, 277, 262, 233],
-      // Plutao - cold, sparse
-      [196, 0, 247, 0, 294, 0, 262, 0, 220, 0, 262, 0, 247, 0, 196, 0]
+    var configs = [
+      // Terra - warm and hopeful
+      { melody: [330, 392, 494, 440, 392, 349, 330, 294, 262, 294, 330, 392, 440, 494, 440, 392],
+        chords: [[262,330,392],[220,262,330],[175,220,262],[196,247,294]],
+        bass: [131, 110, 87, 98], bpm: 85, wave: 'sine' },
+      // Lua - mysterious, ethereal
+      { melody: [220, 0, 330, 294, 0, 262, 247, 0, 220, 0, 294, 330, 0, 262, 220, 0],
+        chords: [[220,262,330],[196,247,330],[175,220,294],[196,262,330]],
+        bass: [110, 98, 87, 98], bpm: 65, wave: 'triangle' },
+      // Marte - tense, rhythmic
+      { melody: [294, 349, 294, 0, 330, 392, 0, 349, 294, 0, 330, 392, 440, 0, 392, 349],
+        chords: [[294,349,440],[262,330,392],[247,294,349],[262,311,392]],
+        bass: [147, 131, 123, 131], bpm: 90, wave: 'square' },
+      // Venus - eerie, dissonant
+      { melody: [233, 277, 311, 0, 330, 0, 349, 311, 277, 0, 233, 262, 0, 311, 277, 233],
+        chords: [[233,294,349],[220,277,330],[208,262,311],[220,277,349]],
+        bass: [117, 110, 104, 110], bpm: 70, wave: 'sine' },
+      // Plutao - cold, sparse, haunting
+      { melody: [196, 0, 0, 247, 0, 0, 262, 0, 220, 0, 0, 247, 0, 0, 196, 0],
+        chords: [[196,247,294],[175,220,262],[165,196,247],[175,220,294]],
+        bass: [98, 87, 82, 87], bpm: 55, wave: 'triangle' }
     ];
 
-    var melody = melodies[planetIndex] || melodies[0];
-    var bpm = planetIndex === 4 ? 60 : 80; // Plutao slower
-    var beatLen = 60 / bpm;
-    var loopLen = melody.length * beatLen * 1000;
+    var cfg = configs[planetIndex % configs.length];
+    var b = 60 / cfg.bpm;
+    var loopLen = 16 * b * 1000;
 
     function playLoop() {
       if (self.currentMusic !== 'planet' + planetIndex) return;
-
-      for (var i = 0; i < melody.length; i++) {
-        if (melody[i] === 0) continue;
-        var delay = i * beatLen;
-        self.playNote(melody[i], beatLen * 1.2, 'sine', 0.06, delay);
-        // Soft harmony every 4 beats
-        if (i % 4 === 0) {
-          self.playNote(melody[i] * 0.5, beatLen * 3.5, 'triangle', 0.04, delay);
+      // Pad chords
+      for (var c = 0; c < 4; c++) {
+        for (var n = 0; n < 3; n++) {
+          self.playNote(cfg.chords[c][n], b * 3.8, 'sine', 0.025, c * b * 4);
         }
       }
-
+      // Melody
+      for (var i = 0; i < cfg.melody.length; i++) {
+        if (cfg.melody[i] === 0) continue;
+        self.playNote(cfg.melody[i], b * 1.2, cfg.wave, 0.04, i * b);
+        // Octave shimmer
+        if (i % 4 === 0) {
+          self.playNote(cfg.melody[i] * 2, b * 0.6, 'sine', 0.01, i * b + b * 0.2);
+        }
+      }
+      // Bass
+      for (var bb = 0; bb < 4; bb++) {
+        self.playNote(cfg.bass[bb], b * 3.5, 'sine', 0.035, bb * b * 4);
+      }
+      // Ambient arp (every other loop beat)
+      for (var a = 0; a < 8; a++) {
+        var arpNote = cfg.chords[a % 4][a % 3];
+        self.playNote(arpNote * 2, b * 0.3, 'triangle', 0.012, a * b * 2 + b * 0.5);
+      }
       self.musicTimers.push(setTimeout(playLoop, loopLen));
     }
-
     playLoop();
   },
 

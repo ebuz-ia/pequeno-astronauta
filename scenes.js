@@ -49,24 +49,22 @@ Game.scenes.LAUNCH_BASE = {
     // Launch animation
     if (this.launching) {
       this.launchTimer += dt;
-      if (this.launchTimer < 1.5) {
+      if (this.launchTimer < 1.0) {
         // Tremor + fire building up
-        Game.triggerShake(2 + this.launchTimer * 4, 0.05);
-        if (Math.random() < 0.5 + this.launchTimer * 0.3) {
-          var px = Game.CANVAS_W / 2 + (Math.random() - 0.5) * 30;
-          var groundY = Game.CANVAS_H - 90;
-          Game.spawnParticles(px, groundY, 2, Math.random() < 0.5 ? '#ff6b35' : '#ffeb3b', 1);
+        Game.triggerShake(2 + this.launchTimer * 5, 0.05);
+        if (Math.random() < 0.5) {
+          Game.spawnParticles(Game.CANVAS_W / 2 + (Math.random() - 0.5) * 30, Game.CANVAS_H - 90, 2, Math.random() < 0.5 ? '#ff6b35' : '#ffeb3b', 1);
         }
-      } else if (this.launchTimer < 4) {
+      } else if (this.launchTimer < 2.5) {
         // Rocket ascending
-        this.rocketYOffset += 200 * dt;
-        if (Math.random() < 0.7) {
-          var rocketScreenY = Game.CANVAS_H - 135 - this.rocketYOffset;
-          Game.spawnParticles(Game.CANVAS_W / 2 + (Math.random() - 0.5) * 15, rocketScreenY + 50, 1, '#ff9800', 0.8);
+        this.rocketYOffset += 300 * dt;
+        if (Math.random() < 0.6) {
+          Game.spawnParticles(Game.CANVAS_W / 2 + (Math.random() - 0.5) * 15, Game.CANVAS_H - 135 - this.rocketYOffset + 50, 1, '#ff9800', 0.8);
         }
       } else {
-        // Transition to cockpit
-        Game.changeState(Game.States.COCKPIT);
+        // Go to cockpit immediately (no fade transition - prevents stuck screen)
+        this.launching = false;
+        Game.changeStateImmediate(Game.States.COCKPIT);
       }
       return;
     }
