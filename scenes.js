@@ -294,6 +294,10 @@ Game.scenes.SPACE_FREE = {
     this.blackHoleTimer = 0;
     this.exploding = false;
     this.explosionTimer = 0;
+    this.portalActive = false;
+    this.finalBossActive = false;
+    this.finalBossHP = 0;
+    this.showingVictory = false;
 
     // Spawn wingmen based on upgrade level
     this.wingmen = [];
@@ -544,6 +548,136 @@ Game.scenes.SPACE_FREE = {
     // Enter cockpit (C key)
     if (Game.Input.wasPressed('c') || Game.Input.wasPressed('C')) {
       Game.changeStateImmediate(Game.States.COCKPIT);
+      return;
+    }
+
+    // --- EMERALD PORTAL (appears when 5 shards collected) ---
+    if (Game.saveData.emeraldShards >= 5 && !Game.saveData.gameCompleted && !this.portalActive) {
+      this.portalActive = true;
+      this.portalX = this.shipX + 2000;
+      this.portalY = this.shipY - 1000;
+      Game.showMessage('O PORTAL DA ESMERALDA se abriu! Encontre-o no mapa!', 4);
+    }
+    if (this.portalActive) {
+      var pdx = this.portalX - this.shipX, pdy = this.portalY - this.shipY;
+      var pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+      if (pDist < 80 && (Game.Input.wasPressed('e') || Game.Input.wasPressed('E'))) {
+        // Enter final boss arena
+        this.portalActive = false;
+        this.finalBossActive = true;
+        this.finalBossHP = 500;
+        this.finalBossMaxHP = 500;
+        this.finalBossX = this.shipX + 300;
+        this.finalBossY = this.shipY;
+        this.finalBossPhase = 0;
+        this.finalBossTimer = 0;
+        this.finalBossAttackTimer = 3;
+        Game.showMessage('BOSS FINAL: IMPERADOR DAS TREVAS!', 4);
+        Game.triggerShake(15, 1);
+        if (Game.Audio) Game.Audio.sfx.warning();
+        if (Game.Audio) Game.Audio.sfx.easterEgg();
+      }
+    }
+
+    // --- FINAL BOSS LOGIC ---
+    if (this.finalBossActive) {
+      this.finalBossTimer += dt;
+      // Orbit around player
+      var fbAngle = this.finalBossTimer * 0.5;
+      var fbDist = 200 + Math.sin(this.finalBossTimer * 0.3) * 80;
+      this.finalBossX = this.shipX + Math.cos(fbAngle) * fbDist;
+      this.finalBossY = this.shipY + Math.sin(fbAngle) * fbDist;
+
+      // Attack patterns
+      this.finalBossAttackTimer -= dt;
+      if (this.finalBossAttackTimer <= 0) {
+        this.finalBossPhase = (this.finalBossPhase + 1) % 3;
+        this.finalBossAttackTimer = 2.5;
+
+        if (this.finalBossPhase === 0) {
+          // Spiral burst (12 projectiles)
+          for (var fb = 0; fb < 12; fb++) {
+            var fba = Math.PI * 2 * fb / 12;
+            Game.EntityManager.add('particles', {
+              x: this.finalBossX, y: this.finalBossY, radius: 5, active: true,
+              vx: Math.cos(fba) * 200, vy: Math.sin(fba) * 200, life: 2,
+              color: '#e040fb', isEnemyBullet: true,
+              update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+              render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-4, this.y-(oy||0)-4, 8, 8); }
+            });
+          }
+          if (Game.Audio) Game.Audio.sfx.explosion();
+        } else if (this.finalBossPhase === 1) {
+          // Homing missiles (3)
+          for (var fm = 0; fm < 3; fm++) {
+            var fmAngle2 = Math.random() * Math.PI * 2;
+            (function(sx, sy) {
+              Game.EntityManager.add('particles', {
+                x: sx, y: sy, radius: 6, active: true,
+                vx: Math.cos(fmAngle2) * 100, vy: Math.sin(fmAngle2) * 100, life: 3,
+                color: '#ff1744', isEnemyBullet: true,
+                update: function(dt3) {
+                  var tdx = Game.scenes.SPACE_FREE.shipX - this.x;
+                  var tdy = Game.scenes.SPACE_FREE.shipY - this.y;
+                  var td = Math.sqrt(tdx*tdx+tdy*tdy);
+                  if (td > 5) { this.vx += (tdx/td) * 80 * dt3; this.vy += (tdy/td) * 80 * dt3; }
+                  this.x += this.vx * dt3; this.y += this.vy * dt3;
+                  this.life -= dt3; if (this.life <= 0) this.active = false;
+                },
+                render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-5, this.y-(oy||0)-5, 10, 10); }
+              });
+            })(this.finalBossX, this.finalBossY);
+          }
+        } else {
+          // Laser beam (line of particles toward player)
+          var ldx = this.shipX - this.finalBossX, ldy = this.shipY - this.finalBossY;
+          var ld = Math.sqrt(ldx*ldx+ldy*ldy);
+          for (var ll = 0; ll < 8; ll++) {
+            Game.EntityManager.add('particles', {
+              x: this.finalBossX + (ldx/ld) * ll * 30, y: this.finalBossY + (ldy/ld) * ll * 30,
+              radius: 4, active: true, vx: (ldx/ld) * 350, vy: (ldy/ld) * 350, life: 1,
+              color: '#ffeb3b', isEnemyBullet: true,
+              update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+              render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-3, this.y-(oy||0)-3, 6, 6); }
+            });
+          }
+          if (Game.Audio) Game.Audio.sfx.shoot();
+        }
+      }
+
+      // Check bullets hitting final boss
+      var bullets = Game.EntityManager.bullets;
+      for (var fbi = bullets.length - 1; fbi >= 0; fbi--) {
+        var fb2 = bullets[fbi];
+        if (!fb2.active) continue;
+        var fbdx = fb2.x - this.finalBossX, fbdy = fb2.y - this.finalBossY;
+        if (Math.sqrt(fbdx*fbdx+fbdy*fbdy) < 40) {
+          fb2.active = false;
+          this.finalBossHP -= (fb2.damage || 10);
+          Game.spawnParticles(this.finalBossX, this.finalBossY, 3, '#e040fb', 0.5);
+          if (Game.Audio) Game.Audio.sfx.hit();
+
+          if (this.finalBossHP <= 0) {
+            this.finalBossActive = false;
+            Game.saveData.gameCompleted = true;
+            Game.Save.save(Game.saveData);
+            // MEGA EXPLOSION
+            for (var fex = 0; fex < 60; fex++) Game.spawnParticles(this.finalBossX, this.finalBossY, 1, ['#ff9800','#ffeb3b','#f44336','#e040fb','#4caf50'][fex%5], 3);
+            Game.triggerShake(25, 2);
+            if (Game.Audio) { Game.Audio.sfx.explosion(); Game.Audio.sfx.milestone(); Game.Audio.sfx.easterEgg(); }
+            this.victoryTimer = 0;
+            this.showingVictory = true;
+          }
+        }
+      }
+    }
+
+    // --- VICTORY SCREEN ---
+    if (this.showingVictory) {
+      this.victoryTimer += dt;
+      // No other updates during victory
+      this.starfield.update(dt, 'none');
+      Game.EntityManager.updateAll(dt);
       return;
     }
 
@@ -1220,7 +1354,144 @@ Game.scenes.SPACE_FREE = {
       Game.UI.textBold(ctx, 'PERIGO! BURACO NEGRO!', W / 2, 60, 18, '#ff0000', 'center');
     }
 
-    // Cockpit overlay removed - user prefers wider view
+    // --- PORTAL ---
+    if (this.portalActive) {
+      var porSX = this.portalX - this.camX;
+      var porSY = this.portalY - this.camY;
+      if (porSX > -100 && porSX < W + 100 && porSY > -100 && porSY < H + 100) {
+        var porPulse = 1 + Math.sin(this.time * 3) * 0.15;
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        Game.Pixel.drawCircle(ctx, porSX, porSY, 60 * porPulse, '#4caf50', 4);
+        ctx.restore();
+        Game.Pixel.drawRing(ctx, porSX, porSY, 45 * porPulse, '#69f0ae', 3, 3);
+        Game.Pixel.drawRing(ctx, porSX, porSY, 35 * porPulse, '#00e676', 2, 3);
+        Game.Pixel.drawCircle(ctx, porSX, porSY, 15, '#b9f6ca', 3);
+        // Rotating sparkles
+        for (var sp = 0; sp < 6; sp++) {
+          var spa = this.time * 2 + sp * 1.047;
+          ctx.fillStyle = '#4caf50';
+          ctx.fillRect(porSX + Math.cos(spa) * 50 - 2, porSY + Math.sin(spa) * 50 - 2, 4, 4);
+        }
+        Game.UI.textBold(ctx, 'PORTAL', porSX, porSY + 55, 12, '#4caf50', 'center');
+        // Proximity prompt
+        var ppDist = Math.sqrt((this.shipX - this.portalX) ** 2 + (this.shipY - this.portalY) ** 2);
+        if (ppDist < 120) {
+          Game.UI.textBold(ctx, '[E] ENTRAR NO PORTAL', porSX, porSY - 60, 14, '#69f0ae', 'center');
+        }
+      }
+    }
+
+    // --- FINAL BOSS ---
+    if (this.finalBossActive) {
+      var fbsx = this.finalBossX - this.camX;
+      var fbsy = this.finalBossY - this.camY;
+      var fbPulse = 1 + Math.sin(this.time * 4) * 0.08;
+      var fbR = 40 * fbPulse;
+
+      // Aura
+      ctx.save();
+      ctx.globalAlpha = 0.15 + Math.sin(this.time * 2) * 0.05;
+      Game.Pixel.drawCircle(ctx, fbsx, fbsy, fbR + 30, '#4a0072', 5);
+      ctx.restore();
+
+      // Body (dark purple core)
+      Game.Pixel.drawCircle(ctx, fbsx, fbsy, fbR, '#311b92', 3);
+      Game.Pixel.drawCircle(ctx, fbsx, fbsy - 5, fbR * 0.75, '#4527a0', 3);
+
+      // Crown of horns
+      var hornColors = ['#ff6f00', '#f44336', '#ff6f00'];
+      for (var hi = 0; hi < 5; hi++) {
+        var ha = -0.8 + hi * 0.4;
+        var hx = fbsx + Math.cos(ha - 1.57) * (fbR + 5);
+        var hy = fbsy + Math.sin(ha - 1.57) * (fbR + 5);
+        ctx.fillStyle = hornColors[hi % 3];
+        ctx.fillRect(hx - 3, hy - 8, 6, 12);
+      }
+
+      // Eyes (3 eyes!)
+      var eyePhase = Math.sin(this.time * 5);
+      ctx.fillStyle = eyePhase > 0 ? '#ff1744' : '#d50000';
+      ctx.fillRect(fbsx - 15, fbsy - 10, 8, 8);
+      ctx.fillRect(fbsx + 7, fbsy - 10, 8, 8);
+      ctx.fillStyle = '#ffeb3b';
+      ctx.fillRect(fbsx - 3, fbsy - 15, 6, 6);
+      // Pupils
+      ctx.fillStyle = '#000';
+      ctx.fillRect(fbsx - 12, fbsy - 8, 3, 3);
+      ctx.fillRect(fbsx + 10, fbsy - 8, 3, 3);
+      ctx.fillRect(fbsx - 1, fbsy - 13, 3, 3);
+
+      // Tentacles
+      for (var ti = 0; ti < 6; ti++) {
+        var ta2 = this.time * 1.5 + ti * 1.047;
+        for (var ts = 0; ts < 3; ts++) {
+          var td2 = fbR + 10 + ts * 12;
+          ctx.fillStyle = ts === 0 ? '#7b1fa2' : '#9c27b0';
+          ctx.fillRect(fbsx + Math.cos(ta2) * td2 - 3, fbsy + Math.sin(ta2) * td2 - 3, 6, 6);
+        }
+      }
+
+      // HP bar
+      var fbHpPct = this.finalBossHP / this.finalBossMaxHP;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(fbsx - 50, fbsy - fbR - 25, 100, 8);
+      ctx.fillStyle = fbHpPct > 0.5 ? '#9c27b0' : (fbHpPct > 0.25 ? '#f44336' : '#ff1744');
+      ctx.fillRect(fbsx - 49, fbsy - fbR - 24, 98 * fbHpPct, 6);
+      Game.UI.textBold(ctx, 'IMPERADOR DAS TREVAS', fbsx, fbsy - fbR - 32, 10, '#e040fb', 'center');
+      Game.UI.text(ctx, Math.floor(this.finalBossHP) + '/' + this.finalBossMaxHP, fbsx, fbsy - fbR - 15, 8, '#fff', 'center');
+    }
+
+    // --- VICTORY SCREEN ---
+    if (this.showingVictory) {
+      ctx.save();
+      var vAlpha = Math.min(1, this.victoryTimer * 0.5);
+      ctx.globalAlpha = vAlpha * 0.7;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.victoryTimer * 0.5);
+
+      // Emerald glow
+      var emeraldPulse = 1 + Math.sin(this.time * 2) * 0.1;
+      Game.Pixel.drawCircle(ctx, W/2, H/2 - 60, 30 * emeraldPulse, '#4caf50', 3);
+      Game.Pixel.drawCircle(ctx, W/2, H/2 - 60, 20 * emeraldPulse, '#69f0ae', 3);
+      Game.Pixel.drawCircle(ctx, W/2, H/2 - 60, 10, '#b9f6ca', 3);
+
+      // Victory text
+      Game.UI.textBold(ctx, 'VOCE VENCEU!', W/2, H/2 + 10, 32, '#ffd700', 'center');
+      Game.UI.textBold(ctx, 'EXPLORADORES DA GALAXIA', W/2, H/2 + 45, 18, '#4caf50', 'center');
+      Game.UI.text(ctx, 'O Imperador das Trevas foi derrotado.', W/2, H/2 + 75, 13, '#aaa', 'center');
+      Game.UI.text(ctx, 'A galaxia esta em paz.', W/2, H/2 + 95, 13, '#aaa', 'center');
+
+      if (this.victoryTimer > 3) {
+        Game.UI.text(ctx, 'Moedas: ' + Game.saveData.coins + ' | Planetas: ' + (Game.saveData.planetsVisited || 0), W/2, H/2 + 130, 11, '#888', 'center');
+        var blink2 = Math.sin(this.time * 3) > 0;
+        if (blink2) Game.UI.textBold(ctx, 'Pressione ENTER para continuar explorando', W/2, H/2 + 160, 12, '#ffd700', 'center');
+        if (Game.Input.wasPressed('Enter') || Game.Input.wasPressed(' ')) {
+          this.showingVictory = false;
+        }
+      }
+      ctx.restore();
+      return; // skip other HUD during victory
+    }
+
+    // Emerald shard counter (top)
+    if (Game.saveData.emeraldShards > 0 && !Game.saveData.gameCompleted) {
+      var shardX = W / 2 - 50, shardY = 75;
+      for (var si = 0; si < 5; si++) {
+        var filled = si < Game.saveData.emeraldShards;
+        ctx.fillStyle = filled ? '#4caf50' : '#1a3a1a';
+        ctx.fillRect(shardX + si * 22, shardY, 16, 8);
+        if (filled) {
+          ctx.fillStyle = '#69f0ae';
+          ctx.fillRect(shardX + si * 22 + 2, shardY + 2, 12, 4);
+        }
+      }
+      Game.UI.text(ctx, Game.saveData.emeraldShards + '/5', shardX + 55, shardY + 12, 8, '#4caf50', 'center');
+    }
 
     // --- MINIMAP (bottom right corner) ---
     this.renderMinimap(ctx);
@@ -3334,9 +3605,9 @@ Game.scenes.PLANET_EXPLORE = {
     this.alienSpawnTimer -= dt;
     if (this.alienSpawnTimer <= 0) {
       this.alienSpawnTimer = 4 + Math.random() * 6;
-      var alienTypes = [Game.Sprites.alienGreen, Game.Sprites.alienPurple, Game.Sprites.alienRed];
-      var alienType = this.planetIndex % 3;
-      var alienSprite = alienTypes[alienType];
+      // Multiple alien types per planet (random pick, weighted by planet)
+      var alienPool = [Game.Sprites.alienGreen, Game.Sprites.alienPurple, Game.Sprites.alienRed];
+      var alienSprite = alienPool[Math.floor(Math.random() * alienPool.length)];
       var alienX = this.astronaut.x + (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 200);
       alienX = Math.max(50, Math.min(this.terrainWidth - 50, alienX));
       var alienGroundY = this.terrain[Math.min(Math.floor(alienX), this.terrain.length - 1)];
@@ -3427,12 +3698,14 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
-    // --- SUPER BOSS SPAWN ---
-    if (!this.bossSpawned && !this.bossDefeated) {
+    // --- SUPER BOSS SPAWN (only after exploring + killing aliens) ---
+    var alreadyDefeatedBoss = Game.saveData.bossesDefeated && Game.saveData.bossesDefeated.indexOf(this.planetIndex) >= 0;
+    if (!this.bossSpawned && !this.bossDefeated && !alreadyDefeatedBoss) {
       this.bossSpawnTimer -= dt;
-      if (this.bossSpawnTimer <= 0 || this.killCount >= 10) {
+      // Boss requires: 8+ kills AND 45+ seconds on planet
+      if (this.killCount >= 8 && this.bossSpawnTimer <= 0) {
         this.bossSpawned = true;
-        Game.showMessage('BOSS APARECEU! Prepare-se para a batalha!', 3);
+        Game.showMessage('A TERRA TREME... O GUARDIAO DESTE MUNDO APARECEU!', 4);
         Game.triggerShake(8, 0.5);
         if (Game.Audio) Game.Audio.sfx.warning();
 
@@ -3520,16 +3793,49 @@ Game.scenes.PLANET_EXPLORE = {
             var sx = this.x - (ox||0), sy = this.y - (oy||0);
             var pulse = 1 + Math.sin(this.animTime * 4) * 0.05;
             var r = this.radius * pulse;
+            var pi = self.planetIndex % 5;
+            // Planet-specific boss appearance
+            var bossColors = [
+              ['#b71c1c','#d32f2f','#ff6f00'], // Terra: Golem vermelho
+              ['#1a237e','#283593','#42a5f5'], // Lua: Espectro azul
+              ['#bf360c','#e64a19','#ff9800'], // Marte: Demonio laranja
+              ['#4a148c','#6a1b9a','#ce93d8'], // Venus: Hydra roxa
+              ['#0d47a1','#1565c0','#4fc3f7']  // Plutao: Titan gelo
+            ];
+            var bc = bossColors[pi];
             // Body
-            Game.Pixel.drawCircle(ctx2, sx, sy, r, '#b71c1c', 3);
-            Game.Pixel.drawCircle(ctx2, sx, sy - 5, r * 0.7, '#d32f2f', 3);
-            // Crown/horns
-            ctx2.fillStyle = '#ff6f00';
-            ctx2.fillRect(sx - 18, sy - r - 6, 6, 12);
-            ctx2.fillRect(sx + 12, sy - r - 6, 6, 12);
-            ctx2.fillRect(sx - 6, sy - r - 10, 12, 6);
-            // Eyes (glowing)
-            var eyeGlow = Math.sin(this.animTime * 6) > 0 ? '#ffeb3b' : '#ff9800';
+            Game.Pixel.drawCircle(ctx2, sx, sy, r, bc[0], 3);
+            Game.Pixel.drawCircle(ctx2, sx, sy - 5, r * 0.7, bc[1], 3);
+            // Crown/horns (different per boss)
+            ctx2.fillStyle = bc[2];
+            if (pi === 0) { // Golem: 3 horns
+              ctx2.fillRect(sx - 18, sy - r - 6, 6, 12);
+              ctx2.fillRect(sx + 12, sy - r - 6, 6, 12);
+              ctx2.fillRect(sx - 3, sy - r - 12, 6, 14);
+            } else if (pi === 1) { // Espectro: floating orbs
+              Game.Pixel.drawCircle(ctx2, sx - 20, sy - r, 6, '#42a5f5', 2);
+              Game.Pixel.drawCircle(ctx2, sx + 20, sy - r, 6, '#42a5f5', 2);
+            } else if (pi === 2) { // Demonio: wings
+              ctx2.fillRect(sx - r - 8, sy - 10, 12, 6);
+              ctx2.fillRect(sx + r - 4, sy - 10, 12, 6);
+              ctx2.fillRect(sx - r - 4, sy - 16, 8, 8);
+              ctx2.fillRect(sx + r, sy - 16, 8, 8);
+            } else if (pi === 3) { // Hydra: multiple heads
+              for (var hh = 0; hh < 3; hh++) {
+                var ha2 = -0.5 + hh * 0.5 + Math.sin(this.animTime * 3 + hh) * 0.2;
+                var hx2 = sx + Math.cos(ha2 - 1.57) * (r + 8);
+                var hy2 = sy + Math.sin(ha2 - 1.57) * (r + 8);
+                Game.Pixel.drawCircle(ctx2, hx2, hy2, 8, bc[1], 2);
+                ctx2.fillStyle = '#fff'; ctx2.fillRect(hx2 - 1, hy2 - 2, 3, 3);
+              }
+            } else { // Titan: ice crown
+              ctx2.fillRect(sx - 15, sy - r - 8, 4, 10);
+              ctx2.fillRect(sx - 5, sy - r - 12, 4, 14);
+              ctx2.fillRect(sx + 5, sy - r - 8, 4, 10);
+              ctx2.fillRect(sx + 12, sy - r - 6, 4, 8);
+            }
+            // Eyes (glowing, color matches boss)
+            var eyeGlow = Math.sin(this.animTime * 6) > 0 ? '#ffeb3b' : bc[2];
             Game.Pixel.drawCircle(ctx2, sx - 8, sy - 8, 5, eyeGlow, 2);
             Game.Pixel.drawCircle(ctx2, sx + 8, sy - 8, 5, eyeGlow, 2);
             ctx2.fillStyle = '#000';
@@ -3556,19 +3862,30 @@ Game.scenes.PLANET_EXPLORE = {
               Game.triggerShake(15, 1);
               if (Game.Audio) Game.Audio.sfx.explosion();
               if (Game.Audio) Game.Audio.sfx.milestone();
-              // Drop powerful reward
+              // Drop coins
               var reward = 50 + self.planetIndex * 20;
               Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, reward));
-              Game.addFloatingText('+' + reward + ' BOSS DROP!', this.x, this.y - 40, '#ff4081', 20);
-              // Bonus: permanent stat boost
+              Game.addFloatingText('+' + reward, this.x, this.y - 40, '#ffd700', 16);
+
+              // Drop EMERALD SHARD
+              if (!Game.saveData.bossesDefeated) Game.saveData.bossesDefeated = [];
+              if (Game.saveData.bossesDefeated.indexOf(self.planetIndex) === -1) {
+                Game.saveData.bossesDefeated.push(self.planetIndex);
+                Game.saveData.emeraldShards = (Game.saveData.emeraldShards || 0) + 1;
+                Game.addFloatingText('FRAGMENTO DE ESMERALDA!', this.x, this.y - 60, '#4caf50', 20);
+
+                if (Game.saveData.emeraldShards >= 5) {
+                  Game.showMessage('ESMERALDA COMPLETA! Um portal se abriu no espaco...', 5);
+                } else {
+                  Game.showMessage('Fragmento ' + Game.saveData.emeraldShards + '/5 da Esmeralda! Derrote mais guardioes!', 4);
+                }
+              }
+
+              // Bonus upgrade
               var bonusTypes = ['engine', 'fuelTank', 'heatShield', 'armor', 'laser'];
               var bonusKey = bonusTypes[self.planetIndex % bonusTypes.length];
               if (Game.saveData.rocketParts[bonusKey] < 4) {
                 Game.saveData.rocketParts[bonusKey]++;
-                Game.showMessage('BOSS DERROTADO! Upgrade ' + bonusKey.toUpperCase() + ' gratis!', 4);
-              } else {
-                Game.saveData.fuel = Game.getRocketStats(Game.saveData).maxFuel;
-                Game.showMessage('BOSS DERROTADO! Fuel completo!', 4);
               }
               Game.Save.save(Game.saveData);
             }

@@ -456,6 +456,9 @@ Game.Save = {
       hasRobot: false,
       robotLevel: 0,
       asteroidsLanded: 0,
+      emeraldShards: 0,
+      bossesDefeated: [],
+      gameCompleted: false,
       foundEasterEgg: false,
       easterEggPlanet: -1,
       shipTierNotified: -1
@@ -482,6 +485,9 @@ Game.Save = {
           hasRobot: parsed.hasRobot || def.hasRobot,
           robotLevel: parsed.robotLevel || def.robotLevel,
           asteroidsLanded: parsed.asteroidsLanded || def.asteroidsLanded,
+          emeraldShards: parsed.emeraldShards || def.emeraldShards,
+          bossesDefeated: parsed.bossesDefeated || def.bossesDefeated,
+          gameCompleted: parsed.gameCompleted || def.gameCompleted,
           foundEasterEgg: parsed.foundEasterEgg || def.foundEasterEgg,
           easterEggPlanet: parsed.easterEggPlanet !== undefined ? parsed.easterEggPlanet : def.easterEggPlanet,
           shipTierNotified: parsed.shipTierNotified !== undefined ? parsed.shipTierNotified : def.shipTierNotified
