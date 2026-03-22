@@ -547,6 +547,18 @@ Game.scenes.SPACE_FREE = {
       return;
     }
 
+    // Switch weapon (Q key)
+    if (Game.Input.wasPressed('q') || Game.Input.wasPressed('Q')) {
+      if (!Game.saveData.weapons) Game.saveData.weapons = { blaster: true };
+      var ownedW = Object.keys(Game.saveData.weapons).filter(function(w) { return Game.saveData.weapons[w]; });
+      if (ownedW.length > 1) {
+        var ci2 = ownedW.indexOf(Game.saveData.currentWeapon || 'blaster');
+        Game.saveData.currentWeapon = ownedW[(ci2 + 1) % ownedW.length];
+        Game.showMessage('Arma: ' + Game.saveData.currentWeapon.toUpperCase(), 1.5);
+        if (Game.Audio) Game.Audio.sfx.menuSelect();
+      }
+    }
+
     // Enter cockpit (C key)
     if (Game.Input.wasPressed('c') || Game.Input.wasPressed('C')) {
       Game.changeStateImmediate(Game.States.COCKPIT);
@@ -3665,6 +3677,20 @@ Game.scenes.PLANET_EXPLORE = {
       });
     }
 
+    // Ammo crates scattered on terrain
+    this.ammoCrates = [];
+    var numCrates = 4 + Math.floor(Math.random() * 4);
+    for (var aci = 0; aci < numCrates; aci++) {
+      var acx = 300 + Math.floor(Math.random() * (this.terrainWidth - 600));
+      this.ammoCrates.push({
+        x: acx, y: this.terrain[Math.min(acx, this.terrain.length - 1)] - 10,
+        collected: false,
+        type: Math.random() < 0.7 ? 'ammo' : 'weapon',
+        ammoAmount: 10 + Math.floor(Math.random() * 15),
+        weaponType: ['shotgun', 'laser', 'missile', 'plasma'][Math.floor(Math.random() * 4)]
+      });
+    }
+
     // Rare scraps (1-3 per planet, hard to find - at edges and hidden areas)
     this.scraps = [];
     var numScraps = 1 + Math.floor(Math.random() * 2);
@@ -3814,23 +3840,119 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
+    // --- COLLECT AMMO CRATES ---
+    if (this.ammoCrates) {
+      for (var aci = 0; aci < this.ammoCrates.length; aci++) {
+        var crate = this.ammoCrates[aci];
+        if (crate.collected) continue;
+        if (Math.abs(this.astronaut.x - crate.x) < 30 && Math.abs(this.astronaut.y - crate.y) < 35) {
+          crate.collected = true;
+          if (crate.type === 'ammo') {
+            Game.saveData.ammo = Math.min(Game.saveData.maxAmmo || 50, (Game.saveData.ammo || 0) + crate.ammoAmount);
+            Game.addFloatingText('+' + crate.ammoAmount + ' BALAS!', crate.x, crate.y - 20, '#4fc3f7', 14);
+            if (Game.Audio) Game.Audio.sfx.upgrade();
+          } else {
+            // Weapon pickup
+            if (!Game.saveData.weapons) Game.saveData.weapons = { blaster: true };
+            Game.saveData.weapons[crate.weaponType] = true;
+            Game.saveData.currentWeapon = crate.weaponType;
+            var weaponNames = { shotgun: 'SHOTGUN', laser: 'LASER', missile: 'MISSIL', plasma: 'PLASMA' };
+            Game.addFloatingText('ARMA: ' + (weaponNames[crate.weaponType] || crate.weaponType), crate.x, crate.y - 20, '#ff9800', 16);
+            Game.showMessage('Nova arma: ' + (weaponNames[crate.weaponType] || crate.weaponType) + '! [Q] trocar arma', 3);
+            if (Game.Audio) Game.Audio.sfx.easterEgg();
+            Game.triggerShake(4, 0.3);
+          }
+          Game.Save.save(Game.saveData);
+        }
+      }
+    }
+
+    // --- SWITCH WEAPON (Q key) ---
+    if (Game.Input.wasPressed('q') || Game.Input.wasPressed('Q')) {
+      if (!Game.saveData.weapons) Game.saveData.weapons = { blaster: true };
+      var ownedWeapons = Object.keys(Game.saveData.weapons).filter(function(w) { return Game.saveData.weapons[w]; });
+      if (ownedWeapons.length > 1) {
+        var curIdx = ownedWeapons.indexOf(Game.saveData.currentWeapon || 'blaster');
+        Game.saveData.currentWeapon = ownedWeapons[(curIdx + 1) % ownedWeapons.length];
+        Game.showMessage('Arma: ' + Game.saveData.currentWeapon.toUpperCase(), 1.5);
+        if (Game.Audio) Game.Audio.sfx.menuSelect();
+      }
+    }
+
     // --- ASTRONAUT SHOOTING (SPACE key) ---
     this.astronaut.shootCooldown = (this.astronaut.shootCooldown || 0) - dt * 1000;
-    if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0 && Game.saveData.ammo > 0) {
-      Game.saveData.ammo--;
-      this.astronaut.shootCooldown = 300;
+    var weapon = Game.saveData.currentWeapon || 'blaster';
+    var weaponCooldowns = { blaster: 300, shotgun: 500, laser: 150, missile: 800, plasma: 400 };
+    var weaponAmmo = { blaster: 1, shotgun: 3, laser: 1, missile: 2, plasma: 1 };
+    if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0 && Game.saveData.ammo >= (weaponAmmo[weapon] || 1)) {
+      Game.saveData.ammo -= (weaponAmmo[weapon] || 1);
+      this.astronaut.shootCooldown = weaponCooldowns[weapon] || 300;
       var bdir = this.astronaut.facing;
       var bx = this.astronaut.x + bdir * 20;
       var by = this.astronaut.y - 8;
-      Game.EntityManager.add('bullets', {
-        x: bx, y: by, vx: bdir * 400, vy: 0, radius: 4, damage: 15,
-        color: '#4fc3f7', life: 1, active: true,
-        update: function(dt2) { this.x += this.vx * dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
-        render: function(ctx2, ox, oy) {
-          ctx2.fillStyle = this.color;
-          ctx2.fillRect(this.x - (ox||0) - 4, this.y - (oy||0) - 2, 8, 4);
+
+      if (weapon === 'blaster') {
+        Game.EntityManager.add('bullets', {
+          x: bx, y: by, vx: bdir * 400, vy: 0, radius: 4, damage: 15,
+          color: '#4fc3f7', life: 1, active: true,
+          update: function(dt2) { this.x += this.vx * dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+          render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-4, this.y-(oy||0)-2, 8, 4); }
+        });
+      } else if (weapon === 'shotgun') {
+        // 5 pellets in spread
+        for (var sp = 0; sp < 5; sp++) {
+          var spread = (sp - 2) * 15;
+          Game.EntityManager.add('bullets', {
+            x: bx, y: by + spread, vx: bdir * 350, vy: spread * 2, radius: 3, damage: 8,
+            color: '#ff9800', life: 0.5, active: true,
+            update: function(dt2) { this.x += this.vx * dt2; this.y += this.vy * dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+            render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-2, this.y-(oy||0)-2, 4, 4); }
+          });
         }
-      });
+      } else if (weapon === 'laser') {
+        // Fast thin beam
+        Game.EntityManager.add('bullets', {
+          x: bx, y: by, vx: bdir * 800, vy: 0, radius: 3, damage: 25,
+          color: '#f44336', life: 0.4, active: true,
+          update: function(dt2) { this.x += this.vx * dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+          render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-6, this.y-(oy||0)-1, 12, 2); }
+        });
+      } else if (weapon === 'missile') {
+        // Slow but explosive
+        Game.EntityManager.add('bullets', {
+          x: bx, y: by, vx: bdir * 250, vy: 0, radius: 6, damage: 40,
+          color: '#ff5722', life: 1.5, active: true, isMissile: true,
+          update: function(dt2) {
+            this.x += this.vx * dt2; this.life -= dt2;
+            if (this.life <= 0) {
+              this.active = false;
+              Game.spawnParticles(this.x, this.y, 8, '#ff9800', 0.8);
+              Game.triggerShake(3, 0.15);
+            }
+          },
+          render: function(ctx2, ox, oy) {
+            var sx = this.x-(ox||0), sy = this.y-(oy||0);
+            ctx2.fillStyle = '#ff5722'; ctx2.fillRect(sx-5, sy-3, 10, 6);
+            ctx2.fillStyle = '#ffeb3b'; ctx2.fillRect(sx-7, sy-2, 4, 4);
+          }
+        });
+      } else if (weapon === 'plasma') {
+        // Big slow energy ball
+        Game.EntityManager.add('bullets', {
+          x: bx, y: by, vx: bdir * 300, vy: 0, radius: 8, damage: 30,
+          color: '#e040fb', life: 1.2, active: true, time: 0,
+          update: function(dt2) { this.x += this.vx * dt2; this.time += dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+          render: function(ctx2, ox, oy) {
+            var sx = this.x-(ox||0), sy = this.y-(oy||0);
+            var ps = 6 + Math.sin(this.time * 8) * 2;
+            ctx2.save(); ctx2.globalAlpha = 0.4;
+            ctx2.fillStyle = '#e040fb'; ctx2.fillRect(sx-ps-2, sy-ps-2, ps*2+4, ps*2+4);
+            ctx2.restore();
+            ctx2.fillStyle = '#ce93d8'; ctx2.fillRect(sx-ps, sy-ps, ps*2, ps*2);
+            ctx2.fillStyle = '#fff'; ctx2.fillRect(sx-2, sy-2, 4, 4);
+          }
+        });
+      }
       if (Game.Audio) Game.Audio.sfx.shoot();
     }
 
@@ -4479,6 +4601,35 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
+    // Ammo crates on ground
+    if (this.ammoCrates) {
+      for (var aci = 0; aci < this.ammoCrates.length; aci++) {
+        var crate = this.ammoCrates[aci];
+        if (crate.collected) continue;
+        var csx = crate.x - camX;
+        if (csx < -20 || csx > Game.CANVAS_W + 20) continue;
+        if (crate.type === 'ammo') {
+          // Ammo box (green/cyan)
+          ctx.fillStyle = '#1b5e20'; ctx.fillRect(csx - 9, crate.y - 10, 18, 12);
+          ctx.fillStyle = '#2e7d32'; ctx.fillRect(csx - 7, crate.y - 8, 14, 8);
+          ctx.fillStyle = '#4fc3f7'; ctx.fillRect(csx - 2, crate.y - 7, 4, 6);
+          ctx.fillStyle = '#4fc3f7'; ctx.fillRect(csx - 4, crate.y - 5, 8, 2);
+        } else {
+          // Weapon crate (orange/gold glow)
+          ctx.save();
+          ctx.globalAlpha = 0.25 + Math.sin(this.time * 3 + aci) * 0.1;
+          ctx.fillStyle = '#ff9800'; ctx.fillRect(csx - 14, crate.y - 14, 28, 28);
+          ctx.restore();
+          ctx.fillStyle = '#5d4037'; ctx.fillRect(csx - 10, crate.y - 10, 20, 12);
+          ctx.fillStyle = '#8d6e63'; ctx.fillRect(csx - 8, crate.y - 8, 16, 8);
+          ctx.fillStyle = '#ffd700'; ctx.fillRect(csx - 3, crate.y - 7, 6, 6);
+          // Weapon label
+          var wName = { shotgun: 'SHOTGUN', laser: 'LASER', missile: 'MISSIL', plasma: 'PLASMA' }[crate.weaponType] || '?';
+          Game.UI.text(ctx, wName, csx, crate.y + 8, 7, '#ff9800', 'center');
+        }
+      }
+    }
+
     // Food items on ground
     if (this.foodItems) {
       for (var fi = 0; fi < this.foodItems.length; fi++) {
@@ -4578,9 +4729,17 @@ Game.scenes.PLANET_EXPLORE = {
       if (starveBlink) Game.UI.textBold(ctx, 'FAMINTO!', 56, 62, 9, '#f44336', 'center');
     }
 
+    // Ammo + Weapon
+    var ammo2 = Game.saveData.ammo || 0;
+    Game.UI.text(ctx, 'BALAS: ' + ammo2, 56, 65, 8, '#4fc3f7', 'center');
+    var weapName = (Game.saveData.currentWeapon || 'blaster').toUpperCase();
+    var weapColors = { BLASTER: '#4fc3f7', SHOTGUN: '#ff9800', LASER: '#f44336', MISSILE: '#ff5722', PLASMA: '#e040fb' };
+    Game.UI.textBold(ctx, weapName, 56, 77, 9, weapColors[weapName] || '#fff', 'center');
+    Game.UI.text(ctx, '[Q] trocar', 56, 87, 7, '#666', 'center');
+
     // Scrap counter
     var scraps = Game.saveData.scrapsCollected || 0;
-    Game.UI.text(ctx, 'Sucatas: ' + (scraps % 3) + '/3', 56, 70, 8, '#ff9800', 'center');
+    Game.UI.text(ctx, 'Sucatas: ' + (scraps % 3) + '/3', 56, 98, 8, '#ff9800', 'center');
 
     // Easter egg found indicator
     if (Game.saveData.foundEasterEgg) {
