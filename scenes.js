@@ -3657,8 +3657,9 @@ Game.scenes.PLANET_EXPLORE = {
     this.astronaut.shootCooldown = 0;
     this.bossSpawned = false;
     this.bossDefeated = false;
-    this.bossSpawnTimer = 30 + Math.random() * 30;
+    this.bossSpawnTimer = 20 + Math.random() * 15;
     this.killCount = 0;
+    this._prevEnemyCount = 0;
 
     // Hunger starts at saved value
     if (Game.saveData.hunger === undefined) Game.saveData.hunger = 100;
@@ -4013,6 +4014,8 @@ Game.scenes.PLANET_EXPLORE = {
             Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
             Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 20, '#ffd700');
             if (Game.Audio) Game.Audio.sfx.explosion();
+            // Count kill for boss trigger
+            if (Game.scenes.PLANET_EXPLORE) Game.scenes.PLANET_EXPLORE.killCount++;
             // Drop food (40% chance)
             if (Math.random() < 0.4 && Game.scenes.PLANET_EXPLORE.foodItems) {
               Game.scenes.PLANET_EXPLORE.foodItems.push({
@@ -4085,8 +4088,8 @@ Game.scenes.PLANET_EXPLORE = {
     var alreadyDefeatedBoss = Game.saveData.bossesDefeated && Game.saveData.bossesDefeated.indexOf(this.planetIndex) >= 0;
     if (!this.bossSpawned && !this.bossDefeated && !alreadyDefeatedBoss) {
       this.bossSpawnTimer -= dt;
-      // Boss requires: 8+ kills AND 45+ seconds on planet
-      if (this.killCount >= 8 && this.bossSpawnTimer <= 0) {
+      // Boss requires: 5+ kills AND timer expired
+      if (this.killCount >= 5 && this.bossSpawnTimer <= 0) {
         this.bossSpawned = true;
         Game.showMessage('A TERRA TREME... O GUARDIAO E SUA GUARDA APARECERAM!', 4);
         Game.triggerShake(8, 0.5);
@@ -4141,6 +4144,7 @@ Game.scenes.PLANET_EXPLORE = {
                 Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
                 Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 20, '#ffd700');
                 if (Game.Audio) Game.Audio.sfx.explosion();
+                if (Game.scenes.PLANET_EXPLORE) Game.scenes.PLANET_EXPLORE.killCount++;
               }
             }
           });
@@ -4331,11 +4335,7 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
-    // Track kills for boss trigger
-    var prevEnemyCount = this._prevEnemyCount || 0;
-    var curEnemyCount = Game.EntityManager.enemies.length;
-    if (curEnemyCount < prevEnemyCount) this.killCount += (prevEnemyCount - curEnemyCount);
-    this._prevEnemyCount = curEnemyCount;
+    // Track kills (moved - now tracked inline via takeDamage)
 
     // --- ASTRONAUT HP CHECK ---
     if (this.astronaut.hp <= 0) {
