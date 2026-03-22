@@ -3515,8 +3515,39 @@ Game.scenes.PLANET_EXPLORE = {
     this.astronaut.shootCooldown = 0;
     this.bossSpawned = false;
     this.bossDefeated = false;
-    this.bossSpawnTimer = 30 + Math.random() * 30; // boss after 30-60s
+    this.bossSpawnTimer = 30 + Math.random() * 30;
     this.killCount = 0;
+
+    // Hunger starts at saved value
+    if (Game.saveData.hunger === undefined) Game.saveData.hunger = 100;
+
+    // Food items scattered on terrain
+    this.foodItems = [];
+    var foodTypes = ['baga', 'cogumelo', 'fruta', 'carne'];
+    var numFood = 8 + Math.floor(Math.random() * 6);
+    for (var fi = 0; fi < numFood; fi++) {
+      var fx = 200 + Math.floor(Math.random() * (this.terrainWidth - 400));
+      this.foodItems.push({
+        x: fx, y: this.terrain[Math.min(fx, this.terrain.length - 1)] - 10,
+        type: foodTypes[Math.floor(Math.random() * foodTypes.length)],
+        hunger: 15 + Math.floor(Math.random() * 15),
+        collected: false
+      });
+    }
+
+    // Rare scraps (1-3 per planet, hard to find - at edges and hidden areas)
+    this.scraps = [];
+    var numScraps = 1 + Math.floor(Math.random() * 2);
+    for (var si = 0; si < numScraps; si++) {
+      // Place scraps in hard-to-reach areas (far ends or between structures)
+      var sx2 = Math.floor(this.terrainWidth * (0.6 + si * 0.15 + Math.random() * 0.1));
+      sx2 = Math.min(sx2, this.terrainWidth - 100);
+      this.scraps.push({
+        x: sx2, y: this.terrain[Math.min(sx2, this.terrain.length - 1)] - 12,
+        collected: false,
+        type: ['motor', 'placa', 'bateria', 'sensor'][Math.floor(Math.random() * 4)]
+      });
+    }
 
     // Spawn initial resources
     this.resources = [];
@@ -3599,6 +3630,60 @@ Game.scenes.PLANET_EXPLORE = {
     // Update astronaut
     this.astronaut.update(dt, this.terrain, planet.gravity);
 
+    // --- HUNGER SYSTEM ---
+    Game.saveData.hunger = Math.max(0, (Game.saveData.hunger || 100) - dt * 1.5); // drains over ~66 seconds
+    if (Game.saveData.hunger <= 0) {
+      // Starving: lose HP slowly
+      this.astronaut.hp = Math.max(0, this.astronaut.hp - dt * 8);
+      if (Math.floor(this.time * 2) % 4 === 0 && Math.floor((this.time - dt) * 2) % 4 !== 0) {
+        Game.addFloatingText('FOME!', this.astronaut.x, this.astronaut.y - 40, '#f44336', 12);
+      }
+    }
+
+    // Collect food (auto on proximity)
+    if (this.foodItems) {
+      for (var fi = 0; fi < this.foodItems.length; fi++) {
+        var food = this.foodItems[fi];
+        if (food.collected) continue;
+        if (Math.abs(this.astronaut.x - food.x) < 30 && Math.abs(this.astronaut.y - food.y) < 35) {
+          food.collected = true;
+          Game.saveData.hunger = Math.min(100, Game.saveData.hunger + food.hunger);
+          Game.addFloatingText('+' + food.hunger + ' ' + food.type, food.x, food.y - 15, '#8bc34a', 12);
+          if (Game.Audio) Game.Audio.sfx.coin();
+        }
+      }
+    }
+
+    // Collect scraps (auto on proximity)
+    if (this.scraps) {
+      for (var si = 0; si < this.scraps.length; si++) {
+        var scrap = this.scraps[si];
+        if (scrap.collected) continue;
+        if (Math.abs(this.astronaut.x - scrap.x) < 30 && Math.abs(this.astronaut.y - scrap.y) < 35) {
+          scrap.collected = true;
+          Game.saveData.scrapsCollected = (Game.saveData.scrapsCollected || 0) + 1;
+          Game.addFloatingText('SUCATA: ' + scrap.type.toUpperCase(), scrap.x, scrap.y - 20, '#ff9800', 14);
+          if (Game.Audio) Game.Audio.sfx.easterEgg();
+          Game.triggerShake(3, 0.2);
+          // Every 3 scraps = free random upgrade
+          if (Game.saveData.scrapsCollected % 3 === 0) {
+            var upKeys = ['engine', 'fuelTank', 'heatShield', 'armor', 'laser', 'nozzle'];
+            var upKey = upKeys[Math.floor(Math.random() * upKeys.length)];
+            if (Game.saveData.rocketParts[upKey] < 4) {
+              Game.saveData.rocketParts[upKey]++;
+              Game.showMessage('3 sucatas! Upgrade ' + upKey.toUpperCase() + ' montado!', 4);
+            } else {
+              Game.saveData.coins += 100;
+              Game.showMessage('3 sucatas! +100 moedas (upgrade ja no max)', 3);
+            }
+          } else {
+            Game.showMessage('Sucata coletada! ' + Game.saveData.scrapsCollected + '/3 para upgrade', 2);
+          }
+          Game.Save.save(Game.saveData);
+        }
+      }
+    }
+
     // --- ASTRONAUT SHOOTING (SPACE key) ---
     this.astronaut.shootCooldown = (this.astronaut.shootCooldown || 0) - dt * 1000;
     if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0) {
@@ -3675,6 +3760,13 @@ Game.scenes.PLANET_EXPLORE = {
             Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
             Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 20, '#ffd700');
             if (Game.Audio) Game.Audio.sfx.explosion();
+            // Drop food (40% chance)
+            if (Math.random() < 0.4 && Game.scenes.PLANET_EXPLORE.foodItems) {
+              Game.scenes.PLANET_EXPLORE.foodItems.push({
+                x: this.x, y: this.y, type: 'carne',
+                hunger: 20 + Math.floor(Math.random() * 10), collected: false
+              });
+            }
           }
         }
       });
@@ -4251,6 +4343,58 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
+    // Food items on ground
+    if (this.foodItems) {
+      for (var fi = 0; fi < this.foodItems.length; fi++) {
+        var food = this.foodItems[fi];
+        if (food.collected) continue;
+        var fsx = food.x - camX;
+        if (fsx < -20 || fsx > Game.CANVAS_W + 20) continue;
+        // Draw food based on type
+        if (food.type === 'baga') {
+          ctx.fillStyle = '#e91e63'; ctx.fillRect(fsx - 4, food.y - 4, 4, 4);
+          ctx.fillStyle = '#f06292'; ctx.fillRect(fsx, food.y - 4, 4, 4);
+          ctx.fillStyle = '#4caf50'; ctx.fillRect(fsx - 2, food.y - 7, 4, 3);
+        } else if (food.type === 'cogumelo') {
+          ctx.fillStyle = '#8d6e63'; ctx.fillRect(fsx - 2, food.y - 3, 4, 6);
+          ctx.fillStyle = '#f44336'; ctx.fillRect(fsx - 5, food.y - 8, 10, 5);
+          ctx.fillStyle = '#fff'; ctx.fillRect(fsx - 3, food.y - 7, 2, 2);
+          ctx.fillRect(fsx + 2, food.y - 6, 2, 2);
+        } else if (food.type === 'fruta') {
+          ctx.fillStyle = '#ff9800'; ctx.fillRect(fsx - 4, food.y - 6, 8, 6);
+          ctx.fillStyle = '#ffeb3b'; ctx.fillRect(fsx - 2, food.y - 4, 4, 2);
+          ctx.fillStyle = '#4caf50'; ctx.fillRect(fsx - 1, food.y - 9, 3, 3);
+        } else if (food.type === 'carne') {
+          ctx.fillStyle = '#8d6e63'; ctx.fillRect(fsx - 5, food.y - 4, 10, 4);
+          ctx.fillStyle = '#d32f2f'; ctx.fillRect(fsx - 3, food.y - 3, 6, 2);
+          ctx.fillStyle = '#795548'; ctx.fillRect(fsx - 6, food.y - 2, 3, 5);
+        }
+      }
+    }
+
+    // Rare scraps (glowing)
+    if (this.scraps) {
+      for (var si = 0; si < this.scraps.length; si++) {
+        var scrap = this.scraps[si];
+        if (scrap.collected) continue;
+        var ssx = scrap.x - camX;
+        if (ssx < -20 || ssx > Game.CANVAS_W + 20) continue;
+        // Glow effect
+        ctx.save();
+        ctx.globalAlpha = 0.2 + Math.sin(this.time * 3 + si * 2) * 0.1;
+        ctx.fillStyle = '#ff9800';
+        ctx.fillRect(ssx - 12, scrap.y - 12, 24, 24);
+        ctx.restore();
+        // Scrap piece
+        ctx.fillStyle = '#78909c'; ctx.fillRect(ssx - 8, scrap.y - 8, 16, 8);
+        ctx.fillStyle = '#546e7a'; ctx.fillRect(ssx - 6, scrap.y - 6, 12, 4);
+        ctx.fillStyle = '#ff9800'; ctx.fillRect(ssx - 2, scrap.y - 5, 4, 3);
+        ctx.fillStyle = '#90a4ae'; ctx.fillRect(ssx - 4, scrap.y, 8, 4);
+        // Label
+        Game.UI.text(ctx, scrap.type, ssx, scrap.y + 12, 7, '#ff9800', 'center');
+      }
+    }
+
     // Resources on ground
     if (this.resources) {
       for (var ri = 0; ri < this.resources.length; ri++) {
@@ -4285,6 +4429,22 @@ Game.scenes.PLANET_EXPLORE = {
     ctx.fillStyle = hpPct > 0.5 ? '#4caf50' : (hpPct > 0.25 ? '#ff9800' : '#f44336');
     ctx.fillRect(16, 31, 80 * hpPct, 10);
     Game.UI.text(ctx, 'HP ' + Math.floor(this.astronaut.hp), 56, 34, 8, '#fff', 'center');
+
+    // Hunger bar
+    var hungerPct = Math.max(0, (Game.saveData.hunger || 0)) / 100;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(15, 45, 82, 10);
+    ctx.fillStyle = hungerPct > 0.4 ? '#8bc34a' : (hungerPct > 0.15 ? '#ff9800' : '#f44336');
+    ctx.fillRect(16, 46, 80 * hungerPct, 8);
+    Game.UI.text(ctx, 'FOME', 56, 49, 7, '#fff', 'center');
+    if (hungerPct <= 0) {
+      var starveBlink = Math.sin(this.time * 6) > 0;
+      if (starveBlink) Game.UI.textBold(ctx, 'FAMINTO!', 56, 62, 9, '#f44336', 'center');
+    }
+
+    // Scrap counter
+    var scraps = Game.saveData.scrapsCollected || 0;
+    Game.UI.text(ctx, 'Sucatas: ' + (scraps % 3) + '/3', 56, 70, 8, '#ff9800', 'center');
 
     // Easter egg found indicator
     if (Game.saveData.foundEasterEgg) {
