@@ -1024,6 +1024,15 @@ Game.scenes.COCKPIT = {
           return;
         }
       }
+
+      // "VOLTAR AO ESPACO" button
+      if (this.backBtnBounds) {
+        var bb = this.backBtnBounds;
+        if (mx >= bb.x && mx <= bb.x + bb.w && my >= bb.y && my <= bb.y + bb.h) {
+          Game.changeStateImmediate(Game.States.SPACE_FREE, { fromPlanet: Game.saveData.currentPlanet });
+          return;
+        }
+      }
     }
 
     // Keyboard shortcuts
@@ -1035,39 +1044,23 @@ Game.scenes.COCKPIT = {
       return;
     }
     if (Game.Input.wasPressed('Escape')) {
-      Game.changeStateImmediate(Game.States.LAUNCH_BASE);
+      Game.changeStateImmediate(Game.States.SPACE_FREE, { fromPlanet: Game.saveData.currentPlanet });
       return;
     }
   },
 
   startTravel: function() {
-    // Check if route crosses a black hole
-    var from = Game.PlanetData[Game.saveData.currentPlanet];
-    var to = Game.PlanetData[this.selectedPlanet];
-    var blackHoleHit = this.checkBlackHoleRoute(from.gx, from.gy, to.gx, to.gy);
-
-    if (blackHoleHit) {
-      this.alertText = 'PERIGO! Rota cruza o buraco negro ' + blackHoleHit.name + '!';
-      this.alertTimer = 3;
-      if (Game.Audio) Game.Audio.sfx.warning();
-      Game.triggerShake(4, 0.5);
-    }
-
-    // Calculate distance for flight
-    var dx = to.gx - from.gx;
-    var dy = to.gy - from.gy;
-    var dist = Math.sqrt(dx * dx + dy * dy);
-    var flightDist = Math.max(3000, Math.floor(dist * 2500));
-
+    // Set selected planet as target and go to SPACE_FREE positioned there
     Game.saveData.targetPlanet = this.selectedPlanet;
+    Game.saveData.currentPlanet = this.selectedPlanet;
+    if (Game.saveData.visitedPlanets.indexOf(this.selectedPlanet) === -1) {
+      Game.saveData.visitedPlanets.push(this.selectedPlanet);
+      Game.saveData.planetsVisited = Game.saveData.visitedPlanets.length;
+    }
     Game.Save.save(Game.saveData);
 
     if (Game.Audio) Game.Audio.sfx.launch();
-    Game.changeStateImmediate(Game.States.FLIGHT, {
-      targetPlanet: this.selectedPlanet,
-      flightDistance: flightDist,
-      blackHole: blackHoleHit
-    });
+    Game.changeStateImmediate(Game.States.SPACE_FREE, { fromPlanet: this.selectedPlanet });
   },
 
   checkBlackHoleRoute: function(x1, y1, x2, y2) {
@@ -1386,13 +1379,19 @@ Game.scenes.COCKPIT = {
     }
 
     // Explore current planet button
-    var expBtnX = ix + 20, expBtnY = ih - 30, expBtnW = 180, expBtnH = 35;
+    var expBtnX = ix + 20, expBtnY = ih - 70, expBtnW = 180, expBtnH = 35;
     var expHovered = Game.UI.isMouseInRect(expBtnX, expBtnY, expBtnW, expBtnH);
     Game.UI.button(ctx, 'EXPLORAR (E)', expBtnX, expBtnY, expBtnW, expBtnH, expHovered, '#4caf50');
     this.exploreBtnBounds = { x: expBtnX, y: expBtnY, w: expBtnW, h: expBtnH };
 
+    // Back to space button
+    var backBtnX = ix + 20, backBtnY = ih - 30, backBtnW = 180, backBtnH = 35;
+    var backHovered = Game.UI.isMouseInRect(backBtnX, backBtnY, backBtnW, backBtnH);
+    Game.UI.button(ctx, 'VOLTAR AO ESPACO (ESC)', backBtnX, backBtnY, backBtnW, backBtnH, backHovered, '#ff9800');
+    this.backBtnBounds = { x: backBtnX, y: backBtnY, w: backBtnW, h: backBtnH };
+
     // Controls
-    Game.UI.text(ctx, 'E: Explorar planeta | M: Musica | ESC: Menu', ix + 10, ih + 10, 9, '#444');
+    Game.UI.text(ctx, 'E: Explorar | ESC: Voltar ao espaco | M: Musica', ix + 10, ih + 10, 9, '#444');
   },
 
   renderSleepingRobot: function(ctx) {
