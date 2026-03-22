@@ -436,23 +436,49 @@ Game.createBullet = function(x, y, damage, skinColor) {
 Game.createCoin = function(x, y, value) {
   return {
     x: x, y: y, radius: 8,
-    value: value || 1, lifetime: 6, active: true, time: Math.random() * 10,
-    dy: -80, // pop up then fall
-    vy: 0, gravity: 200,
+    value: value || 1, lifetime: 30, active: true, time: Math.random() * 10,
+    vy: -100 - Math.random() * 50, // pop up
+    vx: (Math.random() - 0.5) * 60, // scatter horizontally
+    gravity: 300,
+    grounded: false,
     update: function(dt) {
       this.time += dt;
-      this.vy += this.gravity * dt;
-      this.y += this.vy * dt;
+      if (!this.grounded) {
+        this.vy += this.gravity * dt;
+        this.y += this.vy * dt;
+        this.x += this.vx * dt;
+        // Check terrain collision (planet explore)
+        if (Game.state === 'PLANET_EXPLORE' && Game.scenes.PLANET_EXPLORE.terrain) {
+          var terrain = Game.scenes.PLANET_EXPLORE.terrain;
+          var tx = Math.floor(Math.max(0, Math.min(this.x, terrain.length - 1)));
+          if (this.y >= terrain[tx] - 8) {
+            this.y = terrain[tx] - 8;
+            this.vy = 0;
+            this.vx = 0;
+            this.grounded = true;
+          }
+        } else if (this.vy > 0 && this.y > Game.CANVAS_H) {
+          // In space: no ground, shorter lifetime
+          this.lifetime = Math.min(this.lifetime, 6);
+        }
+      }
       this.lifetime -= dt;
       if (this.lifetime <= 0) this.active = false;
     },
     render: function(ctx, ox, oy) {
       var sx = this.x - (ox || 0);
       var sy = this.y - (oy || 0);
-      if (this.lifetime < 2) { ctx.save(); ctx.globalAlpha = this.lifetime / 2; }
+      if (this.lifetime < 3) { ctx.save(); ctx.globalAlpha = this.lifetime / 3; }
       var frame = Math.floor(this.time * 6) % 4;
       Game.Pixel.drawCentered(ctx, Game.Sprites.coin[frame], sx, sy, 3);
-      if (this.lifetime < 2) ctx.restore();
+      // Value label when grounded
+      if (this.grounded && this.value > 1) {
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '8px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.value, sx, sy - 12);
+      }
+      if (this.lifetime < 3) ctx.restore();
     }
   };
 };
