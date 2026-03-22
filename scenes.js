@@ -4048,6 +4048,22 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
+    // --- COLLECT COINS (walk over them) ---
+    var coins = Game.EntityManager.coins;
+    for (var ci = coins.length - 1; ci >= 0; ci--) {
+      var coin = coins[ci];
+      if (!coin.active) continue;
+      var cdx = this.astronaut.x - coin.x;
+      var cdy = this.astronaut.y - coin.y;
+      if (Math.abs(cdx) < 35 && Math.abs(cdy) < 40) {
+        Game.saveData.coins += coin.value;
+        coin.active = false;
+        Game.addFloatingText('+' + coin.value, coin.x, coin.y - 15, '#ffd700', 12);
+        if (Game.Audio) Game.Audio.sfx.coin();
+        if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
+      }
+    }
+
     // --- COLLECT RESOURCES ---
     if (this.resources) {
       for (var ri = 0; ri < this.resources.length; ri++) {
