@@ -265,7 +265,9 @@ Game.scenes.SPACE_FREE = {
   camY: 0,
 
   // Controls state (for on-screen buttons)
-  pressing: { left: false, right: false, thrust: false, brake: false },
+  pressing: { left: false, right: false, thrust: false, brake: false, shoot: false, bomb: false },
+  fireCooldown: 0,
+  bombCooldown: 0,
 
   // Planets in world space
   worldScale: 800, // pixels per gx/gy unit
@@ -329,8 +331,86 @@ Game.scenes.SPACE_FREE = {
     if (rotLeft) this.shipAngle -= this.rotateSpeed * dt;
     if (rotRight) this.shipAngle += this.rotateSpeed * dt;
 
+    // --- SHOOT ---
+    // Normal shot (Space or shoot button)
+    this.fireCooldown = (this.fireCooldown || 0) - dt * 1000;
+    this.bombCooldown = (this.bombCooldown || 0) - dt * 1000;
+    var shooting = Game.Input.keys[' '] || this.pressing.shoot;
+    var bombing = Game.Input.wasPressed('b') || Game.Input.wasPressed('B') || this.pressing.bomb;
+
+    if (shooting && this.fireCooldown <= 0) {
+      var stats = Game.getRocketStats(Game.saveData);
+      this.fireCooldown = stats.fireCooldown || 300;
+      var bx = this.shipX + Math.sin(this.shipAngle) * 30;
+      var by = this.shipY - Math.cos(this.shipAngle) * 30;
+      var bvx = Math.sin(this.shipAngle) * 500 + this.shipVX * 0.3;
+      var bvy = -Math.cos(this.shipAngle) * 500 + this.shipVY * 0.3;
+      var bulletColor = '#4fc3f7';
+      var skins = { red: '#f44336', blue: '#2196f3', green: '#4caf50', purple: '#9c27b0' };
+      if (Game.saveData.shotSkin && skins[Game.saveData.shotSkin]) bulletColor = skins[Game.saveData.shotSkin];
+      Game.EntityManager.add('bullets', {
+        x: bx, y: by, vx: bvx, vy: bvy, radius: 4, damage: 10,
+        color: bulletColor, life: 2, active: true,
+        update: function(dt) {
+          this.x += this.vx * dt; this.y += this.vy * dt;
+          this.life -= dt; if (this.life <= 0) this.active = false;
+        },
+        render: function(ctx, ox, oy) {
+          ctx.fillStyle = this.color;
+          ctx.fillRect(this.x - (ox||0) - 3, this.y - (oy||0) - 3, 6, 6);
+        }
+      });
+      if (Game.Audio) Game.Audio.sfx.shoot();
+    }
+
+    // Bomb (B key or bomb button) - area damage, 3s cooldown
+    if (bombing && this.bombCooldown <= 0 && Game.saveData.coins >= 5) {
+      this.bombCooldown = 3000;
+      Game.saveData.coins -= 5;
+      var bombX = this.shipX + Math.sin(this.shipAngle) * 40;
+      var bombY = this.shipY - Math.cos(this.shipAngle) * 40;
+      var bombVX = Math.sin(this.shipAngle) * 200 + this.shipVX * 0.5;
+      var bombVY = -Math.cos(this.shipAngle) * 200 + this.shipVY * 0.5;
+      Game.EntityManager.add('bullets', {
+        x: bombX, y: bombY, vx: bombVX, vy: bombVY, radius: 8, damage: 50,
+        color: '#ff9800', life: 1.5, active: true, isBomb: true, exploded: false,
+        update: function(dt) {
+          this.x += this.vx * dt; this.y += this.vy * dt;
+          this.vx *= 0.98; this.vy *= 0.98;
+          this.life -= dt;
+          if (this.life <= 0 && !this.exploded) {
+            this.exploded = true;
+            this.active = false;
+            // Explosion particles
+            Game.spawnParticles(this.x, this.y, 20, '#ff9800', 1.5);
+            Game.spawnParticles(this.x, this.y, 15, '#ffeb3b', 1);
+            Game.spawnParticles(this.x, this.y, 10, '#f44336', 1.2);
+            Game.triggerShake(8, 0.3);
+            if (Game.Audio) Game.Audio.sfx.explosion();
+          }
+        },
+        render: function(ctx, ox, oy) {
+          var sx = this.x - (ox||0);
+          var sy = this.y - (oy||0);
+          // Bomb body
+          ctx.fillStyle = '#ff9800';
+          ctx.fillRect(sx - 6, sy - 6, 12, 12);
+          ctx.fillStyle = '#ffeb3b';
+          ctx.fillRect(sx - 3, sy - 3, 6, 6);
+          // Trail
+          ctx.save();
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = '#f44336';
+          ctx.fillRect(sx - this.vx * 0.02 - 3, sy - this.vy * 0.02 - 3, 6, 6);
+          ctx.restore();
+        }
+      });
+      if (Game.Audio) Game.Audio.sfx.explosion();
+      Game.addFloatingText('-5 moedas', this.shipX, this.shipY - 30, '#ff9800');
+    }
+
     // --- THRUST ---
-    var thrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || Game.Input.keys[' '] || this.pressing.thrust;
+    var thrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || this.pressing.thrust;
     var braking = Game.Input.keys['ArrowDown'] || Game.Input.keys['s'] || Game.Input.keys['S'] || this.pressing.brake;
 
     if (thrusting && Game.saveData.fuel > 0) {
@@ -602,7 +682,7 @@ Game.scenes.SPACE_FREE = {
     this.renderControls(ctx);
 
     // Controls hint
-    Game.UI.text(ctx, 'A/D: Girar | W/ESPACO: Acelerar | S: Frear | E: Pousar | C: Cockpit | M: Musica',
+    Game.UI.text(ctx, 'A/D: Girar | W: Acelerar | S: Frear | ESPACO: Tiro | B: Bomba | E: Pousar | C: Cockpit',
       W / 2, H - 15, 9, 'rgba(255,255,255,0.3)', 'center');
   },
 
@@ -611,22 +691,56 @@ Game.scenes.SPACE_FREE = {
     var H = Game.CANVAS_H;
     var btnSize = 50;
     var margin = 15;
+    var btnY = H - btnSize - margin - 30;
 
     // Left side: rotation buttons
     var leftX = margin;
-    var btnY = H - btnSize - margin - 30;
+    this.drawControlBtn(ctx, leftX, btnY, btnSize, '<', this.pressing.left);
+    this.drawControlBtn(ctx, leftX + btnSize + 10, btnY, btnSize, '>', this.pressing.right);
 
-    // Rotate left button
-    this.drawControlBtn(ctx, leftX, btnY, btnSize, '<', this.pressing.left, 'rotLeft');
-    // Rotate right button
-    this.drawControlBtn(ctx, leftX + btnSize + 10, btnY, btnSize, '>', this.pressing.right, 'rotRight');
+    // Center: shoot + bomb
+    var centerX = W / 2 - btnSize - 5;
+    var shootActive = this.pressing.shoot;
+    var bombActive = this.pressing.bomb;
+    var bombReady = this.bombCooldown <= 0 && Game.saveData.coins >= 5;
+
+    // Shoot button (cyan)
+    ctx.save();
+    ctx.globalAlpha = shootActive ? 0.8 : 0.35;
+    ctx.fillStyle = shootActive ? '#4fc3f7' : '#1a3a5c';
+    ctx.fillRect(centerX, btnY, btnSize, btnSize);
+    ctx.fillStyle = '#0d2137';
+    ctx.fillRect(centerX + 2, btnY + 2, btnSize - 4, btnSize - 4);
+    if (shootActive) { ctx.fillStyle = '#4fc3f7'; ctx.fillRect(centerX + 2, btnY + 2, btnSize - 4, btnSize - 4); }
+    ctx.restore();
+    Game.UI.textBold(ctx, 'TIRO', centerX + btnSize / 2, btnY + btnSize / 2 - 3, 11, shootActive ? '#fff' : '#4fc3f7', 'center');
+
+    // Bomb button (orange)
+    var bombX = centerX + btnSize + 10;
+    ctx.save();
+    ctx.globalAlpha = bombActive ? 0.8 : (bombReady ? 0.35 : 0.15);
+    ctx.fillStyle = bombActive ? '#ff9800' : '#4a2800';
+    ctx.fillRect(bombX, btnY, btnSize, btnSize);
+    ctx.fillStyle = '#2a1500';
+    ctx.fillRect(bombX + 2, btnY + 2, btnSize - 4, btnSize - 4);
+    if (bombActive) { ctx.fillStyle = '#ff9800'; ctx.fillRect(bombX + 2, btnY + 2, btnSize - 4, btnSize - 4); }
+    ctx.restore();
+    Game.UI.textBold(ctx, 'BOMBA', bombX + btnSize / 2, btnY + btnSize / 2 - 8, 9, bombReady ? '#ff9800' : '#555', 'center');
+    Game.UI.text(ctx, '5$', bombX + btnSize / 2, btnY + btnSize / 2 + 8, 8, bombReady ? '#ffd700' : '#333', 'center');
+    // Cooldown indicator
+    if (this.bombCooldown > 0) {
+      var cdPct = this.bombCooldown / 3000;
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(bombX + 2, btnY + 2, (btnSize - 4) * cdPct, btnSize - 4);
+      ctx.restore();
+    }
 
     // Right side: thrust/brake
-    var rightX = W - btnSize * 2 - 10 - margin;
-    // Thrust button (big, green)
-    this.drawControlBtn(ctx, rightX + btnSize + 10, btnY - btnSize - 10, btnSize, '^', this.pressing.thrust, 'thrust');
-    // Brake button
-    this.drawControlBtn(ctx, rightX + btnSize + 10, btnY, btnSize, 'v', this.pressing.brake, 'brake');
+    var rightX = W - btnSize - margin;
+    this.drawControlBtn(ctx, rightX, btnY - btnSize - 10, btnSize, '^', this.pressing.thrust);
+    this.drawControlBtn(ctx, rightX, btnY, btnSize, 'v', this.pressing.brake);
 
     // Handle mouse/touch on buttons
     var mx = Game.Input.mouse.x;
@@ -637,24 +751,16 @@ Game.scenes.SPACE_FREE = {
     this.pressing.right = false;
     this.pressing.thrust = false;
     this.pressing.brake = false;
+    this.pressing.shoot = false;
+    this.pressing.bomb = false;
 
     if (mDown) {
-      // Rotate left
-      if (mx >= leftX && mx <= leftX + btnSize && my >= btnY && my <= btnY + btnSize) {
-        this.pressing.left = true;
-      }
-      // Rotate right
-      if (mx >= leftX + btnSize + 10 && mx <= leftX + btnSize * 2 + 10 && my >= btnY && my <= btnY + btnSize) {
-        this.pressing.right = true;
-      }
-      // Thrust
-      if (mx >= rightX + btnSize + 10 && mx <= rightX + btnSize * 2 + 10 && my >= btnY - btnSize - 10 && my <= btnY - 10) {
-        this.pressing.thrust = true;
-      }
-      // Brake
-      if (mx >= rightX + btnSize + 10 && mx <= rightX + btnSize * 2 + 10 && my >= btnY && my <= btnY + btnSize) {
-        this.pressing.brake = true;
-      }
+      if (mx >= leftX && mx <= leftX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.left = true;
+      if (mx >= leftX + btnSize + 10 && mx <= leftX + btnSize * 2 + 10 && my >= btnY && my <= btnY + btnSize) this.pressing.right = true;
+      if (mx >= rightX && mx <= rightX + btnSize && my >= btnY - btnSize - 10 && my <= btnY - 10) this.pressing.thrust = true;
+      if (mx >= rightX && mx <= rightX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.brake = true;
+      if (mx >= centerX && mx <= centerX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.shoot = true;
+      if (mx >= bombX && mx <= bombX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.bomb = true;
     }
   },
 
