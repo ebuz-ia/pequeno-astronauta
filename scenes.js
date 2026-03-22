@@ -3436,7 +3436,7 @@ Game.scenes.PLANET_EXPLORE = {
   astronaut: null,
   starfield: null,
   terrain: null,
-  terrainWidth: 2400,
+  terrainWidth: 8000,
   planetIndex: 0,
   time: 0,
   shopPos: { x: 600, y: 0 },
@@ -3462,23 +3462,40 @@ Game.scenes.PLANET_EXPLORE = {
     // Generate terrain
     this.terrain = Game.TerrainGenerator.generate(this.planetIndex, this.terrainWidth);
 
-    // Place shop and rocket pad
-    this.shopPos.x = Math.floor(this.terrainWidth * 0.3);
-    this.shopPos.y = this.terrain[this.shopPos.x];
-    this.rocketPadPos.x = Math.floor(this.terrainWidth * 0.65);
+    // Place main structures spread across terrain
+    this.rocketPadPos.x = Math.floor(this.terrainWidth * 0.1); // rocket pad near start
     this.rocketPadPos.y = this.terrain[this.rocketPadPos.x];
+    this.shopPos.x = Math.floor(this.terrainWidth * 0.2);
+    this.shopPos.y = this.terrain[this.shopPos.x];
 
-    // Flatten terrain
+    // Flatten terrain around structures
     this.flattenArea(this.shopPos.x - 50, this.shopPos.x + 50, this.shopPos.y);
     this.flattenArea(this.rocketPadPos.x - 50, this.rocketPadPos.x + 50, this.rocketPadPos.y);
 
-    // Easter egg placement
+    // --- DISCOVERABLE LOCATIONS spread across the planet ---
+    this.locations = [];
+    var locationTypes = ['ruins', 'cave', 'chest', 'oasis', 'temple', 'camp', 'beacon', 'wreck'];
+    var numLocations = 6 + Math.floor(Math.random() * 4); // 6-9 locations
+    for (var li = 0; li < numLocations; li++) {
+      var lx = Math.floor(this.terrainWidth * (0.25 + li * 0.08 + Math.random() * 0.05));
+      lx = Math.min(lx, this.terrainWidth - 100);
+      var ly = this.terrain[Math.min(lx, this.terrain.length - 1)];
+      this.flattenArea(lx - 30, lx + 30, ly);
+      var locType = locationTypes[(li + this.planetIndex) % locationTypes.length];
+      this.locations.push({
+        x: lx, y: ly, type: locType,
+        discovered: false, looted: false,
+        reward: 10 + Math.floor(Math.random() * 20) + this.planetIndex * 5
+      });
+    }
+
+    // Easter egg placement (far end)
     if (Game.saveData.easterEggPlanet === this.planetIndex && !Game.saveData.foundEasterEgg) {
-      var eggX = Math.floor(this.terrainWidth * (0.85 + Math.random() * 0.1)); // far right
+      var eggX = Math.floor(this.terrainWidth * (0.9 + Math.random() * 0.05));
       this.easterEggPos = { x: eggX, y: this.terrain[Math.min(eggX, this.terrain.length - 1)] };
     }
 
-    // Create astronaut
+    // Create astronaut near rocket pad
     this.astronaut = new Game.Astronaut(this.rocketPadPos.x, this.rocketPadPos.y - 20);
 
     // Camera setup
@@ -3632,11 +3649,11 @@ Game.scenes.PLANET_EXPLORE = {
             this.groundY = Game.scenes.PLANET_EXPLORE.terrain[gx];
             this.y = this.groundY - 18;
           }
-          // Damage astronaut on contact
-          if (Math.abs(dx) < 25 && Math.abs(ast.y - this.y) < 30) {
+          // Damage astronaut on contact (wider hitbox)
+          if (Math.abs(dx) < 40 && Math.abs(ast.y - this.y) < 45) {
             if (!this._hitCooldown || this._hitCooldown <= 0) {
-              ast.hp = Math.max(0, ast.hp - 10);
-              this._hitCooldown = 1;
+              ast.hp = Math.max(0, ast.hp - 15);
+              this._hitCooldown = 0.8;
               Game.triggerShake(4, 0.15);
               if (Game.Audio) Game.Audio.sfx.damage();
               Game.addFloatingText('-10 HP', ast.x, ast.y - 30, '#f44336');
@@ -3705,9 +3722,63 @@ Game.scenes.PLANET_EXPLORE = {
       // Boss requires: 8+ kills AND 45+ seconds on planet
       if (this.killCount >= 8 && this.bossSpawnTimer <= 0) {
         this.bossSpawned = true;
-        Game.showMessage('A TERRA TREME... O GUARDIAO DESTE MUNDO APARECEU!', 4);
+        Game.showMessage('A TERRA TREME... O GUARDIAO E SUA GUARDA APARECERAM!', 4);
         Game.triggerShake(8, 0.5);
         if (Game.Audio) Game.Audio.sfx.warning();
+
+        // Spawn boss guards (3-4 elite aliens)
+        var numGuards = 3 + Math.floor(Math.random() * 2);
+        var guardSprites = [Game.Sprites.alienGreen, Game.Sprites.alienPurple, Game.Sprites.alienRed];
+        for (var gi = 0; gi < numGuards; gi++) {
+          var gSpawnX = this.astronaut.x + (gi % 2 === 0 ? -1 : 1) * (150 + gi * 80 + Math.random() * 50);
+          gSpawnX = Math.max(50, Math.min(this.terrainWidth - 50, gSpawnX));
+          var gGroundY = this.terrain[Math.min(Math.floor(gSpawnX), this.terrain.length - 1)];
+          var guardHP = 35 + this.planetIndex * 8;
+          Game.EntityManager.add('enemies', {
+            x: gSpawnX, y: gGroundY - 18, radius: 15, hp: guardHP,
+            active: true, sprite: guardSprites[gi % 3], facing: 1, animTimer: 0,
+            isGuard: true, coinDrop: 8 + Math.floor(Math.random() * 5),
+            speed: 55 + this.planetIndex * 10,
+            update: function(dt2) {
+              this.animTimer += dt2;
+              var ast2 = Game.scenes.PLANET_EXPLORE.astronaut;
+              var dx2 = ast2.x - this.x;
+              this.facing = dx2 > 0 ? 1 : -1;
+              if (Math.abs(dx2) > 25) this.x += this.facing * this.speed * dt2;
+              var gx2 = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
+              if (gx2 >= 0) this.y = Game.scenes.PLANET_EXPLORE.terrain[gx2] - 18;
+              // Damage on contact
+              if (Math.abs(dx2) < 35 && Math.abs(ast2.y - this.y) < 40) {
+                if (!this._hcd || this._hcd <= 0) {
+                  ast2.hp = Math.max(0, ast2.hp - 12);
+                  this._hcd = 0.7;
+                  Game.triggerShake(3, 0.1);
+                  if (Game.Audio) Game.Audio.sfx.damage();
+                  Game.addFloatingText('-12 HP', ast2.x, ast2.y - 30, '#f44336');
+                }
+              }
+              if (this._hcd > 0) this._hcd -= dt2;
+              if (Math.abs(this.x - ast2.x) > 1000) this.active = false;
+            },
+            render: function(ctx2, ox, oy) {
+              Game.Pixel.drawCentered(ctx2, this.sprite, this.x - (ox||0), this.y - (oy||0), 3, this.facing === -1);
+              // Guard marker (small shield icon)
+              ctx2.fillStyle = '#ff9800';
+              ctx2.fillRect(this.x - (ox||0) - 4, this.y - (oy||0) - 22, 8, 3);
+            },
+            takeDamage: function(dmg) {
+              this.hp -= dmg;
+              Game.spawnParticles(this.x, this.y, 3, '#ff9800', 0.5);
+              if (this.hp <= 0) {
+                this.active = false;
+                Game.spawnParticles(this.x, this.y, 8, '#ff9800', 1);
+                Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
+                Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 20, '#ffd700');
+                if (Game.Audio) Game.Audio.sfx.explosion();
+              }
+            }
+          });
+        }
 
         var bossX = this.astronaut.x + (Math.random() < 0.5 ? 300 : -300);
         bossX = Math.max(100, Math.min(this.terrainWidth - 100, bossX));
@@ -3934,9 +4005,59 @@ Game.scenes.PLANET_EXPLORE = {
       this.nearEasterEgg = eggDist < 40;
     }
 
+    // Location proximity + discovery
+    this.nearLocation = null;
+    if (this.locations) {
+      for (var li = 0; li < this.locations.length; li++) {
+        var loc = this.locations[li];
+        var locDist = Math.abs(this.astronaut.x - loc.x);
+        if (locDist < 50) {
+          if (!loc.discovered) {
+            loc.discovered = true;
+            Game.addFloatingText('Descoberta: ' + loc.type.toUpperCase(), loc.x, loc.y - 30, '#ffd700', 14);
+            if (Game.Audio) Game.Audio.sfx.menuSelect();
+          }
+          if (!loc.looted) this.nearLocation = loc;
+        }
+      }
+    }
+
     // Interact (E key)
     if (Game.Input.wasPressed('e') || Game.Input.wasPressed('E')) {
-      if (this.nearShop) {
+      // Loot location
+      if (this.nearLocation && !this.nearLocation.looted) {
+        var loc2 = this.nearLocation;
+        loc2.looted = true;
+        var locReward = loc2.reward;
+
+        if (loc2.type === 'chest' || loc2.type === 'ruins') {
+          Game.saveData.coins += locReward;
+          Game.addFloatingText('+' + locReward + ' moedas!', loc2.x, loc2.y - 30, '#ffd700', 16);
+          if (Game.Audio) Game.Audio.sfx.coinBig();
+        } else if (loc2.type === 'oasis' || loc2.type === 'camp') {
+          this.astronaut.hp = Math.min(this.astronaut.maxHp, this.astronaut.hp + 50);
+          Game.addFloatingText('+50 HP!', loc2.x, loc2.y - 30, '#4caf50', 16);
+          if (Game.Audio) Game.Audio.sfx.repair();
+        } else if (loc2.type === 'cave') {
+          var caveLoot = locReward * 2;
+          Game.saveData.coins += caveLoot;
+          Game.addFloatingText('+' + caveLoot + ' tesouro!', loc2.x, loc2.y - 30, '#e040fb', 16);
+          if (Game.Audio) Game.Audio.sfx.easterEgg();
+        } else if (loc2.type === 'beacon' || loc2.type === 'temple') {
+          var stats3 = Game.getRocketStats(Game.saveData);
+          Game.saveData.fuel = Math.min(Game.saveData.fuel + 30, stats3.maxFuel);
+          Game.addFloatingText('+30 fuel!', loc2.x, loc2.y - 30, '#4fc3f7', 16);
+          if (Game.Audio) Game.Audio.sfx.upgrade();
+        } else if (loc2.type === 'wreck') {
+          Game.saveData.coins += locReward;
+          var stats4 = Game.getRocketStats(Game.saveData);
+          Game.saveData.fuel = Math.min(Game.saveData.fuel + 15, stats4.maxFuel);
+          Game.addFloatingText('+' + locReward + '$ +15 fuel', loc2.x, loc2.y - 30, '#ff9800', 14);
+          if (Game.Audio) Game.Audio.sfx.coinBig();
+        }
+        Game.Save.save(Game.saveData);
+        if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
+      } else if (this.nearShop) {
         Game.ShopUI.open();
         if (Game.Audio) Game.Audio.sfx.menuSelect();
       } else if (this.nearRocket) {
@@ -4051,6 +4172,81 @@ Game.scenes.PLANET_EXPLORE = {
           ctx.globalAlpha = eggPulse;
           Game.UI.textBold(ctx, '[E] ???', eggScreenX, this.easterEggPos.y - 28, 11, '#e040fb', 'center');
           ctx.restore();
+        }
+      }
+    }
+
+    // Discoverable locations
+    if (this.locations) {
+      for (var li = 0; li < this.locations.length; li++) {
+        var loc = this.locations[li];
+        var lsx = loc.x - camX;
+        if (lsx < -80 || lsx > Game.CANVAS_W + 80) continue;
+        var lsy = loc.y;
+
+        if (loc.looted) {
+          // Looted - dim marker
+          ctx.save();
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#555';
+          ctx.fillRect(lsx - 10, lsy - 15, 20, 15);
+          ctx.restore();
+        } else {
+          // Active location - draw based on type
+          var locColors = { ruins: '#8d6e63', cave: '#5d4037', chest: '#ffd700', oasis: '#4fc3f7', temple: '#9c27b0', camp: '#ff9800', beacon: '#4caf50', wreck: '#78909c' };
+          var lc = locColors[loc.type] || '#888';
+
+          // Structure
+          if (loc.type === 'chest') {
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(lsx - 12, lsy - 12, 24, 12);
+            ctx.fillStyle = '#ffd700'; ctx.fillRect(lsx - 10, lsy - 10, 20, 8);
+            ctx.fillStyle = '#ff9800'; ctx.fillRect(lsx - 2, lsy - 8, 4, 4);
+          } else if (loc.type === 'cave') {
+            ctx.fillStyle = '#3e2723'; ctx.fillRect(lsx - 18, lsy - 20, 36, 20);
+            ctx.fillStyle = '#1a1a1a'; ctx.fillRect(lsx - 12, lsy - 16, 24, 16);
+            ctx.fillStyle = '#111'; ctx.fillRect(lsx - 8, lsy - 12, 16, 12);
+          } else if (loc.type === 'temple') {
+            ctx.fillStyle = '#7b1fa2'; ctx.fillRect(lsx - 15, lsy - 25, 30, 25);
+            ctx.fillStyle = '#9c27b0'; ctx.fillRect(lsx - 12, lsy - 22, 24, 3);
+            ctx.fillStyle = '#ce93d8'; ctx.fillRect(lsx - 3, lsy - 30, 6, 8);
+          } else if (loc.type === 'ruins') {
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(lsx - 15, lsy - 18, 6, 18);
+            ctx.fillRect(lsx + 9, lsy - 15, 6, 15);
+            ctx.fillRect(lsx - 5, lsy - 10, 10, 3);
+          } else if (loc.type === 'beacon') {
+            ctx.fillStyle = '#388e3c'; ctx.fillRect(lsx - 3, lsy - 30, 6, 30);
+            var beaconBlink = Math.sin(this.time * 4 + li) > 0;
+            ctx.fillStyle = beaconBlink ? '#4caf50' : '#1b5e20';
+            ctx.fillRect(lsx - 5, lsy - 32, 10, 6);
+          } else if (loc.type === 'oasis') {
+            ctx.fillStyle = '#4fc3f7'; ctx.fillRect(lsx - 15, lsy - 3, 30, 3);
+            ctx.fillStyle = '#81d4fa'; ctx.fillRect(lsx - 10, lsy - 2, 20, 2);
+          } else if (loc.type === 'camp') {
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(lsx - 2, lsy - 18, 4, 18);
+            ctx.fillStyle = '#ff9800'; ctx.fillRect(lsx - 8, lsy - 25, 16, 10);
+            ctx.fillStyle = '#ffeb3b'; ctx.fillRect(lsx - 5, lsy - 22, 10, 5);
+          } else if (loc.type === 'wreck') {
+            ctx.fillStyle = '#546e7a'; ctx.fillRect(lsx - 18, lsy - 10, 12, 10);
+            ctx.fillRect(lsx + 2, lsy - 14, 15, 14);
+            ctx.fillStyle = '#90a4ae'; ctx.fillRect(lsx - 15, lsy - 8, 8, 6);
+          }
+
+          // Interaction prompt when near
+          if (loc === this.nearLocation) {
+            var promptBlink = Math.sin(this.time * 4) > 0;
+            if (promptBlink) {
+              Game.UI.textBold(ctx, '[E] ' + loc.type.toUpperCase(), lsx, lsy - 40, 10, lc, 'center');
+            }
+          }
+
+          // Undiscovered glow
+          if (!loc.discovered) {
+            ctx.save();
+            ctx.globalAlpha = 0.15 + Math.sin(this.time * 2 + li) * 0.05;
+            ctx.fillStyle = lc;
+            ctx.fillRect(lsx - 20, lsy - 30, 40, 30);
+            ctx.restore();
+          }
         }
       }
     }

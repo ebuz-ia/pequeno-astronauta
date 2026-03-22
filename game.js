@@ -256,11 +256,12 @@ Game.Camera = {
     this.x += (this.targetX - this.x) * this.lerpSpeed * dt;
     this.y += (this.targetY - this.y) * this.lerpSpeed * dt;
 
-    this.x = Math.max(0, Math.min(this.x, Math.max(0, this.worldW - Game.CANVAS_W)));
+    // No hard clamping - allow free exploration (soft clamp to terrain bounds)
     if (this.mode === 'horizontal') {
+      this.x = Math.max(-100, Math.min(this.x, Math.max(0, this.worldW - Game.CANVAS_W + 100)));
       this.y = 0;
     } else {
-      this.y = Math.max(0, Math.min(this.y, Math.max(0, this.worldH - Game.CANVAS_H)));
+      // Free camera for other modes
     }
   },
 
