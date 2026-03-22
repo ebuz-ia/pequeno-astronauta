@@ -364,7 +364,9 @@ Game.scenes.SPACE_FREE = {
     var shooting = Game.Input.keys[' '] || this.pressing.shoot;
     var bombing = Game.Input.wasPressed('b') || Game.Input.wasPressed('B') || this.pressing.bomb;
 
-    if (shooting && this.fireCooldown <= 0) {
+    if (Game.saveData.ammo === undefined) { Game.saveData.ammo = 50; Game.saveData.maxAmmo = 50; }
+    if (shooting && this.fireCooldown <= 0 && Game.saveData.ammo > 0) {
+      Game.saveData.ammo--;
       var stats = Game.getRocketStats(Game.saveData);
       this.fireCooldown = stats.fireCooldown || 300;
       var bx = this.shipX + Math.sin(this.shipAngle) * 30;
@@ -681,6 +683,89 @@ Game.scenes.SPACE_FREE = {
       return;
     }
 
+    // --- MAP BOUNDARY (black holes push back) ---
+    var mapLimit = 12000; // world radius
+    var distFromCenter = Math.sqrt(this.shipX * this.shipX + this.shipY * this.shipY);
+    if (distFromCenter > mapLimit) {
+      // Strong push toward center
+      var pushForce = (distFromCenter - mapLimit) * 0.5;
+      this.shipVX -= (this.shipX / distFromCenter) * pushForce * dt;
+      this.shipVY -= (this.shipY / distFromCenter) * pushForce * dt;
+      this.blackHoleWarning = true;
+      if (!this._boundaryWarned) {
+        this._boundaryWarned = true;
+        Game.showMessage('PERIGO! Borda da galaxia! Buracos negros por toda parte!', 3);
+        if (Game.Audio) Game.Audio.sfx.warning();
+      }
+    } else {
+      this._boundaryWarned = false;
+    }
+    // Spawn boundary black holes when near edge
+    if (distFromCenter > mapLimit * 0.8 && Game.BlackHoles.length < 5) {
+      var edgeAngle = Math.atan2(this.shipY, this.shipX);
+      for (var ebi = 0; ebi < 3; ebi++) {
+        var ebAngle = edgeAngle + (ebi - 1) * 0.5;
+        var ebDist = mapLimit * 0.95;
+        var exists = false;
+        for (var ebc = 0; ebc < Game.BlackHoles.length; ebc++) {
+          var ebdx = Game.BlackHoles[ebc].gx - Math.cos(ebAngle) * ebDist / this.worldScale;
+          var ebdy = Game.BlackHoles[ebc].gy - Math.sin(ebAngle) * ebDist / this.worldScale;
+          if (Math.sqrt(ebdx*ebdx+ebdy*ebdy) < 3) { exists = true; break; }
+        }
+        if (!exists) {
+          Game.BlackHoles.push({
+            gx: Math.cos(ebAngle) * ebDist / this.worldScale,
+            gy: Math.sin(ebAngle) * ebDist / this.worldScale,
+            radius: 1.5, name: 'Abismo ' + (Game.BlackHoles.length + 1),
+            lifetime: 60
+          });
+        }
+      }
+    }
+
+    // --- COMET HALLEY (rare, deadly) ---
+    this.cometTimer = (this.cometTimer || 40 + Math.random() * 60) - dt;
+    if (this.cometTimer <= 0 && !this.activeComet) {
+      this.cometTimer = 50 + Math.random() * 80;
+      // Spawn comet from random edge, aimed near player
+      var cAngle = Math.random() * Math.PI * 2;
+      var cDist = 800;
+      this.activeComet = {
+        x: this.shipX + Math.cos(cAngle) * cDist,
+        y: this.shipY + Math.sin(cAngle) * cDist,
+        vx: -Math.cos(cAngle) * 500,
+        vy: -Math.sin(cAngle) * 500,
+        radius: 20,
+        life: 5,
+        warned: false
+      };
+      Game.showMessage('COMETA HALLEY DETECTADO! DESVIE!', 3);
+      if (Game.Audio) Game.Audio.sfx.warning();
+    }
+    if (this.activeComet) {
+      var comet = this.activeComet;
+      comet.x += comet.vx * dt;
+      comet.y += comet.vy * dt;
+      comet.life -= dt;
+      // Check collision with ship
+      var cdx = comet.x - this.shipX, cdy = comet.y - this.shipY;
+      var cDist2 = Math.sqrt(cdx * cdx + cdy * cdy);
+      if (cDist2 < comet.radius + 24) {
+        // INSTANT EXPLOSION
+        this.activeComet = null;
+        this.exploding = true;
+        this.explosionTimer = 0;
+        this.explosionX = this.shipX;
+        this.explosionY = this.shipY;
+        this.shipVX = 0; this.shipVY = 0;
+        for (var cp = 0; cp < 50; cp++) Game.spawnParticles(this.shipX, this.shipY, 1, ['#ff9800','#ffeb3b','#f44336'][cp%3], 2);
+        Game.triggerShake(25, 2);
+        if (Game.Audio) Game.Audio.sfx.explosion();
+        Game.showMessage('ATINGIDO PELO COMETA HALLEY!', 3);
+      }
+      if (comet.life <= 0) this.activeComet = null;
+    }
+
     // --- BLACK HOLE RARE SPAWN ---
     this.blackHoleSpawnTimer -= dt;
     if (this.blackHoleSpawnTimer <= 0 && Game.BlackHoles.length < 2) {
@@ -843,6 +928,11 @@ Game.scenes.SPACE_FREE = {
             Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 15, '#ffd700');
             if (Game.Audio) Game.Audio.sfx.explosion();
             if (Game.Combo) Game.Combo.add();
+            // Drop ammo
+            if (Math.random() < 0.4) {
+              Game.saveData.ammo = Math.min((Game.saveData.maxAmmo||50), (Game.saveData.ammo||0) + 3);
+              Game.addFloatingText('+3 balas', this.x, this.y - 25, '#4fc3f7', 10);
+            }
           }
         }
       });
@@ -1299,6 +1389,18 @@ Game.scenes.SPACE_FREE = {
     ctx.fillRect(14, 14, 112 * fuelPct, 22);
     Game.UI.text(ctx, 'FUEL ' + Math.floor(Game.saveData.fuel), 70, 22, 10, '#fff', 'center');
 
+    // Ammo bar
+    var ammo = Game.saveData.ammo || 0;
+    var maxAmmo = Game.saveData.maxAmmo || 50;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, 40, 120, 16);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(14, 44, 112, 8);
+    var ammoPct = ammo / maxAmmo;
+    ctx.fillStyle = ammoPct > 0.3 ? '#4fc3f7' : (ammoPct > 0.1 ? '#ff9800' : '#f44336');
+    ctx.fillRect(14, 44, 112 * ammoPct, 8);
+    Game.UI.text(ctx, 'BALAS ' + ammo + '/' + maxAmmo, 70, 47, 8, '#fff', 'center');
+
     // Coins (top right)
     Game.UI.text(ctx, '' + Game.saveData.coins, W - 60, 22, 14, '#ffd700', 'center');
 
@@ -1352,6 +1454,34 @@ Game.scenes.SPACE_FREE = {
         ctx.fillRect(0, 0, W, H);
       }
       Game.UI.textBold(ctx, 'PERIGO! BURACO NEGRO!', W / 2, 60, 18, '#ff0000', 'center');
+    }
+
+    // --- COMET HALLEY ---
+    if (this.activeComet) {
+      var comSX = this.activeComet.x - this.camX;
+      var comSY = this.activeComet.y - this.camY;
+      // Tail (long trail of pixels)
+      var tailLen = 15;
+      var nvx = -this.activeComet.vx, nvy = -this.activeComet.vy;
+      var nv = Math.sqrt(nvx*nvx+nvy*nvy);
+      nvx /= nv; nvy /= nv;
+      for (var ct = 1; ct <= tailLen; ct++) {
+        ctx.save();
+        ctx.globalAlpha = 0.6 - ct * 0.035;
+        ctx.fillStyle = ct < 5 ? '#fff' : (ct < 10 ? '#aaddff' : '#4488cc');
+        var ts = Math.max(2, 8 - ct * 0.4);
+        ctx.fillRect(comSX + nvx * ct * 12 - ts/2, comSY + nvy * ct * 12 - ts/2, ts, ts);
+        ctx.restore();
+      }
+      // Head (bright white/blue)
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(comSX - 6, comSY - 6, 12, 12);
+      ctx.fillStyle = '#bbddff';
+      ctx.fillRect(comSX - 4, comSY - 4, 8, 8);
+      ctx.fillStyle = '#4fc3f7';
+      ctx.fillRect(comSX - 2, comSY - 2, 4, 4);
+      // Warning text
+      Game.UI.textBold(ctx, 'HALLEY', comSX, comSY - 15, 9, '#ff4444', 'center');
     }
 
     // --- PORTAL ---
@@ -3686,7 +3816,8 @@ Game.scenes.PLANET_EXPLORE = {
 
     // --- ASTRONAUT SHOOTING (SPACE key) ---
     this.astronaut.shootCooldown = (this.astronaut.shootCooldown || 0) - dt * 1000;
-    if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0) {
+    if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0 && Game.saveData.ammo > 0) {
+      Game.saveData.ammo--;
       this.astronaut.shootCooldown = 300;
       var bdir = this.astronaut.facing;
       var bx = this.astronaut.x + bdir * 20;
@@ -3766,6 +3897,11 @@ Game.scenes.PLANET_EXPLORE = {
                 x: this.x, y: this.y, type: 'carne',
                 hunger: 20 + Math.floor(Math.random() * 10), collected: false
               });
+            }
+            // Drop ammo (30% chance)
+            if (Math.random() < 0.3) {
+              Game.saveData.ammo = Math.min((Game.saveData.maxAmmo || 50), (Game.saveData.ammo || 0) + 5);
+              Game.addFloatingText('+5 balas', this.x, this.y - 35, '#4fc3f7', 10);
             }
           }
         }
