@@ -292,6 +292,8 @@ Game.scenes.SPACE_FREE = {
     this.nearPlanet = -1;
     this.blackHoleWarning = false;
     this.blackHoleTimer = 0;
+    this.exploding = false;
+    this.explosionTimer = 0;
 
     // Spawn wingmen based on upgrade level
     this.wingmen = [];
@@ -447,6 +449,44 @@ Game.scenes.SPACE_FREE = {
         var py = this.shipY + Math.cos(this.shipAngle) * 30;
         Game.spawnParticles(px, py, 1, Math.random() < 0.5 ? '#ff6b35' : '#ffeb3b', 0.5);
       }
+    }
+
+    // --- FUEL EMPTY: NUCLEAR EXPLOSION ---
+    if (Game.saveData.fuel <= 0 && !this.exploding) {
+      this.exploding = true;
+      this.explosionTimer = 0;
+      this.explosionX = this.shipX;
+      this.explosionY = this.shipY;
+      this.shipVX = 0;
+      this.shipVY = 0;
+      if (Game.Audio) Game.Audio.sfx.explosion();
+      Game.triggerShake(20, 2);
+      // Massive particle burst
+      for (var ep = 0; ep < 40; ep++) {
+        Game.spawnParticles(this.shipX, this.shipY, 1, '#ff9800', 2);
+        Game.spawnParticles(this.shipX, this.shipY, 1, '#ffeb3b', 1.5);
+        Game.spawnParticles(this.shipX, this.shipY, 1, '#f44336', 1.8);
+      }
+    }
+
+    if (this.exploding) {
+      this.explosionTimer += dt;
+      // Screen flash
+      // After 3 seconds, respawn at current planet with half fuel
+      if (this.explosionTimer > 3.5) {
+        this.exploding = false;
+        var stats2 = Game.getRocketStats(Game.saveData);
+        Game.saveData.fuel = Math.floor(stats2.maxFuel * 0.3);
+        Game.saveData.coins = Math.floor(Game.saveData.coins * 0.8);
+        Game.Save.save(Game.saveData);
+        Game.showMessage('Nave destruida! Reconstruida com 30% fuel, -20% moedas', 3);
+        var safeP2 = Game.PlanetData[Game.saveData.currentPlanet];
+        this.shipX = safeP2.gx * this.worldScale;
+        this.shipY = safeP2.gy * this.worldScale + 80;
+        this.shipVX = 0;
+        this.shipVY = 0;
+      }
+      return; // freeze controls during explosion
     }
 
     if (braking) {
@@ -971,6 +1011,62 @@ Game.scenes.SPACE_FREE = {
 
     // Particles
     Game.EntityManager.renderAll(ctx, this.camX, this.camY);
+
+    // --- NUCLEAR EXPLOSION ---
+    if (this.exploding) {
+      var ex = this.explosionX - this.camX;
+      var ey = this.explosionY - this.camY;
+      var t = this.explosionTimer;
+
+      // Flash (first 0.5s)
+      if (t < 0.5) {
+        ctx.save();
+        ctx.globalAlpha = 1 - t * 2;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+
+      // Expanding shockwave ring
+      var ringRadius = t * 200;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 0.6 - t * 0.15);
+      Game.Pixel.drawRing(ctx, ex, ey, ringRadius, '#ff9800', 6, 4);
+      Game.Pixel.drawRing(ctx, ex, ey, ringRadius * 0.7, '#ffeb3b', 4, 4);
+      ctx.restore();
+
+      // Mushroom cloud stem
+      var stemH = Math.min(t * 80, 150);
+      var stemW = 15 + t * 5;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 0.8 - t * 0.2);
+      ctx.fillStyle = '#ff6b35';
+      ctx.fillRect(ex - stemW / 2, ey - stemH, stemW, stemH);
+      ctx.fillStyle = '#ff9800';
+      ctx.fillRect(ex - stemW / 2 + 3, ey - stemH, stemW - 6, stemH);
+
+      // Mushroom cap
+      var capRadius = 30 + t * 40;
+      Game.Pixel.drawCircle(ctx, ex, ey - stemH, capRadius, '#f44336', 4);
+      Game.Pixel.drawCircle(ctx, ex, ey - stemH - 10, capRadius * 0.7, '#ff9800', 4);
+      Game.Pixel.drawCircle(ctx, ex, ey - stemH - 15, capRadius * 0.4, '#ffeb3b', 4);
+
+      // Inner glow
+      ctx.globalAlpha = Math.max(0, 0.5 - t * 0.1);
+      Game.Pixel.drawCircle(ctx, ex, ey, 20 + t * 30, '#fff', 4);
+      ctx.restore();
+
+      // Text
+      if (t > 1) {
+        var txtAlpha = Math.min(1, (t - 1) * 2);
+        ctx.save();
+        ctx.globalAlpha = txtAlpha;
+        Game.UI.textBold(ctx, 'NAVE DESTRUIDA!', W / 2, H / 2 - 30, 24, '#f44336', 'center');
+        Game.UI.text(ctx, 'Reconstruindo...', W / 2, H / 2 + 10, 14, '#ff9800', 'center');
+        ctx.restore();
+      }
+      return; // skip ship rendering during explosion
+    }
 
     // --- SHIP (always centered) ---
     var shipSX = this.shipX - this.camX;
