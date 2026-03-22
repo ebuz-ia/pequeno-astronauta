@@ -678,6 +678,9 @@ Game.scenes.SPACE_FREE = {
       Game.UI.textBold(ctx, 'PERIGO! BURACO NEGRO!', W / 2, 60, 18, '#ff0000', 'center');
     }
 
+    // --- COCKPIT INTERIOR OVERLAY ---
+    this.renderCockpitOverlay(ctx);
+
     // --- MINIMAP (bottom right corner) ---
     this.renderMinimap(ctx);
 
@@ -689,12 +692,180 @@ Game.scenes.SPACE_FREE = {
       W / 2, H - 15, 9, 'rgba(255,255,255,0.3)', 'center');
   },
 
+  renderCockpitOverlay: function(ctx) {
+    var W = Game.CANVAS_W;
+    var H = Game.CANVAS_H;
+    var panelColor = '#1a1d24';
+    var metalDark = '#12141a';
+    var metalLight = '#2a2e38';
+    var accent = '#334';
+    var screenGlow = '#0a3a2a';
+
+    // === WINDSHIELD FRAME (top trapezoid) ===
+    // Top bar
+    ctx.fillStyle = panelColor;
+    ctx.fillRect(0, 0, W, 22);
+    ctx.fillStyle = metalLight;
+    ctx.fillRect(0, 20, W, 3);
+
+    // Left pillar (angled)
+    for (var py = 0; py < H; py += 3) {
+      var pillarW = Math.max(0, 50 - py * 0.06);
+      ctx.fillStyle = panelColor;
+      ctx.fillRect(0, py, pillarW, 3);
+    }
+    // Right pillar (angled)
+    for (var py2 = 0; py2 < H; py2 += 3) {
+      var pillarW2 = Math.max(0, 50 - py2 * 0.06);
+      ctx.fillStyle = panelColor;
+      ctx.fillRect(W - pillarW2, py2, pillarW2, 3);
+    }
+
+    // Pillar edge highlights
+    ctx.fillStyle = metalLight;
+    for (var ey = 0; ey < H - 120; ey += 3) {
+      var ex = 50 - ey * 0.06;
+      if (ex > 2) {
+        ctx.fillRect(ex - 1, ey, 2, 3);
+        ctx.fillRect(W - ex - 1, ey, 2, 3);
+      }
+    }
+
+    // === DASHBOARD (bottom panel) ===
+    var dashY = H - 120;
+    ctx.fillStyle = panelColor;
+    ctx.fillRect(0, dashY, W, 120);
+    // Dashboard top edge
+    ctx.fillStyle = metalLight;
+    ctx.fillRect(0, dashY, W, 3);
+    ctx.fillStyle = accent;
+    ctx.fillRect(0, dashY + 3, W, 1);
+
+    // --- Left instrument cluster ---
+    var lx = 20, ly = dashY + 10;
+
+    // Speed gauge (circle with needle)
+    ctx.fillStyle = '#111';
+    ctx.fillRect(lx, ly, 50, 50);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(lx + 2, ly + 2, 46, 46);
+    // Gauge markings
+    ctx.fillStyle = '#334';
+    for (var gm = 0; gm < 8; gm++) {
+      var ga = -2.3 + gm * 0.6;
+      ctx.fillRect(lx + 25 + Math.cos(ga) * 18, ly + 30 + Math.sin(ga) * 18, 3, 3);
+    }
+    // Needle (based on speed)
+    var spd = Math.sqrt(this.shipVX * this.shipVX + this.shipVY * this.shipVY);
+    var needleAngle = -2.3 + (spd / this.maxSpeed) * 4.6;
+    ctx.fillStyle = '#f44336';
+    ctx.fillRect(lx + 25 + Math.cos(needleAngle) * 5, ly + 30 + Math.sin(needleAngle) * 5, 2, 2);
+    ctx.fillRect(lx + 25 + Math.cos(needleAngle) * 10, ly + 30 + Math.sin(needleAngle) * 10, 2, 2);
+    ctx.fillRect(lx + 25 + Math.cos(needleAngle) * 15, ly + 30 + Math.sin(needleAngle) * 15, 2, 2);
+    Game.UI.text(ctx, 'VEL', lx + 25, ly + 55, 7, '#556', 'center');
+
+    // Fuel gauge
+    var fx = lx + 58;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(fx, ly, 30, 50);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(fx + 2, ly + 2, 26, 46);
+    var stats = Game.getRocketStats(Game.saveData);
+    var fuelPct = Math.max(0, Game.saveData.fuel / stats.maxFuel);
+    var fuelBarH = 40 * fuelPct;
+    var fuelColor = fuelPct > 0.3 ? '#4caf50' : (fuelPct > 0.1 ? '#ff9800' : '#f44336');
+    ctx.fillStyle = fuelColor;
+    ctx.fillRect(fx + 5, ly + 5 + (40 - fuelBarH), 20, fuelBarH);
+    Game.UI.text(ctx, 'FUEL', fx + 15, ly + 55, 7, '#556', 'center');
+
+    // --- Center console ---
+    var cx = W / 2 - 80;
+    var cy = dashY + 8;
+
+    // Heading indicator
+    ctx.fillStyle = '#111';
+    ctx.fillRect(cx, cy, 60, 35);
+    ctx.fillStyle = '#0a1a15';
+    ctx.fillRect(cx + 2, cy + 2, 56, 31);
+    var headingDeg = Math.floor(((this.shipAngle * 180 / Math.PI) % 360 + 360) % 360);
+    Game.UI.textBold(ctx, headingDeg + ' DEG', cx + 30, cy + 12, 10, '#4caf50', 'center');
+    Game.UI.text(ctx, 'HEADING', cx + 30, cy + 28, 7, '#334', 'center');
+
+    // Status screen
+    var sx = cx + 68;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(sx, cy, 90, 35);
+    ctx.fillStyle = '#0a1520';
+    ctx.fillRect(sx + 2, cy + 2, 86, 31);
+    var statusText = this.blackHoleWarning ? 'PERIGO' : (spd > 200 ? 'RAPIDO' : 'NORMAL');
+    var statusColor = this.blackHoleWarning ? '#f44336' : (spd > 200 ? '#ff9800' : '#4fc3f7');
+    Game.UI.textBold(ctx, statusText, sx + 45, cy + 12, 10, statusColor, 'center');
+    Game.UI.text(ctx, 'STATUS', sx + 45, cy + 28, 7, '#334', 'center');
+
+    // --- Right instruments ---
+    var rx = W - 110, ry = dashY + 10;
+
+    // HP bar
+    ctx.fillStyle = '#111';
+    ctx.fillRect(rx, ry, 30, 50);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(rx + 2, ry + 2, 26, 46);
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(rx + 5, ry + 5, 20, 40); // always full in space free
+    Game.UI.text(ctx, 'HP', rx + 15, ry + 55, 7, '#556', 'center');
+
+    // Coins display
+    ctx.fillStyle = '#111';
+    ctx.fillRect(rx + 38, ry, 50, 25);
+    ctx.fillStyle = '#1a1510';
+    ctx.fillRect(rx + 40, ry + 2, 46, 21);
+    Game.UI.textBold(ctx, '' + Game.saveData.coins, rx + 63, ry + 10, 9, '#ffd700', 'center');
+    Game.UI.text(ctx, 'MOEDAS', rx + 63, ry + 22, 6, '#553', 'center');
+
+    // --- Decorative elements ---
+    // Small lights across dashboard top
+    var lights = [
+      { x: 130, color: this.time % 2 > 1.5 ? '#f44336' : '#440000' },
+      { x: 160, color: '#4caf50' },
+      { x: 190, color: this.time % 3 > 2 ? '#ff9800' : '#442200' },
+      { x: W - 180, color: '#4fc3f7' },
+      { x: W - 150, color: this.time % 2.5 > 2 ? '#f44336' : '#440000' },
+      { x: W - 120, color: '#4caf50' }
+    ];
+    for (var li = 0; li < lights.length; li++) {
+      ctx.fillStyle = lights[li].color;
+      ctx.fillRect(lights[li].x, dashY + 5, 4, 4);
+    }
+
+    // Bolts/rivets on dashboard
+    ctx.fillStyle = '#3a3e48';
+    for (var bx = 10; bx < W; bx += 80) {
+      ctx.fillRect(bx, dashY + 2, 3, 3);
+    }
+
+    // Center joystick hint
+    ctx.fillStyle = metalLight;
+    ctx.fillRect(W / 2 - 4, dashY + 50, 8, 20);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(W / 2 - 6, dashY + 48, 12, 6);
+
+    // Bottom row of buttons
+    for (var btn = 0; btn < 6; btn++) {
+      var bxx = cx + btn * 28;
+      var byy = dashY + 70;
+      ctx.fillStyle = btn === 2 ? '#4caf50' : (btn === 4 ? '#f44336' : '#333');
+      ctx.fillRect(bxx, byy, 20, 12);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(bxx + 1, byy + 1, 18, 10);
+    }
+  },
+
   renderMinimap: function(ctx) {
     var W = Game.CANVAS_W;
     var H = Game.CANVAS_H;
     var mapW = 160, mapH = 130;
     var mapX = W - mapW - 15;
-    var mapY = H - mapH - 90; // above control buttons
+    var mapY = H - mapH - 140; // above cockpit dashboard
 
     // Background
     ctx.save();
