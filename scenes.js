@@ -304,6 +304,10 @@ Game.scenes.SPACE_FREE = {
       this.shipY = fp.gy * this.worldScale + 80;
     }
 
+    // Black holes are rare events - clear and set timer
+    Game.BlackHoles = [];
+    this.blackHoleSpawnTimer = 60 + Math.random() * 120; // first one 1-3 minutes
+
     if (Game.Audio && Game.Audio.initialized) Game.Audio.playFlightMusic();
   },
 
@@ -487,6 +491,33 @@ Game.scenes.SPACE_FREE = {
       return;
     }
 
+    // --- BLACK HOLE RARE SPAWN ---
+    this.blackHoleSpawnTimer -= dt;
+    if (this.blackHoleSpawnTimer <= 0 && Game.BlackHoles.length < 2) {
+      // Spawn a black hole at random position far from ship
+      var bhAngle = Math.random() * Math.PI * 2;
+      var bhDist = 2000 + Math.random() * 3000;
+      var newBH = {
+        gx: (this.shipX + Math.cos(bhAngle) * bhDist) / this.worldScale,
+        gy: (this.shipY + Math.sin(bhAngle) * bhDist) / this.worldScale,
+        radius: 0.8 + Math.random() * 0.8,
+        name: Game.BlackHoleNames[Math.floor(Math.random() * Game.BlackHoleNames.length)],
+        lifetime: 30 + Math.random() * 40 // disappears after 30-70 seconds
+      };
+      Game.BlackHoles.push(newBH);
+      this.blackHoleSpawnTimer = 90 + Math.random() * 180; // next one in 1.5-4.5 minutes
+    }
+
+    // Age and remove expired black holes
+    for (var bhr = Game.BlackHoles.length - 1; bhr >= 0; bhr--) {
+      if (Game.BlackHoles[bhr].lifetime !== undefined) {
+        Game.BlackHoles[bhr].lifetime -= dt;
+        if (Game.BlackHoles[bhr].lifetime <= 0) {
+          Game.BlackHoles.splice(bhr, 1);
+        }
+      }
+    }
+
     // --- BLACK HOLES ---
     this.blackHoleWarning = false;
     for (var bh = 0; bh < Game.BlackHoles.length; bh++) {
@@ -528,6 +559,273 @@ Game.scenes.SPACE_FREE = {
         this.shipVY = 0;
         Game.showMessage('Sugado pelo buraco negro! -30% moedas, -50% fuel', 3);
         Game.Save.save(Game.saveData);
+      }
+    }
+
+    // --- SPAWN ENEMIES, ASTEROIDS, MONSTERS ---
+    this.enemySpawnTimer = (this.enemySpawnTimer || 3) - dt;
+    this.asteroidSpawnTimer = (this.asteroidSpawnTimer || 1) - dt;
+    this.monsterSpawnTimer = (this.monsterSpawnTimer || 20) - dt;
+
+    // Asteroids (frequent)
+    if (this.asteroidSpawnTimer <= 0) {
+      this.asteroidSpawnTimer = 1.5 + Math.random() * 2;
+      var aAngle = Math.random() * Math.PI * 2;
+      var aDist = 500 + Math.random() * 200;
+      var ax2 = this.shipX + Math.cos(aAngle) * aDist;
+      var ay2 = this.shipY + Math.sin(aAngle) * aDist;
+      var aSpeed = 40 + Math.random() * 80;
+      var aDir = Math.random() * Math.PI * 2;
+      Game.EntityManager.add('meteors', {
+        x: ax2, y: ay2, radius: 12 + Math.random() * 10,
+        vx: Math.cos(aDir) * aSpeed, vy: Math.sin(aDir) * aSpeed,
+        active: true, hp: 10, lucky: Math.random() < 0.08,
+        update: function(dt2) {
+          this.x += this.vx * dt2; this.y += this.vy * dt2;
+          var d = Math.sqrt((this.x - Game.scenes.SPACE_FREE.shipX) ** 2 + (this.y - Game.scenes.SPACE_FREE.shipY) ** 2);
+          if (d > 800) this.active = false;
+        },
+        render: function(ctx2, ox, oy) {
+          var sx2 = this.x - (ox || 0), sy2 = this.y - (oy || 0);
+          if (this.lucky) {
+            ctx2.save(); ctx2.globalAlpha = 0.3; ctx2.fillStyle = '#ffd700';
+            ctx2.fillRect(sx2 - this.radius, sy2 - this.radius, this.radius * 2, this.radius * 2);
+            ctx2.restore();
+          }
+          Game.Pixel.drawCentered(ctx2, Game.Sprites.meteor, sx2, sy2, 3);
+        },
+        destroy: function() {
+          this.active = false;
+          Game.spawnParticles(this.x, this.y, 6, '#8d6e63', 0.8);
+        }
+      });
+    }
+
+    // Enemy ships (moderate)
+    if (this.enemySpawnTimer <= 0) {
+      this.enemySpawnTimer = 4 + Math.random() * 6;
+      var eAngle = Math.random() * Math.PI * 2;
+      var eDist = 500 + Math.random() * 200;
+      var ex = this.shipX + Math.cos(eAngle) * eDist;
+      var ey = this.shipY + Math.sin(eAngle) * eDist;
+      Game.EntityManager.add('enemies', {
+        x: ex, y: ey, radius: 18, hp: 30, active: true,
+        shootTimer: 1 + Math.random() * 2,
+        coinDrop: 8 + Math.floor(Math.random() * 12),
+        update: function(dt2) {
+          // Chase player slowly
+          var tdx = Game.scenes.SPACE_FREE.shipX - this.x;
+          var tdy = Game.scenes.SPACE_FREE.shipY - this.y;
+          var td = Math.sqrt(tdx * tdx + tdy * tdy);
+          if (td > 10) {
+            this.x += (tdx / td) * 50 * dt2;
+            this.y += (tdy / td) * 50 * dt2;
+          }
+          if (td > 900) this.active = false;
+          // Shoot at player
+          this.shootTimer -= dt2;
+          if (this.shootTimer <= 0 && td < 400) {
+            this.shootTimer = 2 + Math.random();
+            Game.EntityManager.add('particles', {
+              x: this.x, y: this.y, radius: 4, active: true,
+              vx: (tdx / td) * 200, vy: (tdy / td) * 200, life: 2,
+              color: '#f44336', isEnemyBullet: true,
+              update: function(dt3) {
+                this.x += this.vx * dt3; this.y += this.vy * dt3;
+                this.life -= dt3; if (this.life <= 0) this.active = false;
+              },
+              render: function(ctx2, ox, oy) {
+                ctx2.fillStyle = this.color;
+                ctx2.fillRect(this.x - (ox||0) - 3, this.y - (oy||0) - 3, 6, 6);
+              }
+            });
+          }
+        },
+        render: function(ctx2, ox, oy) {
+          Game.Pixel.drawCentered(ctx2, Game.Sprites.enemyShip, this.x - (ox||0), this.y - (oy||0), 3);
+        },
+        takeDamage: function(dmg) {
+          this.hp -= dmg;
+          if (this.hp <= 0) {
+            this.active = false;
+            Game.spawnParticles(this.x, this.y, 10, '#ff6b35', 1);
+            Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
+            Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 15, '#ffd700');
+            if (Game.Audio) Game.Audio.sfx.explosion();
+            if (Game.Combo) Game.Combo.add();
+          }
+        }
+      });
+    }
+
+    // Space monsters (rare, big, tanky)
+    if (this.monsterSpawnTimer <= 0) {
+      this.monsterSpawnTimer = 25 + Math.random() * 40;
+      var mAngle = Math.random() * Math.PI * 2;
+      var mDist = 450 + Math.random() * 200;
+      var mmx = this.shipX + Math.cos(mAngle) * mDist;
+      var mmy = this.shipY + Math.sin(mAngle) * mDist;
+      Game.EntityManager.add('enemies', {
+        x: mmx, y: mmy, radius: 30, hp: 80, active: true,
+        isMonster: true, animTime: 0, shootTimer: 3,
+        coinDrop: 30 + Math.floor(Math.random() * 20),
+        update: function(dt2) {
+          this.animTime += dt2;
+          // Slowly orbit around player
+          var tdx = Game.scenes.SPACE_FREE.shipX - this.x;
+          var tdy = Game.scenes.SPACE_FREE.shipY - this.y;
+          var td = Math.sqrt(tdx * tdx + tdy * tdy);
+          if (td > 1000) this.active = false;
+          // Circle around player
+          var perpX = -tdy / td, perpY = tdx / td;
+          this.x += (tdx / td * 20 + perpX * 40) * dt2;
+          this.y += (tdy / td * 20 + perpY * 40) * dt2;
+          // Shoot burst
+          this.shootTimer -= dt2;
+          if (this.shootTimer <= 0 && td < 500) {
+            this.shootTimer = 2.5 + Math.random();
+            for (var bs = 0; bs < 5; bs++) {
+              var bsa = Math.PI * 2 * bs / 5;
+              Game.EntityManager.add('particles', {
+                x: this.x, y: this.y, radius: 4, active: true,
+                vx: Math.cos(bsa) * 150, vy: Math.sin(bsa) * 150, life: 1.5,
+                color: '#e040fb', isEnemyBullet: true,
+                update: function(dt3) {
+                  this.x += this.vx * dt3; this.y += this.vy * dt3;
+                  this.life -= dt3; if (this.life <= 0) this.active = false;
+                },
+                render: function(ctx2, ox, oy) {
+                  ctx2.fillStyle = this.color;
+                  ctx2.fillRect(this.x - (ox||0) - 4, this.y - (oy||0) - 4, 8, 8);
+                }
+              });
+            }
+            if (Game.Audio) Game.Audio.sfx.hit();
+          }
+        },
+        render: function(ctx2, ox, oy) {
+          var sx2 = this.x - (ox||0), sy2 = this.y - (oy||0);
+          // Monster body (pulsating)
+          var pulse = 1 + Math.sin(this.animTime * 3) * 0.1;
+          var r = this.radius * pulse;
+          // Body
+          Game.Pixel.drawCircle(ctx2, sx2, sy2, r, '#6a1b9a', 3);
+          // Eye
+          Game.Pixel.drawCircle(ctx2, sx2, sy2 - 5, r * 0.35, '#e040fb', 3);
+          Game.Pixel.drawCircle(ctx2, sx2 + 3, sy2 - 7, r * 0.15, '#fff', 2);
+          // Tentacles (simple pixel lines)
+          for (var tt = 0; tt < 4; tt++) {
+            var ta = this.animTime * 2 + tt * 1.57;
+            var tx = sx2 + Math.cos(ta) * (r + 8);
+            var ty = sy2 + Math.sin(ta) * (r + 8);
+            ctx2.fillStyle = '#9c27b0';
+            ctx2.fillRect(tx - 3, ty - 3, 6, 6);
+            var tx2 = sx2 + Math.cos(ta) * (r + 16);
+            var ty2 = sy2 + Math.sin(ta) * (r + 16);
+            ctx2.fillRect(tx2 - 2, ty2 - 2, 4, 4);
+          }
+        },
+        takeDamage: function(dmg) {
+          this.hp -= dmg;
+          Game.spawnParticles(this.x, this.y, 3, '#e040fb', 0.5);
+          if (this.hp <= 0) {
+            this.active = false;
+            Game.spawnParticles(this.x, this.y, 20, '#9c27b0', 1.5);
+            Game.spawnParticles(this.x, this.y, 10, '#e040fb', 1);
+            Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
+            Game.addFloatingText('+' + this.coinDrop + ' BOSS!', this.x, this.y - 20, '#e040fb', 18);
+            if (Game.Audio) Game.Audio.sfx.explosion();
+            Game.triggerShake(10, 0.5);
+            if (Game.Combo) Game.Combo.add();
+          }
+        }
+      });
+    }
+
+    // --- COLLISION: bullets vs enemies/meteors ---
+    var bullets = Game.EntityManager.bullets;
+    var enemies = Game.EntityManager.enemies;
+    var meteors = Game.EntityManager.meteors;
+
+    for (var bi = bullets.length - 1; bi >= 0; bi--) {
+      var bul = bullets[bi];
+      if (!bul.active) continue;
+
+      // vs meteors
+      for (var mi = meteors.length - 1; mi >= 0; mi--) {
+        var met = meteors[mi];
+        if (!met.active) continue;
+        var mdx = bul.x - met.x, mdy = bul.y - met.y;
+        if (Math.sqrt(mdx * mdx + mdy * mdy) < bul.radius + met.radius) {
+          bul.active = false;
+          met.destroy();
+          var reward = 3 + Math.floor(Math.random() * 4);
+          if (met.lucky) reward *= 3;
+          var mult = Game.Combo ? Game.Combo.add() : 1;
+          reward = Math.floor(reward * mult);
+          Game.saveData.coins += reward;
+          Game.EntityManager.add('coins', Game.createCoin(met.x, met.y, reward));
+          Game.addFloatingText('+' + reward, met.x, met.y - 10, met.lucky ? '#ff4081' : '#ffd700');
+          if (Game.Audio) Game.Audio.sfx.explosion();
+          if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
+          break;
+        }
+      }
+
+      // vs enemies
+      for (var ei = enemies.length - 1; ei >= 0; ei--) {
+        var ene = enemies[ei];
+        if (!ene.active || !ene.takeDamage) continue;
+        var edx = bul.x - ene.x, edy = bul.y - ene.y;
+        if (Math.sqrt(edx * edx + edy * edy) < bul.radius + ene.radius) {
+          bul.active = false;
+          ene.takeDamage(bul.damage || 10);
+          if (Game.Audio && ene.active) Game.Audio.sfx.hit();
+          break;
+        }
+      }
+    }
+
+    // --- COLLISION: enemy bullets vs ship ---
+    var particles = Game.EntityManager.particles;
+    for (var pi = particles.length - 1; pi >= 0; pi--) {
+      var part = particles[pi];
+      if (!part.active || !part.isEnemyBullet) continue;
+      var pdx2 = part.x - this.shipX, pdy2 = part.y - this.shipY;
+      if (Math.sqrt(pdx2 * pdx2 + pdy2 * pdy2) < 24) {
+        part.active = false;
+        Game.saveData.fuel = Math.max(0, Game.saveData.fuel - 5);
+        Game.triggerShake(4, 0.15);
+        if (Game.Audio) Game.Audio.sfx.damage();
+        Game.addFloatingText('-5 fuel', this.shipX, this.shipY - 30, '#f44336');
+      }
+    }
+
+    // --- COLLISION: meteors vs ship ---
+    for (var mi2 = meteors.length - 1; mi2 >= 0; mi2--) {
+      var met2 = meteors[mi2];
+      if (!met2.active) continue;
+      var sdx = met2.x - this.shipX, sdy = met2.y - this.shipY;
+      if (Math.sqrt(sdx * sdx + sdy * sdy) < met2.radius + 20) {
+        met2.destroy();
+        Game.saveData.fuel = Math.max(0, Game.saveData.fuel - 10);
+        Game.triggerShake(6, 0.2);
+        if (Game.Audio) Game.Audio.sfx.damage();
+        Game.addFloatingText('-10 fuel', this.shipX, this.shipY - 30, '#f44336');
+      }
+    }
+
+    // --- COLLECT COINS ---
+    var coins = Game.EntityManager.coins;
+    for (var ci = coins.length - 1; ci >= 0; ci--) {
+      var coin = coins[ci];
+      if (!coin.active) continue;
+      var cdx = coin.x - this.shipX, cdy = coin.y - this.shipY;
+      if (Math.sqrt(cdx * cdx + cdy * cdy) < 30) {
+        Game.saveData.coins += coin.value;
+        coin.active = false;
+        if (Game.Audio) Game.Audio.sfx.coin();
+        if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
       }
     }
 
@@ -978,64 +1276,67 @@ Game.scenes.SPACE_FREE = {
   renderControls: function(ctx) {
     var W = Game.CANVAS_W;
     var H = Game.CANVAS_H;
-    var btnSize = 50;
-    var margin = 15;
-    var btnY = H - btnSize - margin - 30;
+    var dashY = H - 120; // dashboard top
+    var bs = 55; // button size (bigger for mobile)
+    var gap = 6;
 
-    // Left side: rotation buttons
-    var leftX = margin;
-    this.drawControlBtn(ctx, leftX, btnY, btnSize, '<', this.pressing.left);
-    this.drawControlBtn(ctx, leftX + btnSize + 10, btnY, btnSize, '>', this.pressing.right);
+    // === LEFT: D-PAD (rotation + thrust/brake) ===
+    var padX = 12;
+    var padCY = dashY - bs - 15; // center Y of d-pad
 
-    // Center: shoot + bomb
-    var centerX = W / 2 - btnSize - 5;
+    // Up (thrust)
+    var upX = padX + bs + gap, upY = padCY - bs - gap;
+    this.drawControlBtn(ctx, upX, upY, bs, '^', this.pressing.thrust);
+
+    // Down (brake)
+    var dnX = padX + bs + gap, dnY = padCY + gap;
+    this.drawControlBtn(ctx, dnX, dnY, bs, 'v', this.pressing.brake);
+
+    // Left (rotate left)
+    var ltX = padX, ltY = padCY - bs / 2;
+    this.drawControlBtn(ctx, ltX, ltY, bs, '<', this.pressing.left);
+
+    // Right (rotate right)
+    var rtX = padX + bs * 2 + gap * 2, rtY = padCY - bs / 2;
+    this.drawControlBtn(ctx, rtX, rtY, bs, '>', this.pressing.right);
+
+    // === RIGHT: ACTION BUTTONS ===
+    var actionX = W - bs * 2 - gap - 12;
+    var actionY = dashY - bs * 2 - gap - 15;
+
+    // Shoot (top - big cyan)
     var shootActive = this.pressing.shoot;
+    ctx.save();
+    ctx.globalAlpha = shootActive ? 0.85 : 0.4;
+    ctx.fillStyle = shootActive ? '#4fc3f7' : '#1a3a5c';
+    ctx.fillRect(actionX, actionY, bs, bs);
+    ctx.fillStyle = '#0d2137';
+    ctx.fillRect(actionX + 2, actionY + 2, bs - 4, bs - 4);
+    if (shootActive) { ctx.fillStyle = '#4fc3f7'; ctx.fillRect(actionX + 2, actionY + 2, bs - 4, bs - 4); }
+    ctx.restore();
+    Game.UI.textBold(ctx, 'TIRO', actionX + bs / 2, actionY + bs / 2 - 3, 12, shootActive ? '#fff' : '#4fc3f7', 'center');
+
+    // Bomb (right of shoot)
+    var bombX = actionX + bs + gap;
     var bombActive = this.pressing.bomb;
     var bombReady = this.bombCooldown <= 0 && Game.saveData.coins >= 5;
-
-    // Shoot button (cyan)
     ctx.save();
-    ctx.globalAlpha = shootActive ? 0.8 : 0.35;
-    ctx.fillStyle = shootActive ? '#4fc3f7' : '#1a3a5c';
-    ctx.fillRect(centerX, btnY, btnSize, btnSize);
-    ctx.fillStyle = '#0d2137';
-    ctx.fillRect(centerX + 2, btnY + 2, btnSize - 4, btnSize - 4);
-    if (shootActive) { ctx.fillStyle = '#4fc3f7'; ctx.fillRect(centerX + 2, btnY + 2, btnSize - 4, btnSize - 4); }
-    ctx.restore();
-    Game.UI.textBold(ctx, 'TIRO', centerX + btnSize / 2, btnY + btnSize / 2 - 3, 11, shootActive ? '#fff' : '#4fc3f7', 'center');
-
-    // Bomb button (orange)
-    var bombX = centerX + btnSize + 10;
-    ctx.save();
-    ctx.globalAlpha = bombActive ? 0.8 : (bombReady ? 0.35 : 0.15);
+    ctx.globalAlpha = bombActive ? 0.85 : (bombReady ? 0.4 : 0.15);
     ctx.fillStyle = bombActive ? '#ff9800' : '#4a2800';
-    ctx.fillRect(bombX, btnY, btnSize, btnSize);
+    ctx.fillRect(bombX, actionY, bs, bs);
     ctx.fillStyle = '#2a1500';
-    ctx.fillRect(bombX + 2, btnY + 2, btnSize - 4, btnSize - 4);
-    if (bombActive) { ctx.fillStyle = '#ff9800'; ctx.fillRect(bombX + 2, btnY + 2, btnSize - 4, btnSize - 4); }
+    ctx.fillRect(bombX + 2, actionY + 2, bs - 4, bs - 4);
+    if (bombActive) { ctx.fillStyle = '#ff9800'; ctx.fillRect(bombX + 2, actionY + 2, bs - 4, bs - 4); }
     ctx.restore();
-    Game.UI.textBold(ctx, 'BOMBA', bombX + btnSize / 2, btnY + btnSize / 2 - 8, 9, bombReady ? '#ff9800' : '#555', 'center');
-    Game.UI.text(ctx, '5$', bombX + btnSize / 2, btnY + btnSize / 2 + 8, 8, bombReady ? '#ffd700' : '#333', 'center');
-    // Cooldown indicator
+    Game.UI.textBold(ctx, 'BOMBA', bombX + bs / 2, actionY + bs / 2 - 6, 9, bombReady ? '#ff9800' : '#555', 'center');
+    Game.UI.text(ctx, '5$', bombX + bs / 2, actionY + bs / 2 + 8, 8, bombReady ? '#ffd700' : '#333', 'center');
     if (this.bombCooldown > 0) {
-      var cdPct = this.bombCooldown / 3000;
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(bombX + 2, btnY + 2, (btnSize - 4) * cdPct, btnSize - 4);
+      ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000';
+      ctx.fillRect(bombX + 2, actionY + 2, (bs - 4) * (this.bombCooldown / 3000), bs - 4);
       ctx.restore();
     }
 
-    // Right side: thrust/brake
-    var rightX = W - btnSize - margin;
-    this.drawControlBtn(ctx, rightX, btnY - btnSize - 10, btnSize, '^', this.pressing.thrust);
-    this.drawControlBtn(ctx, rightX, btnY, btnSize, 'v', this.pressing.brake);
-
-    // Handle mouse/touch on buttons
-    var mx = Game.Input.mouse.x;
-    var my = Game.Input.mouse.y;
-    var mDown = Game.Input.mouse.down;
-
+    // === HANDLE TOUCH/MOUSE (multitouch support) ===
     this.pressing.left = false;
     this.pressing.right = false;
     this.pressing.thrust = false;
@@ -1043,13 +1344,25 @@ Game.scenes.SPACE_FREE = {
     this.pressing.shoot = false;
     this.pressing.bomb = false;
 
-    if (mDown) {
-      if (mx >= leftX && mx <= leftX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.left = true;
-      if (mx >= leftX + btnSize + 10 && mx <= leftX + btnSize * 2 + 10 && my >= btnY && my <= btnY + btnSize) this.pressing.right = true;
-      if (mx >= rightX && mx <= rightX + btnSize && my >= btnY - btnSize - 10 && my <= btnY - 10) this.pressing.thrust = true;
-      if (mx >= rightX && mx <= rightX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.brake = true;
-      if (mx >= centerX && mx <= centerX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.shoot = true;
-      if (mx >= bombX && mx <= bombX + btnSize && my >= btnY && my <= btnY + btnSize) this.pressing.bomb = true;
+    // Collect all active touch points (or single mouse)
+    var points = [];
+    var touches = Game.Input.mouse.touches;
+    if (touches && touches.length > 0) {
+      for (var ti = 0; ti < touches.length; ti++) points.push(touches[ti]);
+    } else if (Game.Input.mouse.down) {
+      points.push({ x: Game.Input.mouse.x, y: Game.Input.mouse.y });
+    }
+
+    // Check each touch point against all buttons
+    var hitIn = function(px, py, bx, by, bw, bh) { return px >= bx && px <= bx + bw && py >= by && py <= by + bh; };
+    for (var pi = 0; pi < points.length; pi++) {
+      var px = points[pi].x, py = points[pi].y;
+      if (hitIn(px, py, upX, upY, bs, bs)) this.pressing.thrust = true;
+      if (hitIn(px, py, dnX, dnY, bs, bs)) this.pressing.brake = true;
+      if (hitIn(px, py, ltX, ltY, bs, bs)) this.pressing.left = true;
+      if (hitIn(px, py, rtX, rtY, bs, bs)) this.pressing.right = true;
+      if (hitIn(px, py, actionX, actionY, bs, bs)) this.pressing.shoot = true;
+      if (hitIn(px, py, bombX, actionY, bs, bs)) this.pressing.bomb = true;
     }
   },
 

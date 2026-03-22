@@ -173,27 +173,56 @@ Game.Input = {
       self.mouse.y = (e.clientY - rect.top) / Game.scale;
     });
 
+    // Multitouch support - track all active touch points
+    self.mouse.touches = [];
+
     canvas.addEventListener('touchstart', function(e) {
       e.preventDefault();
-      var touch = e.touches[0];
       var rect = canvas.getBoundingClientRect();
-      self.mouse.x = (touch.clientX - rect.left) / Game.scale;
-      self.mouse.y = (touch.clientY - rect.top) / Game.scale;
+      self.mouse.touches = [];
+      for (var i = 0; i < e.touches.length; i++) {
+        self.mouse.touches.push({
+          x: (e.touches[i].clientX - rect.left) / Game.scale,
+          y: (e.touches[i].clientY - rect.top) / Game.scale
+        });
+      }
+      self.mouse.x = self.mouse.touches[0].x;
+      self.mouse.y = self.mouse.touches[0].y;
       self.mouse.down = true;
       self.mouse.clicked = true;
     });
 
     canvas.addEventListener('touchend', function(e) {
       e.preventDefault();
-      self.mouse.down = false;
+      var rect = canvas.getBoundingClientRect();
+      self.mouse.touches = [];
+      for (var i = 0; i < e.touches.length; i++) {
+        self.mouse.touches.push({
+          x: (e.touches[i].clientX - rect.left) / Game.scale,
+          y: (e.touches[i].clientY - rect.top) / Game.scale
+        });
+      }
+      if (e.touches.length === 0) {
+        self.mouse.down = false;
+        self.mouse.touches = [];
+      } else {
+        self.mouse.x = self.mouse.touches[0].x;
+        self.mouse.y = self.mouse.touches[0].y;
+      }
     });
 
     canvas.addEventListener('touchmove', function(e) {
       e.preventDefault();
-      var touch = e.touches[0];
       var rect = canvas.getBoundingClientRect();
-      self.mouse.x = (touch.clientX - rect.left) / Game.scale;
-      self.mouse.y = (touch.clientY - rect.top) / Game.scale;
+      self.mouse.touches = [];
+      for (var i = 0; i < e.touches.length; i++) {
+        self.mouse.touches.push({
+          x: (e.touches[i].clientX - rect.left) / Game.scale,
+          y: (e.touches[i].clientY - rect.top) / Game.scale
+        });
+      }
+      self.mouse.x = self.mouse.touches[0].x;
+      self.mouse.y = self.mouse.touches[0].y;
     });
   },
 
@@ -346,14 +375,9 @@ Game.PlanetData = [
     shopItems: ['engine', 'fuelTank', 'heatShield', 'nozzle'], fuelPrice: 20 }
 ];
 
-// --- Black Holes (hazards on galaxy map) ---
-Game.BlackHoles = [
-  { gx: 1, gy: 2, radius: 1.2, name: 'Cygnus X-1' },
-  { gx: -1, gy: -3, radius: 1.0, name: 'Sagitario A' },
-  { gx: 5, gy: 2, radius: 1.5, name: 'M87' },
-  { gx: -3, gy: 5, radius: 1.3, name: 'TON 618' },
-  { gx: 3, gy: -4, radius: 1.1, name: 'V404 Cygni' }
-];
+// --- Black Holes (rare random events, not permanent) ---
+Game.BlackHoles = [];
+Game.BlackHoleNames = ['Cygnus X-1', 'Sagitario A', 'M87', 'TON 618', 'V404 Cygni', 'GRS 1915', 'XTE J1550'];
 
 // --- Ship Tiers (upgrade every 5 planets) ---
 Game.ShipTiers = [
