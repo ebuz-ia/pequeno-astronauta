@@ -3765,6 +3765,9 @@ Game.scenes.PLANET_EXPLORE = {
     this.starfield.update(dt, 'left');
     Game.UI.updateDialog(dt);
 
+    // Lore display (freeze gameplay)
+    if (this.showingLore) return;
+
     // Shop substate
     if (Game.subState === Game.SubStates.SHOP) {
       Game.ShopUI.update(dt);
@@ -4329,6 +4332,11 @@ Game.scenes.PLANET_EXPLORE = {
                 Game.saveData.rocketParts[bonusKey]++;
               }
               Game.Save.save(Game.saveData);
+
+              // Show planet lore scroll
+              self.showingLore = true;
+              self.loreTimer = 0;
+              self.loreScroll = 0;
             }
           }
         });
@@ -4770,6 +4778,76 @@ Game.scenes.PLANET_EXPLORE = {
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillRect(0, 0, Game.CANVAS_W, Game.CANVAS_H);
       Game.ShopUI.render(ctx, Game.saveData);
+    }
+
+    // Planet lore scroll (after boss defeat)
+    if (this.showingLore) {
+      this.loreTimer += 0.016;
+      var W = Game.CANVAS_W, H = Game.CANVAS_H;
+      var lore = Game.PlanetLore[this.planetIndex % Game.PlanetLore.length];
+
+      // Dark overlay
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.85, this.loreTimer * 2);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+
+      // Scroll frame (ancient parchment style)
+      var scrollW = 500, scrollH = 360;
+      var scrollX = W / 2 - scrollW / 2;
+      var scrollY = H / 2 - scrollH / 2;
+
+      // Parchment background
+      ctx.fillStyle = '#2a1f14';
+      ctx.fillRect(scrollX - 4, scrollY - 4, scrollW + 8, scrollH + 8);
+      ctx.fillStyle = '#3d2b1a';
+      ctx.fillRect(scrollX, scrollY, scrollW, scrollH);
+      ctx.fillStyle = '#4a3423';
+      ctx.fillRect(scrollX + 4, scrollY + 4, scrollW - 8, scrollH - 8);
+
+      // Scroll rolls (top and bottom)
+      ctx.fillStyle = '#5d4037';
+      ctx.fillRect(scrollX - 8, scrollY - 8, scrollW + 16, 12);
+      ctx.fillRect(scrollX - 8, scrollY + scrollH - 4, scrollW + 16, 12);
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(scrollX - 6, scrollY - 6, scrollW + 12, 8);
+      ctx.fillRect(scrollX - 6, scrollY + scrollH - 2, scrollW + 12, 8);
+
+      // Emerald shard icon
+      var shardPulse = 1 + Math.sin(this.time * 3) * 0.15;
+      Game.Pixel.drawCircle(ctx, W / 2, scrollY + 30, 12 * shardPulse, '#4caf50', 3);
+      Game.Pixel.drawCircle(ctx, W / 2, scrollY + 30, 7 * shardPulse, '#69f0ae', 3);
+
+      // Title
+      Game.UI.textBold(ctx, lore.title, W / 2, scrollY + 55, 14, '#ffd700', 'center');
+
+      // Decorative line
+      ctx.fillStyle = '#5d4037';
+      ctx.fillRect(scrollX + 40, scrollY + 68, scrollW - 80, 2);
+
+      // Lore text (line by line with fade-in)
+      for (var li = 0; li < lore.lines.length; li++) {
+        var lineDelay = li * 0.4;
+        var lineAlpha = Math.min(1, Math.max(0, (this.loreTimer - 0.5 - lineDelay) * 2));
+        if (lineAlpha <= 0) continue;
+        ctx.save();
+        ctx.globalAlpha = lineAlpha;
+        Game.UI.text(ctx, lore.lines[li], W / 2, scrollY + 90 + li * 26, 12, '#d4c5a9', 'center');
+        ctx.restore();
+      }
+
+      // Close prompt (after all lines shown)
+      var allShown = this.loreTimer > 0.5 + lore.lines.length * 0.4 + 1;
+      if (allShown) {
+        var closeBlink = Math.sin(this.time * 3) > 0;
+        if (closeBlink) {
+          Game.UI.textBold(ctx, 'Pressione ENTER ou ESPACO para fechar', W / 2, scrollY + scrollH - 20, 11, '#ffd700', 'center');
+        }
+        if (Game.Input.wasPressed('Enter') || Game.Input.wasPressed(' ') || Game.Input.wasPressed('Escape') || Game.Input.mouse.clicked) {
+          this.showingLore = false;
+        }
+      }
     }
   },
 

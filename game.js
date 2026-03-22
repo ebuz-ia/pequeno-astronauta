@@ -211,6 +211,13 @@ Game.Input = {
       }
     });
 
+    // Touch cancel - ensure buttons release
+    canvas.addEventListener('touchcancel', function(e) {
+      e.preventDefault();
+      self.mouse.down = false;
+      self.mouse.touches = [];
+    });
+
     canvas.addEventListener('touchmove', function(e) {
       e.preventDefault();
       var rect = canvas.getBoundingClientRect();
@@ -228,8 +235,13 @@ Game.Input = {
 
   isDown: function(key) { return !!this.keys[key]; },
   wasPressed: function(key) { return !!this.justPressed[key]; },
-  endFrame: function() { this.justPressed = {}; this.mouse.clicked = false; }
+  endFrame: function() { this.justPressed = {}; this.mouse.clicked = false; },
+  releaseAll: function() { this.keys = {}; this.justPressed = {}; this.mouse.down = false; this.mouse.clicked = false; this.mouse.touches = []; }
 };
+
+// Release all keys when window loses focus (prevents stuck keys)
+window.addEventListener('blur', function() { Game.Input.releaseAll(); });
+document.addEventListener('visibilitychange', function() { if (document.hidden) Game.Input.releaseAll(); });
 
 // --- Camera ---
 Game.Camera = {
@@ -379,6 +391,70 @@ Game.PlanetData = [
 // --- Black Holes (rare random events, not permanent) ---
 Game.BlackHoles = [];
 Game.BlackHoleNames = ['Cygnus X-1', 'Sagitario A', 'M87', 'TON 618', 'V404 Cygni', 'GRS 1915', 'XTE J1550'];
+
+// --- Planet Lore (shown after defeating boss) ---
+Game.PlanetLore = [
+  { title: 'TERRA - O Berco da Humanidade',
+    lines: [
+      'A Terra e o terceiro planeta do Sistema Solar.',
+      'Unico mundo conhecido com vida inteligente.',
+      'Idade: 4.54 bilhoes de anos.',
+      '71% da superficie e coberta por agua.',
+      'Possui uma lua natural que controla as mares.',
+      'A atmosfera protege contra radiacao espacial.',
+      'Os humanos lancaram sua primeira nave em 1961.',
+      'O Guardiao da Terra protegia os segredos',
+      'da origem da vida no universo.'
+    ]},
+  { title: 'LUA - A Sentinela Silenciosa',
+    lines: [
+      'A Lua orbita a Terra a 384.400 km.',
+      'Nao possui atmosfera nem campo magnetico.',
+      'A gravidade e 1/6 da terrestre.',
+      'Neil Armstrong foi o primeiro humano a pisar nela.',
+      'Sua face oculta nunca e vista da Terra.',
+      'Crateras foram formadas por impactos de meteoritos.',
+      'Contem gelo nos polos, recurso vital.',
+      'O Espectro Azul guardava as memorias',
+      'de todos que ja olharam para o ceu.'
+    ]},
+  { title: 'MARTE - O Planeta Vermelho',
+    lines: [
+      'Marte e o quarto planeta do Sistema Solar.',
+      'Sua cor vermelha vem do oxido de ferro.',
+      'Possui o maior vulcao: Monte Olimpo (21 km).',
+      'Um dia marciano dura 24h37min.',
+      'Evidencias sugerem que ja teve agua liquida.',
+      'Os rovers Spirit e Curiosity exploraram sua superficie.',
+      'Temperatura media: -63 graus Celsius.',
+      'O Demonio Laranja protegia os tuneis',
+      'que levam ao centro do planeta.'
+    ]},
+  { title: 'VENUS - O Gemeo Infernal',
+    lines: [
+      'Venus e o planeta mais quente: 462 graus C.',
+      'Sua atmosfera e 96% dioxido de carbono.',
+      'A pressao na superficie e 92x a da Terra.',
+      'Um dia em Venus dura mais que seu ano.',
+      'Gira no sentido contrario aos outros planetas.',
+      'Nuvens de acido sulfurico cobrem o ceu.',
+      'Ja foi chamado de "estrela da manha".',
+      'A Hydra Roxa reinava sobre os vulcoes',
+      'que nunca param de entrar em erupcao.'
+    ]},
+  { title: 'PLUTAO - O Exilado Gelado',
+    lines: [
+      'Plutao foi reclassificado como planeta anao.',
+      'Fica a 5.9 bilhoes de km do Sol.',
+      'Temperatura: -230 graus Celsius.',
+      'Possui 5 luas, sendo Caronte a maior.',
+      'A sonda New Horizons o visitou em 2015.',
+      'Tem montanhas de gelo de agua de 3.500m.',
+      'Um ano plutoniano dura 248 anos terrestres.',
+      'O Titan de Gelo guardava o caminho',
+      'para as estrelas mais distantes da galaxia.'
+    ]}
+];
 
 // --- Ship Tiers (upgrade every 5 planets) ---
 Game.ShipTiers = [
