@@ -74,7 +74,44 @@ Game.Pixel = {
     };
   },
 
-  // GBA-style flat color bands (replaces gradients)
+  // --- SMOOTH DRAWING HELPERS (realistic mode) ---
+  drawSmoothCircle: function(ctx, cx, cy, radius, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  drawGlowCircle: function(ctx, cx, cy, radius, color, glowSize) {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = glowSize || 15;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+
+  drawGradientCircle: function(ctx, cx, cy, radius, colorInner, colorOuter) {
+    var grad = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, radius * 0.1, cx, cy, radius);
+    grad.addColorStop(0, colorInner);
+    grad.addColorStop(1, colorOuter);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  drawSmoothRing: function(ctx, cx, cy, radius, color, lineWidth) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth || 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  },
+
+  // GBA-style flat color bands (legacy)
   drawColorBands: function(ctx, bands, x, y, w, h) {
     var cy = y;
     for (var i = 0; i < bands.length; i++) {
@@ -741,7 +778,7 @@ Game.loop = function(timestamp) {
 Game.init = function() {
   Game.canvas = document.getElementById('game');
   Game.ctx = Game.canvas.getContext('2d');
-  Game.ctx.imageSmoothingEnabled = false;
+  Game.ctx.imageSmoothingEnabled = true;
 
   Game.Input.init(Game.canvas);
   Game.saveData = Game.Save.load();

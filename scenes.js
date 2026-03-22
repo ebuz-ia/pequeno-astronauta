@@ -1169,18 +1169,37 @@ Game.scenes.SPACE_FREE = {
     var W = Game.CANVAS_W;
     var H = Game.CANVAS_H;
 
-    // Dark space background
-    ctx.fillStyle = '#030308';
+    // Deep space gradient background
+    var bgGrad = ctx.createLinearGradient(0, 0, W, H);
+    bgGrad.addColorStop(0, '#020210');
+    bgGrad.addColorStop(0.5, '#050518');
+    bgGrad.addColorStop(1, '#0a0520');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // Starfield (parallax offset)
+    // Starfield with glow (parallax offset)
     ctx.save();
     ctx.translate(-this.camX * 0.1 % W, -this.camY * 0.1 % H);
-    this.starfield.render(ctx);
+    // Render stars with soft glow instead of hard pixels
+    if (this.starfield && this.starfield.stars) {
+      for (var si = 0; si < this.starfield.stars.length; si++) {
+        var star = this.starfield.stars[si];
+        var twinkle = 0.5 + Math.sin(this.time * 2 + si * 0.7) * 0.3;
+        ctx.save();
+        ctx.globalAlpha = star.alpha * twinkle;
+        ctx.shadowColor = star.color || '#fff';
+        ctx.shadowBlur = star.size * 2;
+        ctx.fillStyle = star.color || '#fff';
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
     ctx.restore();
 
     // --- SPACE DETAILS (nebulae, galaxies, comets, dust) ---
-    this.renderSpaceDetails(ctx);
+    this.renderSpaceDetailsSmooth(ctx);
 
     // --- RENDER WORLD OBJECTS ---
 
@@ -1192,19 +1211,36 @@ Game.scenes.SPACE_FREE = {
       if (bhsx < -200 || bhsx > W + 200 || bhsy < -200 || bhsy > H + 200) continue;
 
       var bhRad = hole.radius * this.worldScale * 0.3;
-      // Accretion glow
+      // Accretion disk (smooth gradient)
       ctx.save();
-      ctx.globalAlpha = 0.15 + Math.sin(this.time * 2) * 0.05;
-      Game.Pixel.drawCircle(ctx, bhsx, bhsy, bhRad * 2, '#330011', 4);
+      var bhGrad = ctx.createRadialGradient(bhsx, bhsy, 0, bhsx, bhsy, bhRad * 2.5);
+      bhGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
+      bhGrad.addColorStop(0.3, 'rgba(60,0,20,0.4)');
+      bhGrad.addColorStop(0.6, 'rgba(100,0,30,0.15)');
+      bhGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = bhGrad;
+      ctx.beginPath();
+      ctx.arc(bhsx, bhsy, bhRad * 2.5, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
+      // Accretion ring
       ctx.save();
-      ctx.globalAlpha = 0.3;
-      Game.Pixel.drawCircle(ctx, bhsx, bhsy, bhRad, '#110000', 3);
+      ctx.globalAlpha = 0.4 + Math.sin(this.time * 2) * 0.1;
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(bhsx, bhsy, bhRad * 1.5, bhRad * 0.5, this.time * 0.3, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
-      // Center
-      Game.Pixel.drawCircle(ctx, bhsx, bhsy, bhRad * 0.4, '#000000', 3);
+      // Center void
+      Game.Pixel.drawSmoothCircle(ctx, bhsx, bhsy, bhRad * 0.4, '#000');
       // Label
-      Game.UI.text(ctx, hole.name, bhsx, bhsy + bhRad + 15, 9, '#660022', 'center');
+      ctx.save();
+      ctx.font = '9px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#660022';
+      ctx.fillText(hole.name, bhsx, bhsy + bhRad + 15);
+      ctx.restore();
     }
 
     // Planets
@@ -1222,76 +1258,87 @@ Game.scenes.SPACE_FREE = {
       var planetRadius = accessible ? 35 : 15;
       var planetColor = accessible ? planet.groundColor : '#333';
 
-      // Atmosphere glow (outer)
+      // Atmosphere glow (smooth radial)
       if (accessible) {
         ctx.save();
-        ctx.globalAlpha = 0.08 + Math.sin(this.time * 0.5 + p) * 0.03;
-        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 18, planet.skyBottom || '#334', 5);
-        ctx.restore();
-        ctx.save();
-        ctx.globalAlpha = 0.12;
-        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 8, planet.skyTop || '#224', 4);
+        var atmoGrad = ctx.createRadialGradient(psx, psy, planetRadius, psx, psy, planetRadius + 25);
+        atmoGrad.addColorStop(0, (planet.skyBottom || '#334') + '40');
+        atmoGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = atmoGrad;
+        ctx.beginPath();
+        ctx.arc(psx, psy, planetRadius + 25, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
       // Rings (Saturn-like for planets 5,7,11)
       if (accessible && (p === 5 || p === 7 || p === 11)) {
         ctx.save();
-        ctx.globalAlpha = 0.3;
-        for (var ri = -2; ri <= 2; ri++) {
-          var ringR = planetRadius + 14 + ri * 4;
-          var ringColor = ri === 0 ? '#c0a060' : '#806040';
-          // Horizontal ellipse as pixel dots
-          for (var ra = 0; ra < 20; ra++) {
-            var rang = Math.PI * 2 * ra / 20;
-            var rrx = psx + Math.cos(rang) * ringR;
-            var rry = psy + Math.sin(rang) * ringR * 0.3;
-            ctx.fillStyle = ringColor;
-            ctx.fillRect(rrx - 2, rry - 1, 4, 2);
-          }
+        ctx.globalAlpha = 0.4;
+        ctx.strokeStyle = '#c0a060';
+        ctx.lineWidth = 2;
+        for (var ri = -1; ri <= 1; ri++) {
+          ctx.beginPath();
+          ctx.ellipse(psx, psy, planetRadius + 16 + ri * 5, (planetRadius + 16 + ri * 5) * 0.3, 0, 0, Math.PI * 2);
+          ctx.stroke();
         }
         ctx.restore();
       }
 
-      // Planet body (pixelated circle)
-      Game.Pixel.drawCircle(ctx, psx, psy, planetRadius, planetColor, 3);
+      // Planet body (smooth gradient sphere)
+      Game.Pixel.drawGradientCircle(ctx, psx, psy, planetRadius,
+        accessible ? (planet.surfaceDetail || '#5cb85c') : '#555',
+        planetColor);
 
-      // Surface details (craters, continents)
+      // Surface details (smooth)
       if (accessible) {
-        Game.Pixel.drawCircle(ctx, psx - 8, psy - 8, planetRadius * 0.35, planet.surfaceDetail || '#5cb85c', 3);
-        Game.Pixel.drawCircle(ctx, psx + 6, psy + 4, planetRadius * 0.2, planet.groundDark || '#2a5020', 3);
-        // Shadow side
         ctx.save();
-        ctx.globalAlpha = 0.25;
-        Game.Pixel.drawCircle(ctx, psx + 10, psy + 5, planetRadius * 0.8, '#000', 4);
+        ctx.globalAlpha = 0.3;
+        Game.Pixel.drawSmoothCircle(ctx, psx - 6, psy - 5, planetRadius * 0.25, planet.surfaceDetail || '#5cb85c');
+        Game.Pixel.drawSmoothCircle(ctx, psx + 8, psy + 6, planetRadius * 0.15, planet.groundDark || '#2a5020');
+        ctx.restore();
+        // Shadow (crescent)
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        var shadowGrad = ctx.createRadialGradient(psx + planetRadius * 0.5, psy + planetRadius * 0.3, 0, psx, psy, planetRadius);
+        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
+        shadowGrad.addColorStop(0.6, 'rgba(0,0,0,0.2)');
+        shadowGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = shadowGrad;
+        ctx.beginPath();
+        ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
-      // Orbiting moon (for planets 0,1,4,8)
+      // Orbiting moon (smooth)
       if (accessible && (p === 0 || p === 1 || p === 4 || p === 8)) {
         var moonAngle = this.time * 0.8 + p * 2;
         var moonDist = planetRadius + 22;
         var moonX = psx + Math.cos(moonAngle) * moonDist;
         var moonY = psy + Math.sin(moonAngle) * moonDist * 0.6;
-        Game.Pixel.drawCircle(ctx, moonX, moonY, 5, '#bbb', 2);
-        Game.Pixel.drawCircle(ctx, moonX - 1, moonY - 1, 2, '#ddd', 2);
+        Game.Pixel.drawGradientCircle(ctx, moonX, moonY, 5, '#ddd', '#888');
       }
 
       // Name label
-      var labelColor = p === this.nearPlanet ? '#4caf50' : (accessible ? '#aaa' : '#444');
-      Game.UI.text(ctx, planet.name, psx, psy + planetRadius + 16, 10, labelColor, 'center');
+      var labelColor = p === this.nearPlanet ? '#4caf50' : (accessible ? '#ccc' : '#444');
+      ctx.save();
+      ctx.font = '10px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000';
+      ctx.fillText(planet.name, psx + 1, psy + planetRadius + 17);
+      ctx.fillStyle = labelColor;
+      ctx.fillText(planet.name, psx, psy + planetRadius + 16);
+      ctx.restore();
 
-      // Current planet indicator
+      // Current planet indicator (smooth ring)
       if (p === Game.saveData.currentPlanet) {
-        Game.Pixel.drawRing(ctx, psx, psy, planetRadius + 8, '#4caf50', 2, 3);
+        Game.Pixel.drawSmoothRing(ctx, psx, psy, planetRadius + 8, '#4caf50', 2);
       }
 
       // Near planet glow
       if (p === this.nearPlanet) {
-        ctx.save();
-        ctx.globalAlpha = 0.2 + Math.sin(this.time * 4) * 0.1;
-        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 16, '#4caf50', 4);
-        ctx.restore();
+        Game.Pixel.drawGlowCircle(ctx, psx, psy, planetRadius + 5, 'rgba(76,175,80,0.15)', 20);
       }
     }
 
@@ -1362,14 +1409,84 @@ Game.scenes.SPACE_FREE = {
     ctx.translate(shipSX, shipSY);
     ctx.rotate(this.shipAngle);
 
-    // Rocket sprite (draw centered, rotated)
-    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, 0, 0, 3);
+    // Smooth rocket body
+    // Nose cone
+    ctx.fillStyle = '#e0e0e0';
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    ctx.lineTo(-10, -10);
+    ctx.lineTo(10, -10);
+    ctx.closePath();
+    ctx.fill();
+    // Body
+    var bodyGrad = ctx.createLinearGradient(-12, 0, 12, 0);
+    bodyGrad.addColorStop(0, '#bbb');
+    bodyGrad.addColorStop(0.3, '#e8e8e8');
+    bodyGrad.addColorStop(0.7, '#ddd');
+    bodyGrad.addColorStop(1, '#999');
+    ctx.fillStyle = bodyGrad;
+    ctx.fillRect(-10, -10, 20, 30);
+    // Window
+    ctx.fillStyle = '#1e88e5';
+    ctx.beginPath();
+    ctx.arc(0, -5, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#64b5f6';
+    ctx.beginPath();
+    ctx.arc(-1, -6, 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Fins
+    ctx.fillStyle = '#f44336';
+    ctx.beginPath();
+    ctx.moveTo(-10, 15);
+    ctx.lineTo(-18, 25);
+    ctx.lineTo(-10, 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(10, 15);
+    ctx.lineTo(18, 25);
+    ctx.lineTo(10, 20);
+    ctx.closePath();
+    ctx.fill();
+    // Nozzle
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-6, 20, 12, 5);
 
-    // Flame when thrusting
-    var isThrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || Game.Input.keys[' '] || this.pressing.thrust;
+    // Flame when thrusting (smooth fire)
+    var isThrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || this.pressing.thrust;
     if (isThrusting && Game.saveData.fuel > 0) {
-      Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], 0, 44, 3);
+      var flameH = 15 + Math.random() * 10;
+      var flameGrad = ctx.createLinearGradient(0, 25, 0, 25 + flameH);
+      flameGrad.addColorStop(0, '#ffeb3b');
+      flameGrad.addColorStop(0.4, '#ff9800');
+      flameGrad.addColorStop(1, 'rgba(244,67,54,0)');
+      ctx.fillStyle = flameGrad;
+      ctx.beginPath();
+      ctx.moveTo(-6, 25);
+      ctx.lineTo(0, 25 + flameH);
+      ctx.lineTo(6, 25);
+      ctx.closePath();
+      ctx.fill();
+      // Inner flame
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(-3, 25);
+      ctx.lineTo(0, 25 + flameH * 0.5);
+      ctx.lineTo(3, 25);
+      ctx.closePath();
+      ctx.fill();
     }
+
+    // Engine glow
+    ctx.save();
+    ctx.shadowColor = '#ff6b35';
+    ctx.shadowBlur = isThrusting && Game.saveData.fuel > 0 ? 15 : 0;
+    ctx.fillStyle = 'rgba(255,107,53,0.1)';
+    ctx.beginPath();
+    ctx.arc(0, 25, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     ctx.restore();
 
@@ -1811,6 +1928,83 @@ Game.scenes.SPACE_FREE = {
       ctx.fillRect(bxx, byy, 20, 12);
       ctx.fillStyle = '#222';
       ctx.fillRect(bxx + 1, byy + 1, 18, 10);
+    }
+  },
+
+  renderSpaceDetailsSmooth: function(ctx) {
+    var W = Game.CANVAS_W, H = Game.CANVAS_H;
+    var cx = this.camX, cy = this.camY;
+
+    // Nebulae (smooth radial gradients)
+    var nebulaColors = ['#2a0050', '#003050', '#500030', '#003020', '#302000'];
+    for (var ni = 0; ni < 6; ni++) {
+      var nx = ((ni * 3571 + 1234) % 20000) - 5000;
+      var ny = ((ni * 2713 + 5678) % 16000) - 3000;
+      var nsx = nx - cx * 0.3;
+      var nsy = ny - cy * 0.3;
+      if (nsx < -300 || nsx > W + 300 || nsy < -300 || nsy > H + 300) continue;
+      var nSize = 100 + (ni * 37 % 150);
+      ctx.save();
+      var nebGrad = ctx.createRadialGradient(nsx, nsy, 0, nsx, nsy, nSize);
+      nebGrad.addColorStop(0, nebulaColors[ni % nebulaColors.length] + '30');
+      nebGrad.addColorStop(0.5, nebulaColors[ni % nebulaColors.length] + '15');
+      nebGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = nebGrad;
+      ctx.beginPath();
+      ctx.arc(nsx, nsy, nSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Distant galaxies (soft glow points)
+    for (var gi = 0; gi < 4; gi++) {
+      var gx = ((gi * 4937 + 2345) % 25000) - 8000;
+      var gy = ((gi * 3119 + 7890) % 20000) - 5000;
+      var gsx = gx - cx * 0.15;
+      var gsy = gy - cy * 0.15;
+      if (gsx < -50 || gsx > W + 50 || gsy < -50 || gsy > H + 50) continue;
+      Game.Pixel.drawGlowCircle(ctx, gsx, gsy, 3, 'rgba(200,220,255,0.4)', 12);
+      // Spiral hint
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      ctx.strokeStyle = '#aaccff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (var sa = 0; sa < 15; sa++) {
+        var sAngle = sa * 0.4 + this.time * 0.05;
+        var sDist = 3 + sa * 1.5;
+        var sdx = gsx + Math.cos(sAngle) * sDist;
+        var sdy = gsy + Math.sin(sAngle) * sDist * 0.5;
+        if (sa === 0) ctx.moveTo(sdx, sdy); else ctx.lineTo(sdx, sdy);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Comets (smooth trails)
+    var cometSeed = Math.floor(this.time * 0.1);
+    for (var ci = 0; ci < 2; ci++) {
+      var cPhase = (this.time * 0.3 + ci * 5.7) % 10;
+      if (cPhase > 8) continue;
+      var cBaseX = ((ci * 6173 + cometSeed * 1000) % 3000) - 500;
+      var cBaseY = ((ci * 4231 + cometSeed * 800) % 2000) - 500;
+      var csx = cBaseX + cPhase * 120 - cx * 0.2;
+      var csy = cBaseY + cPhase * 30 - cy * 0.2;
+      if (csx < -100 || csx > W + 100 || csy < -50 || csy > H + 50) continue;
+      // Tail gradient
+      ctx.save();
+      var tailGrad = ctx.createLinearGradient(csx, csy, csx - 80, csy - 20);
+      tailGrad.addColorStop(0, 'rgba(200,230,255,0.5)');
+      tailGrad.addColorStop(1, 'transparent');
+      ctx.strokeStyle = tailGrad;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(csx, csy);
+      ctx.lineTo(csx - 80, csy - 20);
+      ctx.stroke();
+      ctx.restore();
+      // Head
+      Game.Pixel.drawGlowCircle(ctx, csx, csy, 3, 'rgba(220,240,255,0.8)', 8);
     }
   },
 
