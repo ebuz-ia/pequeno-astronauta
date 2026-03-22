@@ -678,12 +678,130 @@ Game.scenes.SPACE_FREE = {
       Game.UI.textBold(ctx, 'PERIGO! BURACO NEGRO!', W / 2, 60, 18, '#ff0000', 'center');
     }
 
+    // --- MINIMAP (bottom right corner) ---
+    this.renderMinimap(ctx);
+
     // --- ON-SCREEN CONTROL BUTTONS ---
     this.renderControls(ctx);
 
     // Controls hint
     Game.UI.text(ctx, 'A/D: Girar | W: Acelerar | S: Frear | ESPACO: Tiro | B: Bomba | E: Pousar | C: Cockpit',
       W / 2, H - 15, 9, 'rgba(255,255,255,0.3)', 'center');
+  },
+
+  renderMinimap: function(ctx) {
+    var W = Game.CANVAS_W;
+    var H = Game.CANVAS_H;
+    var mapW = 160, mapH = 130;
+    var mapX = W - mapW - 15;
+    var mapY = H - mapH - 90; // above control buttons
+
+    // Background
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#0a0a15';
+    ctx.fillRect(mapX, mapY, mapW, mapH);
+    ctx.restore();
+
+    // Border
+    ctx.fillStyle = '#334';
+    ctx.fillRect(mapX, mapY, mapW, 1);
+    ctx.fillRect(mapX, mapY + mapH - 1, mapW, 1);
+    ctx.fillRect(mapX, mapY, 1, mapH);
+    ctx.fillRect(mapX + mapW - 1, mapY, 1, mapH);
+
+    // Label
+    Game.UI.text(ctx, 'MAPA', mapX + mapW / 2, mapY + 8, 8, '#556', 'center');
+
+    // Calculate map scale to fit all planets
+    var minGX = 0, maxGX = 0, minGY = 0, maxGY = 0;
+    for (var p = 0; p < Game.PlanetData.length; p++) {
+      var pl = Game.PlanetData[p];
+      var req = p < 5 ? 0 : (p < 10 ? 5 : 10);
+      if ((Game.saveData.planetsVisited || 0) < req) continue;
+      if (pl.gx < minGX) minGX = pl.gx;
+      if (pl.gx > maxGX) maxGX = pl.gx;
+      if (pl.gy < minGY) minGY = pl.gy;
+      if (pl.gy > maxGY) maxGY = pl.gy;
+    }
+    var rangeX = Math.max(maxGX - minGX, 4);
+    var rangeY = Math.max(maxGY - minGY, 4);
+    var scale = Math.min((mapW - 30) / rangeX, (mapH - 30) / rangeY);
+    var centerGX = (minGX + maxGX) / 2;
+    var centerGY = (minGY + maxGY) / 2;
+    var mcx = mapX + mapW / 2;
+    var mcy = mapY + mapH / 2 + 5;
+
+    // Draw black holes
+    for (var bh = 0; bh < Game.BlackHoles.length; bh++) {
+      var hole = Game.BlackHoles[bh];
+      var bhpx = mcx + (hole.gx - centerGX) * scale;
+      var bhpy = mcy + (hole.gy - centerGY) * scale;
+      if (bhpx < mapX || bhpx > mapX + mapW || bhpy < mapY || bhpy > mapY + mapH) continue;
+      ctx.fillStyle = '#330011';
+      ctx.fillRect(bhpx - 3, bhpy - 3, 6, 6);
+    }
+
+    // Draw planets
+    for (var p2 = 0; p2 < Game.PlanetData.length; p2++) {
+      var planet = Game.PlanetData[p2];
+      var req2 = p2 < 5 ? 0 : (p2 < 10 ? 5 : 10);
+      if ((Game.saveData.planetsVisited || 0) < req2) continue;
+
+      var ppx = mcx + (planet.gx - centerGX) * scale;
+      var ppy = mcy + (planet.gy - centerGY) * scale;
+      if (ppx < mapX + 2 || ppx > mapX + mapW - 2 || ppy < mapY + 2 || ppy > mapY + mapH - 2) continue;
+
+      // Visited = bright, current = green ring
+      var visited = Game.saveData.visitedPlanets && Game.saveData.visitedPlanets.indexOf(p2) >= 0;
+      var dotColor = visited ? planet.groundColor : '#555';
+      var dotSize = p2 === this.nearPlanet ? 5 : 3;
+
+      ctx.fillStyle = dotColor;
+      ctx.fillRect(ppx - dotSize / 2, ppy - dotSize / 2, dotSize, dotSize);
+
+      // Current planet ring
+      if (p2 === Game.saveData.currentPlanet) {
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(ppx - dotSize / 2 - 1, ppy - dotSize / 2 - 1, dotSize + 2, 1);
+        ctx.fillRect(ppx - dotSize / 2 - 1, ppy + dotSize / 2, dotSize + 2, 1);
+        ctx.fillRect(ppx - dotSize / 2 - 1, ppy - dotSize / 2, 1, dotSize + 2);
+        ctx.fillRect(ppx + dotSize / 2, ppy - dotSize / 2, 1, dotSize + 2);
+      }
+
+      // Name for nearby/visited
+      if (visited || p2 === this.nearPlanet) {
+        Game.UI.text(ctx, planet.name, ppx, ppy + dotSize + 5, 6, '#777', 'center');
+      }
+    }
+
+    // Draw ship position (blinking white dot)
+    var shipMX = mcx + (this.shipX / this.worldScale - centerGX) * scale;
+    var shipMY = mcy + (this.shipY / this.worldScale - centerGY) * scale;
+    // Clamp to map bounds
+    shipMX = Math.max(mapX + 3, Math.min(mapX + mapW - 3, shipMX));
+    shipMY = Math.max(mapY + 3, Math.min(mapY + mapH - 3, shipMY));
+
+    // Ship direction indicator (small line)
+    var dirLen = 8;
+    var dirX = shipMX + Math.sin(this.shipAngle) * dirLen;
+    var dirY = shipMY - Math.cos(this.shipAngle) * dirLen;
+    ctx.fillStyle = '#ff9800';
+    // Draw direction as 2 pixel dots
+    var steps = 4;
+    for (var ds = 1; ds <= steps; ds++) {
+      var t = ds / steps;
+      var dx = shipMX + (dirX - shipMX) * t;
+      var dy = shipMY + (dirY - shipMY) * t;
+      ctx.fillRect(dx - 1, dy - 1, 2, 2);
+    }
+
+    // Ship dot (blinking)
+    var blink = Math.sin(this.time * 6) > -0.3;
+    if (blink) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(shipMX - 2, shipMY - 2, 4, 4);
+    }
   },
 
   renderControls: function(ctx) {
