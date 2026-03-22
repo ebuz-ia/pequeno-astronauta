@@ -12,6 +12,7 @@ Game.GRAVITY = 600; // base gravity px/s^2
 
 Game.States = {
   LAUNCH_BASE: 'LAUNCH_BASE',
+  SPACE_FREE: 'SPACE_FREE',
   COCKPIT: 'COCKPIT',
   PLANET_EXPLORE: 'PLANET_EXPLORE',
   FLIGHT: 'FLIGHT'

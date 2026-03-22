@@ -62,9 +62,9 @@ Game.scenes.LAUNCH_BASE = {
           Game.spawnParticles(Game.CANVAS_W / 2 + (Math.random() - 0.5) * 15, Game.CANVAS_H - 135 - this.rocketYOffset + 50, 1, '#ff9800', 0.8);
         }
       } else {
-        // Go to cockpit immediately (no fade transition - prevents stuck screen)
+        // Go to free space exploration
         this.launching = false;
-        Game.changeStateImmediate(Game.States.COCKPIT);
+        Game.changeStateImmediate(Game.States.SPACE_FREE);
       }
       return;
     }
@@ -240,6 +240,442 @@ Game.scenes.LAUNCH_BASE = {
   },
 
   exit: function() {}
+};
+
+// ===========================
+// SPACE FREE EXPLORATION (360 rotation, free movement)
+// ===========================
+Game.scenes.SPACE_FREE = {
+  time: 0,
+  starfield: null,
+
+  // Ship state
+  shipX: 0,
+  shipY: 0,
+  shipAngle: 0, // radians, 0 = up
+  shipVX: 0,
+  shipVY: 0,
+  thrustPower: 200,
+  rotateSpeed: 2.5, // radians/sec
+  maxSpeed: 300,
+  friction: 0.985,
+
+  // Camera
+  camX: 0,
+  camY: 0,
+
+  // Controls state (for on-screen buttons)
+  pressing: { left: false, right: false, thrust: false, brake: false },
+
+  // Planets in world space
+  worldScale: 800, // pixels per gx/gy unit
+  nearPlanet: -1,
+
+  // Flame
+  flameFrame: 0,
+  flameTimer: 0,
+
+  // Black hole warning
+  blackHoleWarning: false,
+  blackHoleTimer: 0,
+
+  enter: function(data) {
+    this.time = 0;
+    this.starfield = new Game.Starfield(400);
+    this.flameFrame = 0;
+    this.flameTimer = 0;
+    this.nearPlanet = -1;
+    this.blackHoleWarning = false;
+    this.blackHoleTimer = 0;
+
+    // Position ship at current planet
+    var cp = Game.PlanetData[Game.saveData.currentPlanet];
+    this.shipX = cp.gx * this.worldScale;
+    this.shipY = cp.gy * this.worldScale;
+    this.shipAngle = 0;
+    this.shipVX = 0;
+    this.shipVY = 0;
+
+    if (data && data.fromPlanet !== undefined) {
+      var fp = Game.PlanetData[data.fromPlanet];
+      this.shipX = fp.gx * this.worldScale;
+      this.shipY = fp.gy * this.worldScale + 80;
+    }
+
+    if (Game.Audio && Game.Audio.initialized) Game.Audio.playFlightMusic();
+  },
+
+  update: function(dt) {
+    this.time += dt;
+
+    // Flame animation
+    this.flameTimer += dt;
+    if (this.flameTimer > 0.1) { this.flameTimer = 0; this.flameFrame = (this.flameFrame + 1) % 3; }
+
+    // Pause
+    if (Game.Input.wasPressed('Escape')) {
+      Game.paused = !Game.paused;
+      return;
+    }
+
+    // Music toggle
+    if (Game.Input.wasPressed('m') || Game.Input.wasPressed('M')) {
+      if (Game.Audio) Game.Audio.toggleMusic();
+    }
+
+    // --- ROTATION ---
+    var rotLeft = Game.Input.keys['ArrowLeft'] || Game.Input.keys['a'] || Game.Input.keys['A'] || this.pressing.left;
+    var rotRight = Game.Input.keys['ArrowRight'] || Game.Input.keys['d'] || Game.Input.keys['D'] || this.pressing.right;
+    if (rotLeft) this.shipAngle -= this.rotateSpeed * dt;
+    if (rotRight) this.shipAngle += this.rotateSpeed * dt;
+
+    // --- THRUST ---
+    var thrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || Game.Input.keys[' '] || this.pressing.thrust;
+    var braking = Game.Input.keys['ArrowDown'] || Game.Input.keys['s'] || Game.Input.keys['S'] || this.pressing.brake;
+
+    if (thrusting && Game.saveData.fuel > 0) {
+      // Direction from angle (0 = up)
+      var ax = Math.sin(this.shipAngle) * this.thrustPower;
+      var ay = -Math.cos(this.shipAngle) * this.thrustPower;
+      this.shipVX += ax * dt;
+      this.shipVY += ay * dt;
+      Game.saveData.fuel = Math.max(0, Game.saveData.fuel - dt * 3);
+
+      // Thrust particles
+      if (Math.random() < 0.5) {
+        var px = this.shipX - Math.sin(this.shipAngle) * 30;
+        var py = this.shipY + Math.cos(this.shipAngle) * 30;
+        Game.spawnParticles(px, py, 1, Math.random() < 0.5 ? '#ff6b35' : '#ffeb3b', 0.5);
+      }
+    }
+
+    if (braking) {
+      this.shipVX *= 0.95;
+      this.shipVY *= 0.95;
+    }
+
+    // Friction
+    this.shipVX *= this.friction;
+    this.shipVY *= this.friction;
+
+    // Clamp speed
+    var speed = Math.sqrt(this.shipVX * this.shipVX + this.shipVY * this.shipVY);
+    if (speed > this.maxSpeed) {
+      this.shipVX = (this.shipVX / speed) * this.maxSpeed;
+      this.shipVY = (this.shipVY / speed) * this.maxSpeed;
+    }
+
+    // Move
+    this.shipX += this.shipVX * dt;
+    this.shipY += this.shipVY * dt;
+
+    // Camera follows ship
+    this.camX = this.shipX - Game.CANVAS_W / 2;
+    this.camY = this.shipY - Game.CANVAS_H / 2;
+
+    // --- CHECK PROXIMITY TO PLANETS ---
+    this.nearPlanet = -1;
+    for (var p = 0; p < Game.PlanetData.length; p++) {
+      var planet = Game.PlanetData[p];
+      var requiredVisits = p < 5 ? 0 : (p < 10 ? 5 : 10);
+      if ((Game.saveData.planetsVisited || 0) < requiredVisits) continue;
+
+      var wx = planet.gx * this.worldScale;
+      var wy = planet.gy * this.worldScale;
+      var dist = Math.sqrt((this.shipX - wx) * (this.shipX - wx) + (this.shipY - wy) * (this.shipY - wy));
+      if (dist < 80) {
+        this.nearPlanet = p;
+        break;
+      }
+    }
+
+    // Enter planet
+    if (this.nearPlanet >= 0 && (Game.Input.wasPressed('e') || Game.Input.wasPressed('E'))) {
+      Game.saveData.currentPlanet = this.nearPlanet;
+      if (Game.saveData.visitedPlanets.indexOf(this.nearPlanet) === -1) {
+        Game.saveData.visitedPlanets.push(this.nearPlanet);
+        Game.saveData.planetsVisited = Game.saveData.visitedPlanets.length;
+      }
+      Game.Save.save(Game.saveData);
+      Game.changeStateImmediate(Game.States.PLANET_EXPLORE, { planetIndex: this.nearPlanet });
+      return;
+    }
+
+    // Enter cockpit (C key)
+    if (Game.Input.wasPressed('c') || Game.Input.wasPressed('C')) {
+      Game.changeStateImmediate(Game.States.COCKPIT);
+      return;
+    }
+
+    // --- BLACK HOLES ---
+    this.blackHoleWarning = false;
+    for (var bh = 0; bh < Game.BlackHoles.length; bh++) {
+      var hole = Game.BlackHoles[bh];
+      var bhx = hole.gx * this.worldScale;
+      var bhy = hole.gy * this.worldScale;
+      var bhDist = Math.sqrt((this.shipX - bhx) * (this.shipX - bhx) + (this.shipY - bhy) * (this.shipY - bhy));
+      var dangerRadius = hole.radius * this.worldScale;
+
+      if (bhDist < dangerRadius * 2) {
+        this.blackHoleWarning = true;
+        this.blackHoleTimer += dt;
+        // Play warning sound periodically
+        if (Math.floor(this.blackHoleTimer * 2) % 2 === 0 && Math.floor((this.blackHoleTimer - dt) * 2) % 2 !== 0) {
+          if (Game.Audio) Game.Audio.sfx.warning();
+        }
+      }
+
+      // Gravitational pull
+      if (bhDist < dangerRadius * 1.5 && bhDist > 10) {
+        var pullForce = 150 * (1 - bhDist / (dangerRadius * 1.5));
+        var pdx = (bhx - this.shipX) / bhDist;
+        var pdy = (bhy - this.shipY) / bhDist;
+        this.shipVX += pdx * pullForce * dt;
+        this.shipVY += pdy * pullForce * dt;
+      }
+
+      // Death zone
+      if (bhDist < dangerRadius * 0.3) {
+        Game.triggerShake(15, 0.5);
+        if (Game.Audio) Game.Audio.sfx.damage();
+        Game.saveData.coins = Math.floor(Game.saveData.coins * 0.7);
+        Game.saveData.fuel = Math.floor(Game.saveData.fuel * 0.5);
+        // Teleport back to current planet
+        var safeP = Game.PlanetData[Game.saveData.currentPlanet];
+        this.shipX = safeP.gx * this.worldScale;
+        this.shipY = safeP.gy * this.worldScale + 80;
+        this.shipVX = 0;
+        this.shipVY = 0;
+        Game.showMessage('Sugado pelo buraco negro! -30% moedas, -50% fuel', 3);
+        Game.Save.save(Game.saveData);
+      }
+    }
+
+    // Update starfield (parallax with camera)
+    this.starfield.update(dt, 'none');
+
+    // Update particles
+    Game.EntityManager.updateAll(dt);
+  },
+
+  render: function(ctx) {
+    var W = Game.CANVAS_W;
+    var H = Game.CANVAS_H;
+
+    // Dark space background
+    ctx.fillStyle = '#030308';
+    ctx.fillRect(0, 0, W, H);
+
+    // Starfield (parallax offset)
+    ctx.save();
+    ctx.translate(-this.camX * 0.1 % W, -this.camY * 0.1 % H);
+    this.starfield.render(ctx);
+    ctx.restore();
+
+    // --- RENDER WORLD OBJECTS ---
+
+    // Black holes
+    for (var bh = 0; bh < Game.BlackHoles.length; bh++) {
+      var hole = Game.BlackHoles[bh];
+      var bhsx = hole.gx * this.worldScale - this.camX;
+      var bhsy = hole.gy * this.worldScale - this.camY;
+      if (bhsx < -200 || bhsx > W + 200 || bhsy < -200 || bhsy > H + 200) continue;
+
+      var bhRad = hole.radius * this.worldScale * 0.3;
+      // Accretion glow
+      ctx.save();
+      ctx.globalAlpha = 0.15 + Math.sin(this.time * 2) * 0.05;
+      Game.Pixel.drawCircle(ctx, bhsx, bhsy, bhRad * 2, '#330011', 4);
+      ctx.restore();
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      Game.Pixel.drawCircle(ctx, bhsx, bhsy, bhRad, '#110000', 3);
+      ctx.restore();
+      // Center
+      Game.Pixel.drawCircle(ctx, bhsx, bhsy, bhRad * 0.4, '#000000', 3);
+      // Label
+      Game.UI.text(ctx, hole.name, bhsx, bhsy + bhRad + 15, 9, '#660022', 'center');
+    }
+
+    // Planets
+    for (var p = 0; p < Game.PlanetData.length; p++) {
+      var planet = Game.PlanetData[p];
+      var requiredVisits = p < 5 ? 0 : (p < 10 ? 5 : 10);
+      var accessible = (Game.saveData.planetsVisited || 0) >= requiredVisits;
+
+      var psx = planet.gx * this.worldScale - this.camX;
+      var psy = planet.gy * this.worldScale - this.camY;
+
+      // Skip if off screen
+      if (psx < -100 || psx > W + 100 || psy < -100 || psy > H + 100) continue;
+
+      var planetRadius = accessible ? 30 : 15;
+      var planetColor = accessible ? planet.groundColor : '#333';
+
+      // Planet body (pixelated circle)
+      Game.Pixel.drawCircle(ctx, psx, psy, planetRadius, planetColor, 3);
+
+      // Surface highlight
+      if (accessible) {
+        Game.Pixel.drawCircle(ctx, psx - 6, psy - 6, planetRadius * 0.4, planet.surfaceDetail || '#5cb85c', 3);
+      }
+
+      // Name label
+      var labelColor = p === this.nearPlanet ? '#4caf50' : (accessible ? '#aaa' : '#444');
+      Game.UI.text(ctx, planet.name, psx, psy + planetRadius + 12, 10, labelColor, 'center');
+
+      // Current planet indicator
+      if (p === Game.saveData.currentPlanet) {
+        Game.Pixel.drawRing(ctx, psx, psy, planetRadius + 6, '#4caf50', 2, 3);
+      }
+
+      // Near planet glow
+      if (p === this.nearPlanet) {
+        ctx.save();
+        ctx.globalAlpha = 0.2 + Math.sin(this.time * 4) * 0.1;
+        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 12, '#4caf50', 4);
+        ctx.restore();
+      }
+    }
+
+    // Particles
+    Game.EntityManager.renderAll(ctx, this.camX, this.camY);
+
+    // --- SHIP (always centered) ---
+    var shipSX = this.shipX - this.camX;
+    var shipSY = this.shipY - this.camY;
+
+    ctx.save();
+    ctx.translate(shipSX, shipSY);
+    ctx.rotate(this.shipAngle);
+
+    // Rocket sprite (draw centered, rotated)
+    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, 0, 0, 3);
+
+    // Flame when thrusting
+    var isThrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || Game.Input.keys[' '] || this.pressing.thrust;
+    if (isThrusting && Game.saveData.fuel > 0) {
+      Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame], 0, 44, 3);
+    }
+
+    ctx.restore();
+
+    // --- HUD ---
+    // Fuel bar (top left)
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, 10, 120, 30);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(14, 14, 112, 22);
+    var stats = Game.getRocketStats(Game.saveData);
+    var fuelPct = Math.max(0, Game.saveData.fuel / stats.maxFuel);
+    ctx.fillStyle = fuelPct > 0.3 ? '#4caf50' : (fuelPct > 0.1 ? '#ff9800' : '#f44336');
+    ctx.fillRect(14, 14, 112 * fuelPct, 22);
+    Game.UI.text(ctx, 'FUEL ' + Math.floor(Game.saveData.fuel), 70, 22, 10, '#fff', 'center');
+
+    // Coins (top right)
+    Game.UI.text(ctx, '' + Game.saveData.coins, W - 60, 22, 14, '#ffd700', 'center');
+
+    // Speed indicator
+    var spd = Math.floor(Math.sqrt(this.shipVX * this.shipVX + this.shipVY * this.shipVY));
+    Game.UI.text(ctx, 'VEL: ' + spd, W / 2, 20, 10, '#888', 'center');
+
+    // Near planet prompt
+    if (this.nearPlanet >= 0) {
+      var pName = Game.PlanetData[this.nearPlanet].name;
+      var blink = Math.sin(this.time * 4) > 0;
+      if (blink) {
+        Game.UI.textBold(ctx, '[E] Pousar em ' + pName, W / 2, H - 80, 16, '#4caf50', 'center');
+      }
+    }
+
+    // Black hole warning
+    if (this.blackHoleWarning) {
+      var warnBlink = Math.sin(this.time * 8) > 0;
+      if (warnBlink) {
+        ctx.fillStyle = 'rgba(255,0,0,0.15)';
+        ctx.fillRect(0, 0, W, H);
+      }
+      Game.UI.textBold(ctx, 'PERIGO! BURACO NEGRO!', W / 2, 60, 18, '#ff0000', 'center');
+    }
+
+    // --- ON-SCREEN CONTROL BUTTONS ---
+    this.renderControls(ctx);
+
+    // Controls hint
+    Game.UI.text(ctx, 'A/D: Girar | W/ESPACO: Acelerar | S: Frear | E: Pousar | C: Cockpit | M: Musica',
+      W / 2, H - 15, 9, 'rgba(255,255,255,0.3)', 'center');
+  },
+
+  renderControls: function(ctx) {
+    var W = Game.CANVAS_W;
+    var H = Game.CANVAS_H;
+    var btnSize = 50;
+    var margin = 15;
+
+    // Left side: rotation buttons
+    var leftX = margin;
+    var btnY = H - btnSize - margin - 30;
+
+    // Rotate left button
+    this.drawControlBtn(ctx, leftX, btnY, btnSize, '<', this.pressing.left, 'rotLeft');
+    // Rotate right button
+    this.drawControlBtn(ctx, leftX + btnSize + 10, btnY, btnSize, '>', this.pressing.right, 'rotRight');
+
+    // Right side: thrust/brake
+    var rightX = W - btnSize * 2 - 10 - margin;
+    // Thrust button (big, green)
+    this.drawControlBtn(ctx, rightX + btnSize + 10, btnY - btnSize - 10, btnSize, '^', this.pressing.thrust, 'thrust');
+    // Brake button
+    this.drawControlBtn(ctx, rightX + btnSize + 10, btnY, btnSize, 'v', this.pressing.brake, 'brake');
+
+    // Handle mouse/touch on buttons
+    var mx = Game.Input.mouse.x;
+    var my = Game.Input.mouse.y;
+    var mDown = Game.Input.mouse.down;
+
+    this.pressing.left = false;
+    this.pressing.right = false;
+    this.pressing.thrust = false;
+    this.pressing.brake = false;
+
+    if (mDown) {
+      // Rotate left
+      if (mx >= leftX && mx <= leftX + btnSize && my >= btnY && my <= btnY + btnSize) {
+        this.pressing.left = true;
+      }
+      // Rotate right
+      if (mx >= leftX + btnSize + 10 && mx <= leftX + btnSize * 2 + 10 && my >= btnY && my <= btnY + btnSize) {
+        this.pressing.right = true;
+      }
+      // Thrust
+      if (mx >= rightX + btnSize + 10 && mx <= rightX + btnSize * 2 + 10 && my >= btnY - btnSize - 10 && my <= btnY - 10) {
+        this.pressing.thrust = true;
+      }
+      // Brake
+      if (mx >= rightX + btnSize + 10 && mx <= rightX + btnSize * 2 + 10 && my >= btnY && my <= btnY + btnSize) {
+        this.pressing.brake = true;
+      }
+    }
+  },
+
+  drawControlBtn: function(ctx, x, y, size, label, active, id) {
+    ctx.save();
+    ctx.globalAlpha = active ? 0.7 : 0.3;
+    ctx.fillStyle = active ? '#4caf50' : '#222';
+    ctx.fillRect(x, y, size, size);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+    if (active) {
+      ctx.fillStyle = '#4caf50';
+      ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+    }
+    ctx.restore();
+    Game.UI.textBold(ctx, label, x + size / 2, y + size / 2 - 3, 20, active ? '#fff' : '#888', 'center');
+  },
+
+  exit: function() {
+    Game.EntityManager.clear();
+  }
 };
 
 // ===========================
@@ -1847,9 +2283,9 @@ Game.scenes.PLANET_EXPLORE = {
         Game.ShopUI.open();
         if (Game.Audio) Game.Audio.sfx.menuSelect();
       } else if (this.nearRocket) {
-        // Go to cockpit to choose destination
+        // Go to free space exploration
         Game.Save.save(Game.saveData);
-        Game.changeStateImmediate(Game.States.COCKPIT);
+        Game.changeStateImmediate(Game.States.SPACE_FREE, { fromPlanet: this.planetIndex });
       } else if (this.nearEasterEgg && !Game.saveData.foundEasterEgg) {
         // Found easter egg!
         Game.saveData.foundEasterEgg = true;
