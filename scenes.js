@@ -943,6 +943,9 @@ Game.scenes.SPACE_FREE = {
     this.starfield.render(ctx);
     ctx.restore();
 
+    // --- SPACE DETAILS (nebulae, galaxies, comets, dust) ---
+    this.renderSpaceDetails(ctx);
+
     // --- RENDER WORLD OBJECTS ---
 
     // Black holes
@@ -980,31 +983,78 @@ Game.scenes.SPACE_FREE = {
       // Skip if off screen
       if (psx < -100 || psx > W + 100 || psy < -100 || psy > H + 100) continue;
 
-      var planetRadius = accessible ? 30 : 15;
+      var planetRadius = accessible ? 35 : 15;
       var planetColor = accessible ? planet.groundColor : '#333';
+
+      // Atmosphere glow (outer)
+      if (accessible) {
+        ctx.save();
+        ctx.globalAlpha = 0.08 + Math.sin(this.time * 0.5 + p) * 0.03;
+        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 18, planet.skyBottom || '#334', 5);
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 8, planet.skyTop || '#224', 4);
+        ctx.restore();
+      }
+
+      // Rings (Saturn-like for planets 5,7,11)
+      if (accessible && (p === 5 || p === 7 || p === 11)) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        for (var ri = -2; ri <= 2; ri++) {
+          var ringR = planetRadius + 14 + ri * 4;
+          var ringColor = ri === 0 ? '#c0a060' : '#806040';
+          // Horizontal ellipse as pixel dots
+          for (var ra = 0; ra < 20; ra++) {
+            var rang = Math.PI * 2 * ra / 20;
+            var rrx = psx + Math.cos(rang) * ringR;
+            var rry = psy + Math.sin(rang) * ringR * 0.3;
+            ctx.fillStyle = ringColor;
+            ctx.fillRect(rrx - 2, rry - 1, 4, 2);
+          }
+        }
+        ctx.restore();
+      }
 
       // Planet body (pixelated circle)
       Game.Pixel.drawCircle(ctx, psx, psy, planetRadius, planetColor, 3);
 
-      // Surface highlight
+      // Surface details (craters, continents)
       if (accessible) {
-        Game.Pixel.drawCircle(ctx, psx - 6, psy - 6, planetRadius * 0.4, planet.surfaceDetail || '#5cb85c', 3);
+        Game.Pixel.drawCircle(ctx, psx - 8, psy - 8, planetRadius * 0.35, planet.surfaceDetail || '#5cb85c', 3);
+        Game.Pixel.drawCircle(ctx, psx + 6, psy + 4, planetRadius * 0.2, planet.groundDark || '#2a5020', 3);
+        // Shadow side
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        Game.Pixel.drawCircle(ctx, psx + 10, psy + 5, planetRadius * 0.8, '#000', 4);
+        ctx.restore();
+      }
+
+      // Orbiting moon (for planets 0,1,4,8)
+      if (accessible && (p === 0 || p === 1 || p === 4 || p === 8)) {
+        var moonAngle = this.time * 0.8 + p * 2;
+        var moonDist = planetRadius + 22;
+        var moonX = psx + Math.cos(moonAngle) * moonDist;
+        var moonY = psy + Math.sin(moonAngle) * moonDist * 0.6;
+        Game.Pixel.drawCircle(ctx, moonX, moonY, 5, '#bbb', 2);
+        Game.Pixel.drawCircle(ctx, moonX - 1, moonY - 1, 2, '#ddd', 2);
       }
 
       // Name label
       var labelColor = p === this.nearPlanet ? '#4caf50' : (accessible ? '#aaa' : '#444');
-      Game.UI.text(ctx, planet.name, psx, psy + planetRadius + 12, 10, labelColor, 'center');
+      Game.UI.text(ctx, planet.name, psx, psy + planetRadius + 16, 10, labelColor, 'center');
 
       // Current planet indicator
       if (p === Game.saveData.currentPlanet) {
-        Game.Pixel.drawRing(ctx, psx, psy, planetRadius + 6, '#4caf50', 2, 3);
+        Game.Pixel.drawRing(ctx, psx, psy, planetRadius + 8, '#4caf50', 2, 3);
       }
 
       // Near planet glow
       if (p === this.nearPlanet) {
         ctx.save();
         ctx.globalAlpha = 0.2 + Math.sin(this.time * 4) * 0.1;
-        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 12, '#4caf50', 4);
+        Game.Pixel.drawCircle(ctx, psx, psy, planetRadius + 16, '#4caf50', 4);
         ctx.restore();
       }
     }
@@ -1118,9 +1168,38 @@ Game.scenes.SPACE_FREE = {
     // Coins (top right)
     Game.UI.text(ctx, '' + Game.saveData.coins, W - 60, 22, 14, '#ffd700', 'center');
 
-    // Speed indicator
-    var spd = Math.floor(Math.sqrt(this.shipVX * this.shipVX + this.shipVY * this.shipVY));
-    Game.UI.text(ctx, 'VEL: ' + spd, W / 2, 20, 10, '#888', 'center');
+    // Velocimeter (analog gauge)
+    var spd = Math.sqrt(this.shipVX * this.shipVX + this.shipVY * this.shipVY);
+    var spdPct = Math.min(1, spd / this.maxSpeed);
+    var gaugeX = W / 2, gaugeY = 40, gaugeR = 28;
+
+    // Gauge background
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(gaugeX - gaugeR - 4, gaugeY - gaugeR - 4, gaugeR * 2 + 8, gaugeR * 2 + 20);
+    Game.Pixel.drawCircle(ctx, gaugeX, gaugeY, gaugeR, '#111', 3);
+    Game.Pixel.drawRing(ctx, gaugeX, gaugeY, gaugeR, '#334', 2, 2);
+
+    // Speed arc markings
+    for (var sm = 0; sm < 10; sm++) {
+      var sma = -2.3 + sm * 0.5;
+      var smColor = sm < 6 ? '#4caf50' : (sm < 8 ? '#ff9800' : '#f44336');
+      ctx.fillStyle = smColor;
+      ctx.fillRect(gaugeX + Math.cos(sma) * (gaugeR - 6), gaugeY + Math.sin(sma) * (gaugeR - 6), 3, 3);
+    }
+
+    // Needle
+    var needleAngle = -2.3 + spdPct * 4.6;
+    ctx.fillStyle = spdPct > 0.8 ? '#f44336' : (spdPct > 0.5 ? '#ff9800' : '#4caf50');
+    for (var ni = 3; ni <= gaugeR - 8; ni += 3) {
+      ctx.fillRect(gaugeX + Math.cos(needleAngle) * ni - 1, gaugeY + Math.sin(needleAngle) * ni - 1, 2, 2);
+    }
+    // Center dot
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(gaugeX - 2, gaugeY - 2, 4, 4);
+
+    // Digital readout
+    Game.UI.textBold(ctx, Math.floor(spd) + '', gaugeX, gaugeY + gaugeR + 8, 10, '#fff', 'center');
+    Game.UI.text(ctx, 'km/s', gaugeX, gaugeY + gaugeR + 16, 7, '#666', 'center');
 
     // Near planet prompt
     if (this.nearPlanet >= 0) {
@@ -1319,6 +1398,93 @@ Game.scenes.SPACE_FREE = {
       ctx.fillRect(bxx, byy, 20, 12);
       ctx.fillStyle = '#222';
       ctx.fillRect(bxx + 1, byy + 1, 18, 10);
+    }
+  },
+
+  renderSpaceDetails: function(ctx) {
+    var W = Game.CANVAS_W, H = Game.CANVAS_H;
+    var cx = this.camX, cy = this.camY;
+
+    // Nebulae (large colored clouds, seeded by position)
+    var nebulaColors = ['#1a0030', '#002030', '#300020', '#002010', '#201000'];
+    for (var ni = 0; ni < 8; ni++) {
+      var nx = ((ni * 3571 + 1234) % 20000) - 5000;
+      var ny = ((ni * 2713 + 5678) % 16000) - 3000;
+      var nsx = nx - cx * 0.3;
+      var nsy = ny - cy * 0.3;
+      if (nsx < -300 || nsx > W + 300 || nsy < -200 || nsy > H + 200) continue;
+      var nColor = nebulaColors[ni % nebulaColors.length];
+      var nSize = 80 + (ni * 37 % 120);
+      ctx.save();
+      ctx.globalAlpha = 0.06 + Math.sin(this.time * 0.3 + ni) * 0.02;
+      // Draw cloud as cluster of pixel circles
+      Game.Pixel.drawCircle(ctx, nsx, nsy, nSize, nColor, 6);
+      Game.Pixel.drawCircle(ctx, nsx + nSize * 0.4, nsy - nSize * 0.3, nSize * 0.7, nColor, 6);
+      Game.Pixel.drawCircle(ctx, nsx - nSize * 0.3, nsy + nSize * 0.4, nSize * 0.6, nColor, 6);
+      ctx.restore();
+    }
+
+    // Distant galaxies (small spiral shapes)
+    for (var gi = 0; gi < 5; gi++) {
+      var gx = ((gi * 4937 + 2345) % 25000) - 8000;
+      var gy = ((gi * 3119 + 7890) % 20000) - 5000;
+      var gsx = gx - cx * 0.15;
+      var gsy = gy - cy * 0.15;
+      if (gsx < -50 || gsx > W + 50 || gsy < -50 || gsy > H + 50) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      // Galaxy core
+      ctx.fillStyle = '#ffeedd';
+      ctx.fillRect(gsx - 2, gsy - 2, 4, 4);
+      // Spiral arms as scattered dots
+      for (var sa = 0; sa < 12; sa++) {
+        var sAngle = sa * 0.5 + this.time * 0.1;
+        var sDist = 4 + sa * 2;
+        var sdx = gsx + Math.cos(sAngle) * sDist;
+        var sdy = gsy + Math.sin(sAngle) * sDist * 0.5;
+        ctx.fillStyle = sa < 6 ? '#aaccff' : '#8899cc';
+        ctx.fillRect(sdx - 1, sdy - 1, 2, 2);
+      }
+      ctx.restore();
+    }
+
+    // Comets (moving streaks)
+    var cometSeed = Math.floor(this.time * 0.1);
+    for (var ci = 0; ci < 2; ci++) {
+      var cPhase = (this.time * 0.3 + ci * 5.7) % 10;
+      if (cPhase > 8) continue; // comet visible 80% of time
+      var cBaseX = ((ci * 6173 + cometSeed * 1000) % 3000) - 500;
+      var cBaseY = ((ci * 4231 + cometSeed * 800) % 2000) - 500;
+      var csx = cBaseX + cPhase * 120 - cx * 0.2;
+      var csy = cBaseY + cPhase * 30 - cy * 0.2;
+      if (csx < -100 || csx > W + 100 || csy < -50 || csy > H + 50) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      // Head
+      ctx.fillStyle = '#ddeeff';
+      ctx.fillRect(csx - 2, csy - 2, 4, 4);
+      // Tail (trailing pixels)
+      for (var ct = 1; ct <= 8; ct++) {
+        ctx.globalAlpha = 0.4 - ct * 0.04;
+        ctx.fillStyle = ct < 4 ? '#aaddff' : '#6699cc';
+        ctx.fillRect(csx - ct * 8 - 1, csy - ct * 2 - 1, 3, 2);
+      }
+      ctx.restore();
+    }
+
+    // Space dust clouds (faint pixel clusters)
+    for (var di = 0; di < 15; di++) {
+      var dx = ((di * 2851 + 4567) % 12000) - 3000;
+      var dy = ((di * 1973 + 8901) % 10000) - 2000;
+      var dsx = dx - cx * 0.05;
+      var dsy = dy - cy * 0.05;
+      if (dsx < -20 || dsx > W + 20 || dsy < -20 || dsy > H + 20) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.04 + Math.sin(this.time * 0.2 + di) * 0.01;
+      ctx.fillStyle = di % 3 === 0 ? '#443322' : (di % 3 === 1 ? '#223344' : '#332244');
+      ctx.fillRect(dsx - 6, dsy - 3, 12, 6);
+      ctx.fillRect(dsx - 3, dsy - 6, 6, 12);
+      ctx.restore();
     }
   },
 
@@ -3059,6 +3225,10 @@ Game.scenes.PLANET_EXPLORE = {
     this.alienSpawnTimer = 3 + Math.random() * 5;
     this.astronaut.hp = this.astronaut.maxHp;
     this.astronaut.shootCooldown = 0;
+    this.bossSpawned = false;
+    this.bossDefeated = false;
+    this.bossSpawnTimer = 30 + Math.random() * 30; // boss after 30-60s
+    this.killCount = 0;
 
     // Spawn initial resources
     this.resources = [];
@@ -3256,6 +3426,162 @@ Game.scenes.PLANET_EXPLORE = {
         }
       }
     }
+
+    // --- SUPER BOSS SPAWN ---
+    if (!this.bossSpawned && !this.bossDefeated) {
+      this.bossSpawnTimer -= dt;
+      if (this.bossSpawnTimer <= 0 || this.killCount >= 10) {
+        this.bossSpawned = true;
+        Game.showMessage('BOSS APARECEU! Prepare-se para a batalha!', 3);
+        Game.triggerShake(8, 0.5);
+        if (Game.Audio) Game.Audio.sfx.warning();
+
+        var bossX = this.astronaut.x + (Math.random() < 0.5 ? 300 : -300);
+        bossX = Math.max(100, Math.min(this.terrainWidth - 100, bossX));
+        var bossGroundY = this.terrain[Math.min(Math.floor(bossX), this.terrain.length - 1)];
+        var bossHP = 150 + this.planetIndex * 30;
+        var self = this;
+
+        Game.EntityManager.add('enemies', {
+          x: bossX, y: bossGroundY - 40, radius: 30, hp: bossHP, maxHp: bossHP,
+          active: true, isBoss: true, facing: 1, animTime: 0,
+          attackTimer: 2, phaseTimer: 0, phase: 0,
+          groundY: bossGroundY,
+          update: function(dt2) {
+            this.animTime += dt2;
+            this.phaseTimer += dt2;
+            var ast = Game.scenes.PLANET_EXPLORE.astronaut;
+            var dx = ast.x - this.x;
+            this.facing = dx > 0 ? 1 : -1;
+
+            // Movement phases
+            if (this.phase === 0) {
+              // Chase
+              if (Math.abs(dx) > 60) this.x += this.facing * 70 * dt2;
+              if (this.phaseTimer > 4) { this.phase = 1; this.phaseTimer = 0; }
+            } else if (this.phase === 1) {
+              // Jump attack
+              this.y -= 200 * dt2;
+              if (this.phaseTimer > 0.5) { this.phase = 2; this.phaseTimer = 0; }
+            } else if (this.phase === 2) {
+              // Slam down
+              this.y += 300 * dt2;
+              var gx2 = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
+              var gy2 = Game.scenes.PLANET_EXPLORE.terrain[Math.max(0, gx2)];
+              if (this.y >= gy2 - 40) {
+                this.y = gy2 - 40;
+                Game.triggerShake(6, 0.3);
+                // Shockwave - damage nearby
+                if (Math.abs(dx) < 120) {
+                  ast.hp = Math.max(0, ast.hp - 15);
+                  Game.addFloatingText('-15 HP', ast.x, ast.y - 30, '#f44336');
+                  if (Game.Audio) Game.Audio.sfx.damage();
+                }
+                // Spawn projectiles
+                for (var bp = 0; bp < 3; bp++) {
+                  var bpDir = -1 + bp;
+                  Game.EntityManager.add('particles', {
+                    x: this.x + bpDir * 40, y: this.y, radius: 5, active: true,
+                    vx: bpDir * 150, vy: -100, life: 1.5, color: '#ff4081', isEnemyBullet: true,
+                    update: function(dt3) {
+                      this.x += this.vx * dt3; this.y += this.vy * dt3;
+                      this.vy += 200 * dt3;
+                      this.life -= dt3; if (this.life <= 0) this.active = false;
+                    },
+                    render: function(ctx2, ox, oy) {
+                      ctx2.fillStyle = this.color;
+                      ctx2.fillRect(this.x - (ox||0) - 4, this.y - (oy||0) - 4, 8, 8);
+                    }
+                  });
+                }
+                this.phase = 0; this.phaseTimer = 0;
+              }
+            }
+
+            // Stay on ground (phase 0)
+            if (this.phase === 0) {
+              var gx3 = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
+              if (gx3 >= 0) this.y = Game.scenes.PLANET_EXPLORE.terrain[gx3] - 40;
+            }
+
+            // Contact damage
+            if (Math.abs(dx) < 35 && Math.abs(ast.y - this.y) < 40) {
+              if (!this._hitCD || this._hitCD <= 0) {
+                ast.hp = Math.max(0, ast.hp - 20);
+                this._hitCD = 1.5;
+                Game.triggerShake(5, 0.2);
+                if (Game.Audio) Game.Audio.sfx.damage();
+                Game.addFloatingText('-20 HP', ast.x, ast.y - 30, '#f44336');
+              }
+            }
+            if (this._hitCD > 0) this._hitCD -= dt2;
+          },
+          render: function(ctx2, ox, oy) {
+            var sx = this.x - (ox||0), sy = this.y - (oy||0);
+            var pulse = 1 + Math.sin(this.animTime * 4) * 0.05;
+            var r = this.radius * pulse;
+            // Body
+            Game.Pixel.drawCircle(ctx2, sx, sy, r, '#b71c1c', 3);
+            Game.Pixel.drawCircle(ctx2, sx, sy - 5, r * 0.7, '#d32f2f', 3);
+            // Crown/horns
+            ctx2.fillStyle = '#ff6f00';
+            ctx2.fillRect(sx - 18, sy - r - 6, 6, 12);
+            ctx2.fillRect(sx + 12, sy - r - 6, 6, 12);
+            ctx2.fillRect(sx - 6, sy - r - 10, 12, 6);
+            // Eyes (glowing)
+            var eyeGlow = Math.sin(this.animTime * 6) > 0 ? '#ffeb3b' : '#ff9800';
+            Game.Pixel.drawCircle(ctx2, sx - 8, sy - 8, 5, eyeGlow, 2);
+            Game.Pixel.drawCircle(ctx2, sx + 8, sy - 8, 5, eyeGlow, 2);
+            ctx2.fillStyle = '#000';
+            ctx2.fillRect(sx - 9, sy - 9, 3, 3);
+            ctx2.fillRect(sx + 7, sy - 9, 3, 3);
+            // HP bar above boss
+            var hpPct = this.hp / this.maxHp;
+            ctx2.fillStyle = '#000';
+            ctx2.fillRect(sx - 30, sy - r - 20, 60, 6);
+            ctx2.fillStyle = hpPct > 0.5 ? '#f44336' : '#ff6f00';
+            ctx2.fillRect(sx - 29, sy - r - 19, 58 * hpPct, 4);
+            Game.UI.text(ctx2, 'BOSS', sx, sy - r - 24, 8, '#ff4081', 'center');
+          },
+          takeDamage: function(dmg) {
+            this.hp -= dmg;
+            Game.spawnParticles(this.x, this.y, 4, '#f44336', 0.5);
+            if (this.hp <= 0) {
+              this.active = false;
+              self.bossDefeated = true;
+              // Mega explosion
+              Game.spawnParticles(this.x, this.y, 30, '#ff9800', 2);
+              Game.spawnParticles(this.x, this.y, 20, '#ffeb3b', 1.5);
+              Game.spawnParticles(this.x, this.y, 15, '#f44336', 1.8);
+              Game.triggerShake(15, 1);
+              if (Game.Audio) Game.Audio.sfx.explosion();
+              if (Game.Audio) Game.Audio.sfx.milestone();
+              // Drop powerful reward
+              var reward = 50 + self.planetIndex * 20;
+              Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, reward));
+              Game.addFloatingText('+' + reward + ' BOSS DROP!', this.x, this.y - 40, '#ff4081', 20);
+              // Bonus: permanent stat boost
+              var bonusTypes = ['engine', 'fuelTank', 'heatShield', 'armor', 'laser'];
+              var bonusKey = bonusTypes[self.planetIndex % bonusTypes.length];
+              if (Game.saveData.rocketParts[bonusKey] < 4) {
+                Game.saveData.rocketParts[bonusKey]++;
+                Game.showMessage('BOSS DERROTADO! Upgrade ' + bonusKey.toUpperCase() + ' gratis!', 4);
+              } else {
+                Game.saveData.fuel = Game.getRocketStats(Game.saveData).maxFuel;
+                Game.showMessage('BOSS DERROTADO! Fuel completo!', 4);
+              }
+              Game.Save.save(Game.saveData);
+            }
+          }
+        });
+      }
+    }
+
+    // Track kills for boss trigger
+    var prevEnemyCount = this._prevEnemyCount || 0;
+    var curEnemyCount = Game.EntityManager.enemies.length;
+    if (curEnemyCount < prevEnemyCount) this.killCount += (prevEnemyCount - curEnemyCount);
+    this._prevEnemyCount = curEnemyCount;
 
     // --- ASTRONAUT HP CHECK ---
     if (this.astronaut.hp <= 0) {
