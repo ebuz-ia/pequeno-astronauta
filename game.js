@@ -398,7 +398,11 @@ Game.ShopData = {
     { key: 'engine', name: 'Motor', desc: '+15% velocidade', baseCost: 100, costScale: 1.8, maxLevel: 4, color: '#f44336', icon: 'engine' },
     { key: 'fuelTank', name: 'Tanque', desc: '+50 fuel max', baseCost: 80, costScale: 1.6, maxLevel: 4, color: '#2196f3', icon: 'tank' },
     { key: 'heatShield', name: 'Escudo', desc: '-15% dano', baseCost: 120, costScale: 2.0, maxLevel: 4, color: '#ff9800', icon: 'shield' },
-    { key: 'nozzle', name: 'Bocal', desc: '-20% cooldown', baseCost: 90, costScale: 1.7, maxLevel: 4, color: '#9c27b0', icon: 'nozzle' }
+    { key: 'nozzle', name: 'Bocal', desc: '-20% cooldown tiro', baseCost: 90, costScale: 1.7, maxLevel: 4, color: '#9c27b0', icon: 'nozzle' },
+    { key: 'armor', name: 'Armadura', desc: '+25 HP max', baseCost: 150, costScale: 1.9, maxLevel: 4, color: '#607d8b', icon: 'armor' },
+    { key: 'laser', name: 'Laser', desc: '+20% dano tiro', baseCost: 200, costScale: 2.0, maxLevel: 3, color: '#00bcd4', icon: 'laser' },
+    { key: 'magnet', name: 'Ima de Moedas', desc: '+30% raio coleta', baseCost: 80, costScale: 1.5, maxLevel: 3, color: '#ffd700', icon: 'magnet' },
+    { key: 'radar', name: 'Radar', desc: 'Detecta inimigos', baseCost: 250, costScale: 2.2, maxLevel: 2, color: '#4caf50', icon: 'radar' }
   ],
 
   skins: [
@@ -425,7 +429,10 @@ Game.getRocketStats = function(saveData) {
     maxFuel: (150 + parts.fuelTank * 50) * tier.fuelMult,
     damageReduction: parts.heatShield * 0.15,
     fireCooldown: Math.max(100, 400 - parts.nozzle * 80),
-    maxHp: 100 * tier.hpMult,
+    maxHp: (100 + (parts.armor || 0) * 25) * tier.hpMult,
+    damageBonus: 1 + (parts.laser || 0) * 0.2,
+    coinMagnet: 30 + (parts.magnet || 0) * 10,
+    radarRange: (parts.radar || 0) > 0 ? 300 + (parts.radar || 0) * 150 : 0,
     tier: tier
   };
 };
@@ -443,7 +450,7 @@ Game.Save = {
       visitedPlanets: [0], // array of visited planet indices
       targetPlanet: -1, // selected destination from cockpit
       fuel: 9999,
-      rocketParts: { engine: 0, fuelTank: 0, heatShield: 0, nozzle: 0 },
+      rocketParts: { engine: 0, fuelTank: 0, heatShield: 0, nozzle: 0, armor: 0, laser: 0, magnet: 0, radar: 0 },
       shotSkin: 'default',
       unlockedSkins: ['default'],
       hasRobot: false,

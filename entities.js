@@ -78,61 +78,119 @@ Game.Sprites.flame[2] = [
 ];
 
 // --- Astronaut (12 wide x 16 tall) ---
+// Space Marine astronaut (14x16) - helmet with visor, armor, gun arm
+var V = '#1565c0'; // visor blue
+var A = '#546e7a'; // armor gray-blue
+var Ab = '#37474f'; // armor dark
+var Ag = '#78909c'; // armor light
+
 Game.Sprites.astronautIdle = [
-  [_,_,_,_,W,W,W,W,_,_,_,_],
-  [_,_,_,W,G,G,G,G,W,_,_,_],
-  [_,_,_,W,G,C,C,G,W,_,_,_],
-  [_,_,_,W,G,C,'#1565c0',C,W,_,_,_],
-  [_,_,_,W,G,C,C,G,W,_,_,_],
-  [_,_,_,_,W,G,G,W,_,_,_,_],
-  [_,_,W,W,W,W,W,W,W,W,_,_],
-  [_,_,W,W,W,W,W,W,W,W,_,_],
-  [_,D,W,W,W,W,W,W,W,W,D,_],
-  [_,D,_,W,W,W,W,W,W,_,D,_],
-  [_,_,_,W,W,W,W,W,W,_,_,_],
-  [_,_,_,W,W,_,_,W,W,_,_,_],
-  [_,_,_,W,W,_,_,W,W,_,_,_],
-  [_,_,W,W,W,_,_,W,W,W,_,_],
-  [_,_,K,K,K,_,_,K,K,K,_,_],
-  [_,_,_,_,_,_,_,_,_,_,_,_]
+  [_,_,_,_,_,G,G,G,G,_,_,_,_,_],
+  [_,_,_,_,G,A,A,A,A,G,_,_,_,_],
+  [_,_,_,G,A,V,V,V,V,A,G,_,_,_],
+  [_,_,_,G,A,V,C,C,V,A,G,_,_,_],
+  [_,_,_,_,G,A,A,A,A,G,_,_,_,_],
+  [_,_,_,_,_,G,G,G,_,_,_,_,_,_],
+  [_,_,_,A,Ab,Ab,Ab,Ab,Ab,A,_,_,_,_],
+  [_,_,A,A,Ag,Ag,Ag,Ag,Ag,A,A,_,_,_],
+  [_,A,A,A,A,A,R,A,A,A,A,A,D,D],
+  [_,A,_,A,A,Ab,Ab,Ab,A,A,_,A,D,D],
+  [_,_,_,A,Ab,Ab,Ab,Ab,Ab,A,_,_,_,_],
+  [_,_,_,A,A,A,_,A,A,A,_,_,_,_],
+  [_,_,_,Ab,A,_,_,_,A,Ab,_,_,_,_],
+  [_,_,Ab,Ab,_,_,_,_,Ab,Ab,_,_,_,_],
+  [_,_,K,K,K,_,_,_,K,K,K,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,_]
 ];
 
 Game.Sprites.astronautWalk1 = [
-  [_,_,_,_,W,W,W,W,_,_,_,_],
-  [_,_,_,W,G,G,G,G,W,_,_,_],
-  [_,_,_,W,G,C,C,G,W,_,_,_],
-  [_,_,_,W,G,C,'#1565c0',C,W,_,_,_],
-  [_,_,_,W,G,C,C,G,W,_,_,_],
-  [_,_,_,_,W,G,G,W,_,_,_,_],
-  [_,_,W,W,W,W,W,W,W,W,_,_],
-  [_,_,W,W,W,W,W,W,W,W,_,_],
-  [_,D,W,W,W,W,W,W,W,W,D,_],
-  [_,D,_,W,W,W,W,W,W,_,D,_],
-  [_,_,_,W,W,W,W,W,W,_,_,_],
-  [_,_,_,_,W,W,W,W,_,_,_,_],
-  [_,_,_,W,W,_,_,_,W,_,_,_],
-  [_,_,W,W,_,_,_,_,W,W,_,_],
-  [_,_,K,K,_,_,_,_,K,K,_,_],
-  [_,_,_,_,_,_,_,_,_,_,_,_]
+  [_,_,_,_,_,G,G,G,G,_,_,_,_,_],
+  [_,_,_,_,G,A,A,A,A,G,_,_,_,_],
+  [_,_,_,G,A,V,V,V,V,A,G,_,_,_],
+  [_,_,_,G,A,V,C,C,V,A,G,_,_,_],
+  [_,_,_,_,G,A,A,A,A,G,_,_,_,_],
+  [_,_,_,_,_,G,G,G,_,_,_,_,_,_],
+  [_,_,_,A,Ab,Ab,Ab,Ab,Ab,A,_,_,_,_],
+  [_,_,A,A,Ag,Ag,Ag,Ag,Ag,A,A,_,_,_],
+  [_,A,A,A,A,A,R,A,A,A,A,A,D,D],
+  [_,A,_,A,A,Ab,Ab,Ab,A,A,_,A,D,D],
+  [_,_,_,A,Ab,Ab,Ab,Ab,Ab,A,_,_,_,_],
+  [_,_,_,_,A,A,A,A,A,_,_,_,_,_],
+  [_,_,_,A,A,_,_,_,_,A,_,_,_,_],
+  [_,_,A,A,_,_,_,_,_,A,A,_,_,_],
+  [_,_,K,K,_,_,_,_,_,K,K,_,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,_]
 ];
 
 Game.Sprites.astronautJump = [
-  [_,_,_,_,W,W,W,W,_,_,_,_],
-  [_,_,_,W,G,G,G,G,W,_,_,_],
-  [_,_,_,W,G,C,C,G,W,_,_,_],
-  [_,_,_,W,G,C,'#1565c0',C,W,_,_,_],
-  [_,_,_,W,G,C,C,G,W,_,_,_],
-  [_,_,_,_,W,G,G,W,_,_,_,_],
-  [_,D,W,W,W,W,W,W,W,W,D,_],
-  [_,D,W,W,W,W,W,W,W,W,D,_],
-  [_,_,W,W,W,W,W,W,W,W,_,_],
-  [_,_,_,W,W,W,W,W,W,_,_,_],
-  [_,_,_,W,W,W,W,W,W,_,_,_],
-  [_,_,_,W,_,_,_,_,W,_,_,_],
-  [_,_,W,W,_,_,_,_,W,W,_,_],
-  [_,W,W,_,_,_,_,_,_,W,W,_],
-  [_,K,K,_,_,_,_,_,_,K,K,_],
-  [_,_,_,_,_,_,_,_,_,_,_,_]
+  [_,_,_,_,_,G,G,G,G,_,_,_,_,_],
+  [_,_,_,_,G,A,A,A,A,G,_,_,_,_],
+  [_,_,_,G,A,V,V,V,V,A,G,_,_,_],
+  [_,_,_,G,A,V,C,C,V,A,G,_,_,_],
+  [_,_,_,_,G,A,A,A,A,G,_,_,_,_],
+  [_,_,_,_,_,G,G,G,_,_,_,_,_,_],
+  [_,A,A,Ab,Ab,Ab,Ab,Ab,Ab,A,A,_,_,_],
+  [_,A,A,A,Ag,Ag,Ag,Ag,Ag,A,A,A,D,D],
+  [_,_,A,A,A,A,R,A,A,A,A,_,D,D],
+  [_,_,_,A,A,Ab,Ab,Ab,A,A,_,_,_,_],
+  [_,_,_,A,Ab,Ab,Ab,Ab,Ab,A,_,_,_,_],
+  [_,_,_,A,_,_,_,_,_,A,_,_,_,_],
+  [_,_,A,A,_,_,_,_,_,A,A,_,_,_],
+  [_,A,A,_,_,_,_,_,_,_,A,A,_,_],
+  [_,K,K,_,_,_,_,_,_,_,K,K,_,_],
+  [_,_,_,_,_,_,_,_,_,_,_,_,_,_]
+];
+
+// Alien sprites (10x12 each)
+var Gr = '#4caf50'; // alien green
+var Gd = '#2e7d32'; // alien dark green
+var Pu = '#9c27b0'; // alien purple
+var Pd = '#6a1b9a'; // alien dark purple
+var Re = '#f44336'; // red eye
+
+Game.Sprites.alienGreen = [
+  [_,_,_,Gr,Gr,Gr,Gr,_,_,_],
+  [_,_,Gr,Gd,Gd,Gd,Gd,Gr,_,_],
+  [_,Gr,Gd,Re,Gd,Gd,Re,Gd,Gr,_],
+  [_,Gr,Gd,Re,W,Gd,Re,W,Gr,_],
+  [_,_,Gr,Gd,Gd,Gd,Gd,Gr,_,_],
+  [_,_,_,Gr,Gd,Gd,Gr,_,_,_],
+  [_,_,Gr,Gr,Gr,Gr,Gr,Gr,_,_],
+  [_,Gr,_,Gr,Gr,Gr,Gr,_,Gr,_],
+  [Gr,_,_,Gr,_,_,Gr,_,_,Gr],
+  [_,_,_,Gr,_,_,Gr,_,_,_],
+  [_,_,Gr,Gr,_,_,Gr,Gr,_,_],
+  [_,_,Gd,_,_,_,_,Gd,_,_]
+];
+
+Game.Sprites.alienPurple = [
+  [_,_,_,_,Pu,Pu,_,_,_,_],
+  [_,_,Pu,Pu,Pd,Pd,Pu,Pu,_,_],
+  [_,Pu,Pd,Pd,Pd,Pd,Pd,Pd,Pu,_],
+  [Pu,Pd,Y,Y,Pd,Pd,Y,Y,Pd,Pu],
+  [Pu,Pd,Y,W,Pd,Pd,Y,W,Pd,Pu],
+  [_,Pu,Pd,Pd,R,R,Pd,Pd,Pu,_],
+  [_,_,Pu,Pd,Pd,Pd,Pd,Pu,_,_],
+  [_,Pu,Pu,Pu,Pu,Pu,Pu,Pu,Pu,_],
+  [Pu,_,Pu,_,Pu,Pu,_,Pu,_,Pu],
+  [_,_,Pu,_,_,_,_,Pu,_,_],
+  [_,Pu,Pd,_,_,_,_,Pd,Pu,_],
+  [_,Pd,_,_,_,_,_,_,Pd,_]
+];
+
+Game.Sprites.alienRed = [
+  [_,_,_,R,R,R,R,_,_,_],
+  [_,_,R,D,D,D,D,R,_,_],
+  [_,R,D,Y,D,D,Y,D,R,_],
+  [_,R,D,Y,Y,D,Y,Y,R,_],
+  [_,R,D,D,D,D,D,D,R,_],
+  [R,R,D,D,R,R,D,D,R,R],
+  [R,_,R,R,R,R,R,R,_,R],
+  [_,_,R,D,R,R,D,R,_,_],
+  [_,R,R,_,R,R,_,R,R,_],
+  [_,R,_,_,_,_,_,_,R,_],
+  [R,_,_,_,_,_,_,_,_,R],
+  [_,_,_,_,_,_,_,_,_,_]
 ];
 
 // --- Meteor (10x10) ---
@@ -639,8 +697,11 @@ Game.EnemyShip.prototype.render = function(ctx, ox, oy) {
 Game.Astronaut = function(x, y) {
   this.x = x;
   this.y = y;
-  this.width = 36; // 12 * 3
+  this.width = 42; // 14 * 3
   this.height = 48; // 16 * 3
+  this.shootCooldown = 0;
+  this.hp = 100;
+  this.maxHp = 100;
   this.vx = 0;
   this.vy = 0;
   this.speed = 160;

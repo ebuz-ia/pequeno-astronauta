@@ -976,8 +976,7 @@ Game.scenes.SPACE_FREE = {
       Game.UI.textBold(ctx, 'PERIGO! BURACO NEGRO!', W / 2, 60, 18, '#ff0000', 'center');
     }
 
-    // --- COCKPIT INTERIOR OVERLAY ---
-    this.renderCockpitOverlay(ctx);
+    // Cockpit overlay removed - user prefers wider view
 
     // --- MINIMAP (bottom right corner) ---
     this.renderMinimap(ctx);
@@ -1163,7 +1162,7 @@ Game.scenes.SPACE_FREE = {
     var H = Game.CANVAS_H;
     var mapW = 160, mapH = 130;
     var mapX = W - mapW - 15;
-    var mapY = H - mapH - 140; // above cockpit dashboard
+    var mapY = H - mapH - 80; // bottom right
 
     // Background
     ctx.save();
@@ -2892,6 +2891,23 @@ Game.scenes.PLANET_EXPLORE = {
     Game.EntityManager.clear();
     this.nearShop = false;
     this.nearRocket = false;
+    this.alienSpawnTimer = 3 + Math.random() * 5;
+    this.astronaut.hp = this.astronaut.maxHp;
+    this.astronaut.shootCooldown = 0;
+
+    // Spawn initial resources
+    this.resources = [];
+    var numResources = 5 + Math.floor(Math.random() * 5);
+    for (var ri = 0; ri < numResources; ri++) {
+      var rx = 100 + Math.floor(Math.random() * (this.terrainWidth - 200));
+      this.resources.push({
+        x: rx, y: this.terrain[Math.min(rx, this.terrain.length - 1)] - 15,
+        type: Math.random() < 0.6 ? 'mineral' : 'crystal',
+        collected: false,
+        value: Math.random() < 0.6 ? (5 + Math.floor(Math.random() * 10)) : (10 + Math.floor(Math.random() * 15))
+      });
+    }
+
     if (Game.Audio && Game.Audio.initialized) Game.Audio.playPlanetMusic(this.planetIndex);
   },
 
@@ -2959,6 +2975,132 @@ Game.scenes.PLANET_EXPLORE = {
 
     // Update astronaut
     this.astronaut.update(dt, this.terrain, planet.gravity);
+
+    // --- ASTRONAUT SHOOTING (SPACE key) ---
+    this.astronaut.shootCooldown = (this.astronaut.shootCooldown || 0) - dt * 1000;
+    if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0) {
+      this.astronaut.shootCooldown = 300;
+      var bdir = this.astronaut.facing;
+      var bx = this.astronaut.x + bdir * 20;
+      var by = this.astronaut.y - 8;
+      Game.EntityManager.add('bullets', {
+        x: bx, y: by, vx: bdir * 400, vy: 0, radius: 4, damage: 15,
+        color: '#4fc3f7', life: 1, active: true,
+        update: function(dt2) { this.x += this.vx * dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+        render: function(ctx2, ox, oy) {
+          ctx2.fillStyle = this.color;
+          ctx2.fillRect(this.x - (ox||0) - 4, this.y - (oy||0) - 2, 8, 4);
+        }
+      });
+      if (Game.Audio) Game.Audio.sfx.shoot();
+    }
+
+    // --- ALIEN SPAWNING ---
+    this.alienSpawnTimer -= dt;
+    if (this.alienSpawnTimer <= 0) {
+      this.alienSpawnTimer = 4 + Math.random() * 6;
+      var alienTypes = [Game.Sprites.alienGreen, Game.Sprites.alienPurple, Game.Sprites.alienRed];
+      var alienType = this.planetIndex % 3;
+      var alienSprite = alienTypes[alienType];
+      var alienX = this.astronaut.x + (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 200);
+      alienX = Math.max(50, Math.min(this.terrainWidth - 50, alienX));
+      var alienGroundY = this.terrain[Math.min(Math.floor(alienX), this.terrain.length - 1)];
+
+      Game.EntityManager.add('enemies', {
+        x: alienX, y: alienGroundY - 18, radius: 15, hp: 20 + this.planetIndex * 5,
+        active: true, sprite: alienSprite, facing: 1, animTimer: 0,
+        coinDrop: 5 + this.planetIndex * 3 + Math.floor(Math.random() * 5),
+        groundY: alienGroundY,
+        update: function(dt2) {
+          this.animTimer += dt2;
+          // Chase astronaut
+          var ast = Game.scenes.PLANET_EXPLORE.astronaut;
+          var dx = ast.x - this.x;
+          this.facing = dx > 0 ? 1 : -1;
+          if (Math.abs(dx) > 30) {
+            this.x += this.facing * (40 + Game.scenes.PLANET_EXPLORE.planetIndex * 8) * dt2;
+          }
+          // Stay on ground
+          var gx = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
+          if (gx >= 0 && gx < Game.scenes.PLANET_EXPLORE.terrain.length) {
+            this.groundY = Game.scenes.PLANET_EXPLORE.terrain[gx];
+            this.y = this.groundY - 18;
+          }
+          // Damage astronaut on contact
+          if (Math.abs(dx) < 25 && Math.abs(ast.y - this.y) < 30) {
+            if (!this._hitCooldown || this._hitCooldown <= 0) {
+              ast.hp = Math.max(0, ast.hp - 10);
+              this._hitCooldown = 1;
+              Game.triggerShake(4, 0.15);
+              if (Game.Audio) Game.Audio.sfx.damage();
+              Game.addFloatingText('-10 HP', ast.x, ast.y - 30, '#f44336');
+            }
+          }
+          if (this._hitCooldown > 0) this._hitCooldown -= dt2;
+          // Despawn if too far
+          if (Math.abs(this.x - ast.x) > 800) this.active = false;
+        },
+        render: function(ctx2, ox, oy) {
+          Game.Pixel.drawCentered(ctx2, this.sprite, this.x - (ox||0), this.y - (oy||0), 3, this.facing === -1);
+        },
+        takeDamage: function(dmg) {
+          this.hp -= dmg;
+          Game.spawnParticles(this.x, this.y, 3, '#4caf50', 0.5);
+          if (this.hp <= 0) {
+            this.active = false;
+            Game.spawnParticles(this.x, this.y, 10, '#4caf50', 1);
+            Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
+            Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 20, '#ffd700');
+            if (Game.Audio) Game.Audio.sfx.explosion();
+          }
+        }
+      });
+    }
+
+    // --- BULLET vs ALIEN COLLISION ---
+    var bullets = Game.EntityManager.bullets;
+    var enemies = Game.EntityManager.enemies;
+    for (var bi = bullets.length - 1; bi >= 0; bi--) {
+      var bul = bullets[bi];
+      if (!bul.active) continue;
+      for (var ei = enemies.length - 1; ei >= 0; ei--) {
+        var ene = enemies[ei];
+        if (!ene.active || !ene.takeDamage) continue;
+        var edx = bul.x - ene.x, edy = bul.y - ene.y;
+        if (Math.sqrt(edx * edx + edy * edy) < bul.radius + ene.radius) {
+          bul.active = false;
+          ene.takeDamage(bul.damage || 15);
+          break;
+        }
+      }
+    }
+
+    // --- COLLECT RESOURCES ---
+    if (this.resources) {
+      for (var ri = 0; ri < this.resources.length; ri++) {
+        var res = this.resources[ri];
+        if (res.collected) continue;
+        var rdx = this.astronaut.x - res.x;
+        var rdy = this.astronaut.y - res.y;
+        if (Math.abs(rdx) < 25 && Math.abs(rdy) < 30) {
+          res.collected = true;
+          Game.saveData.coins += res.value;
+          Game.addFloatingText('+' + res.value, res.x, res.y - 15, res.type === 'mineral' ? '#ff9800' : '#4fc3f7');
+          if (Game.Audio) Game.Audio.sfx.coin();
+          if (Game.Milestones) Game.Milestones.check(Game.saveData.coins);
+        }
+      }
+    }
+
+    // --- ASTRONAUT HP CHECK ---
+    if (this.astronaut.hp <= 0) {
+      Game.showMessage('Voce foi derrotado! Voltando ao foguete...', 2);
+      this.astronaut.hp = this.astronaut.maxHp;
+      this.astronaut.x = this.rocketPadPos.x;
+      this.astronaut.y = this.rocketPadPos.y - 20;
+      Game.saveData.coins = Math.floor(Game.saveData.coins * 0.9);
+      Game.Save.save(Game.saveData);
+    }
 
     // Camera follow
     Game.Camera.follow(this.astronaut, dt);
@@ -3105,14 +3247,40 @@ Game.scenes.PLANET_EXPLORE = {
       }
     }
 
+    // Resources on ground
+    if (this.resources) {
+      for (var ri = 0; ri < this.resources.length; ri++) {
+        var res = this.resources[ri];
+        if (res.collected) continue;
+        var rsx = res.x - camX;
+        if (rsx < -30 || rsx > Game.CANVAS_W + 30) continue;
+        var resSprite = res.type === 'mineral' ? Game.Sprites.mineral : Game.Sprites.fuelCrystal;
+        Game.Pixel.drawCentered(ctx, resSprite, rsx, res.y, 3);
+        // Small glow
+        ctx.save();
+        ctx.globalAlpha = 0.2 + Math.sin(this.time * 3 + ri) * 0.1;
+        ctx.fillStyle = res.type === 'mineral' ? '#ff9800' : '#4fc3f7';
+        ctx.fillRect(rsx - 6, res.y - 6, 12, 12);
+        ctx.restore();
+      }
+    }
+
     // Astronaut
     this.astronaut.render(ctx, camX, 0);
 
-    // Particles
+    // Particles + enemies
     Game.EntityManager.renderAll(ctx, camX, 0);
 
     // HUD
     Game.UI.renderExploreHUD(ctx, Game.saveData);
+
+    // HP bar
+    var hpPct = this.astronaut.hp / this.astronaut.maxHp;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(15, 30, 82, 12);
+    ctx.fillStyle = hpPct > 0.5 ? '#4caf50' : (hpPct > 0.25 ? '#ff9800' : '#f44336');
+    ctx.fillRect(16, 31, 80 * hpPct, 10);
+    Game.UI.text(ctx, 'HP ' + Math.floor(this.astronaut.hp), 56, 34, 8, '#fff', 'center');
 
     // Easter egg found indicator
     if (Game.saveData.foundEasterEgg) {
