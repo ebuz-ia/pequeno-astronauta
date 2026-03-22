@@ -402,7 +402,7 @@ Game.ShopData = {
     { key: 'armor', name: 'Armadura', desc: '+25 HP max', baseCost: 150, costScale: 1.9, maxLevel: 4, color: '#607d8b', icon: 'armor' },
     { key: 'laser', name: 'Laser', desc: '+20% dano tiro', baseCost: 200, costScale: 2.0, maxLevel: 3, color: '#00bcd4', icon: 'laser' },
     { key: 'magnet', name: 'Ima de Moedas', desc: '+30% raio coleta', baseCost: 80, costScale: 1.5, maxLevel: 3, color: '#ffd700', icon: 'magnet' },
-    { key: 'radar', name: 'Radar', desc: 'Detecta inimigos', baseCost: 250, costScale: 2.2, maxLevel: 2, color: '#4caf50', icon: 'radar' }
+    { key: 'radar', name: 'Esquadrao', desc: '+1 nave aliada', baseCost: 250, costScale: 2.2, maxLevel: 2, color: '#4caf50', icon: 'radar' }
   ],
 
   skins: [

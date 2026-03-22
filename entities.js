@@ -732,9 +732,9 @@ Game.Astronaut.prototype.update = function(dt, terrain, gravity) {
     this.walking = true;
   }
 
-  // Jump
-  if (this.onGround && (inp.wasPressed(' ') || inp.wasPressed('ArrowUp') || inp.wasPressed('w') || inp.wasPressed('W'))) {
-    this.vy = this.jumpForce * (gravity < 0.5 ? 0.7 : 1); // Lower jump on low gravity (already floaty)
+  // Jump (UP/W only - SPACE is for shooting)
+  if (this.onGround && (inp.wasPressed('ArrowUp') || inp.wasPressed('w') || inp.wasPressed('W'))) {
+    this.vy = this.jumpForce * (gravity < 0.5 ? 0.7 : 1);
   }
 
   // Gravity

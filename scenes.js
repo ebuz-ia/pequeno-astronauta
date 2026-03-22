@@ -281,6 +281,9 @@ Game.scenes.SPACE_FREE = {
   blackHoleWarning: false,
   blackHoleTimer: 0,
 
+  // Squadron (wingmen)
+  wingmen: [],
+
   enter: function(data) {
     this.time = 0;
     this.starfield = new Game.Starfield(400);
@@ -289,6 +292,19 @@ Game.scenes.SPACE_FREE = {
     this.nearPlanet = -1;
     this.blackHoleWarning = false;
     this.blackHoleTimer = 0;
+
+    // Spawn wingmen based on upgrade level
+    this.wingmen = [];
+    var squadLevel = Game.saveData.rocketParts.radar || 0;
+    for (var wi = 0; wi < squadLevel; wi++) {
+      this.wingmen.push({
+        x: 0, y: 0,
+        offsetAngle: (wi + 1) * (Math.PI * 2 / (squadLevel + 1)),
+        orbitDist: 60 + wi * 25,
+        shootTimer: 1 + Math.random() * 2,
+        flameFrame: Math.floor(Math.random() * 3)
+      });
+    }
 
     // Position ship at current planet
     var cp = Game.PlanetData[Game.saveData.currentPlanet];
@@ -829,6 +845,43 @@ Game.scenes.SPACE_FREE = {
       }
     }
 
+    // --- WINGMEN UPDATE ---
+    for (var wi = 0; wi < this.wingmen.length; wi++) {
+      var wm = this.wingmen[wi];
+      // Orbit around player
+      wm.x = this.shipX + Math.cos(this.time * 1.5 + wm.offsetAngle) * wm.orbitDist;
+      wm.y = this.shipY + Math.sin(this.time * 1.5 + wm.offsetAngle) * wm.orbitDist;
+      wm.flameFrame = (wm.flameFrame + dt * 10) % 3;
+
+      // Auto-shoot at nearest enemy
+      wm.shootTimer -= dt;
+      if (wm.shootTimer <= 0) {
+        var nearestEnemy = null, nearestDist = 350;
+        var allEnemies = Game.EntityManager.enemies.concat(Game.EntityManager.meteors);
+        for (var ne = 0; ne < allEnemies.length; ne++) {
+          var enemy = allEnemies[ne];
+          if (!enemy.active) continue;
+          var ndx = enemy.x - wm.x, ndy = enemy.y - wm.y;
+          var nd = Math.sqrt(ndx * ndx + ndy * ndy);
+          if (nd < nearestDist) { nearestDist = nd; nearestEnemy = enemy; }
+        }
+        if (nearestEnemy) {
+          wm.shootTimer = 1.5 + Math.random();
+          var wdx = nearestEnemy.x - wm.x, wdy = nearestEnemy.y - wm.y;
+          var wd = Math.sqrt(wdx * wdx + wdy * wdy);
+          Game.EntityManager.add('bullets', {
+            x: wm.x, y: wm.y, vx: (wdx / wd) * 400, vy: (wdy / wd) * 400,
+            radius: 3, damage: 8, color: '#81d4fa', life: 1.5, active: true,
+            update: function(dt2) { this.x += this.vx * dt2; this.y += this.vy * dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+            render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x - (ox||0) - 2, this.y - (oy||0) - 2, 4, 4); }
+          });
+          if (Game.Audio) Game.Audio.sfx.robotShoot();
+        } else {
+          wm.shootTimer = 0.5;
+        }
+      }
+    }
+
     // Update starfield (parallax with camera)
     this.starfield.update(dt, 'none');
 
@@ -937,6 +990,22 @@ Game.scenes.SPACE_FREE = {
     }
 
     ctx.restore();
+
+    // --- WINGMEN ---
+    for (var wi = 0; wi < this.wingmen.length; wi++) {
+      var wm = this.wingmen[wi];
+      var wmsx = wm.x - this.camX;
+      var wmsy = wm.y - this.camY;
+      // Face toward ship center
+      var wmAngle = Math.atan2(this.shipX - wm.x, -(this.shipY - wm.y));
+      ctx.save();
+      ctx.translate(wmsx, wmsy);
+      ctx.rotate(wmAngle);
+      // Small rocket (scale 2 instead of 3)
+      Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, 0, 0, 2);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.flame[Math.floor(wm.flameFrame)], 0, 30, 2);
+      ctx.restore();
+    }
 
     // --- HUD ---
     // Fuel bar (top left)
