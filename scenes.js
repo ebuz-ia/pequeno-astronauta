@@ -361,7 +361,7 @@ Game.scenes.SPACE_FREE = {
     // Normal shot (Space or shoot button)
     this.fireCooldown = (this.fireCooldown || 0) - dt * 1000;
     this.bombCooldown = (this.bombCooldown || 0) - dt * 1000;
-    var shooting = Game.Input.keys[' '] || this.pressing.shoot;
+    var shooting = Game.Input.keys[' '] || this.pressing.shoot || Game.Input.mouse.down;
     var bombing = Game.Input.wasPressed('b') || Game.Input.wasPressed('B') || this.pressing.bomb;
 
     if (Game.saveData.ammo === undefined) { Game.saveData.ammo = 50; Game.saveData.maxAmmo = 50; }
@@ -4082,7 +4082,7 @@ Game.scenes.PLANET_EXPLORE = {
     var weapon = Game.saveData.currentWeapon || 'blaster';
     var weaponCooldowns = { blaster: 300, shotgun: 500, laser: 150, missile: 800, plasma: 400 };
     var weaponAmmo = { blaster: 1, shotgun: 3, laser: 1, missile: 2, plasma: 1 };
-    if (Game.Input.keys[' '] && this.astronaut.shootCooldown <= 0 && Game.saveData.ammo >= (weaponAmmo[weapon] || 1)) {
+    if ((Game.Input.keys[' '] || Game.Input.mouse.down) && this.astronaut.shootCooldown <= 0 && Game.saveData.ammo >= (weaponAmmo[weapon] || 1)) {
       Game.saveData.ammo -= (weaponAmmo[weapon] || 1);
       this.astronaut.shootCooldown = weaponCooldowns[weapon] || 300;
       var bdir = this.astronaut.facing;
