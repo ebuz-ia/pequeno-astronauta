@@ -1179,26 +1179,42 @@ Game.scenes.SPACE_FREE = {
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // Starfield with glow (parallax offset)
-    ctx.save();
-    ctx.translate(-this.camX * 0.1 % W, -this.camY * 0.1 % H);
-    // Render stars with soft glow instead of hard pixels
+    // Infinite tiling starfield (3 parallax layers)
     if (this.starfield && this.starfield.stars) {
-      for (var si = 0; si < this.starfield.stars.length; si++) {
-        var star = this.starfield.stars[si];
-        var twinkle = 0.5 + Math.sin(this.time * 2 + si * 0.7) * 0.3;
-        ctx.save();
-        ctx.globalAlpha = star.alpha * twinkle;
-        ctx.shadowColor = star.color || '#fff';
-        ctx.shadowBlur = star.size * 2;
-        ctx.fillStyle = star.color || '#fff';
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size * 0.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+      var layers = [0.05, 0.1, 0.2]; // parallax speeds
+      for (var li = 0; li < layers.length; li++) {
+        var speed = layers[li];
+        var offX = (-this.camX * speed) % W;
+        var offY = (-this.camY * speed) % H;
+        // Ensure positive modulo
+        if (offX > 0) offX -= W;
+        if (offY > 0) offY -= H;
+
+        for (var si = 0; si < this.starfield.stars.length; si++) {
+          var star = this.starfield.stars[si];
+          if (star.layer !== li) continue;
+          var twinkle = 0.5 + Math.sin(this.time * 2 + si * 0.7) * 0.3;
+
+          // Draw at 4 tiled positions (2x2 grid) to cover all scroll directions
+          for (var tx = 0; tx < 2; tx++) {
+            for (var ty = 0; ty < 2; ty++) {
+              var sx = star.x + offX + tx * W;
+              var sy = star.y + offY + ty * H;
+              if (sx < -5 || sx > W + 5 || sy < -5 || sy > H + 5) continue;
+              ctx.save();
+              ctx.globalAlpha = (star.brightness || 0.7) * twinkle;
+              ctx.shadowColor = star.color || '#fff';
+              ctx.shadowBlur = star.size * 2;
+              ctx.fillStyle = star.color || '#fff';
+              ctx.beginPath();
+              ctx.arc(sx, sy, star.size * 0.5, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+        }
       }
     }
-    ctx.restore();
 
     // --- SPACE DETAILS (nebulae, galaxies, comets, dust) ---
     this.renderSpaceDetailsSmooth(ctx);
