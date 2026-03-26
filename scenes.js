@@ -4154,9 +4154,9 @@ Game.scenes.PLANET_EXPLORE = {
       if (Game.Audio) Game.Audio.sfx.shoot();
     }
 
-    // --- ALIEN SPAWNING ---
+    // --- ALIEN SPAWNING (nao spawna na Terra) ---
     this.alienSpawnTimer -= dt;
-    if (this.alienSpawnTimer <= 0) {
+    if (this.alienSpawnTimer <= 0 && this.planetIndex > 0) {
       this.alienSpawnTimer = 4 + Math.random() * 6;
       // Multiple alien types per planet (random pick, weighted by planet)
       var alienPool = [Game.Sprites.alienGreen, Game.Sprites.alienPurple, Game.Sprites.alienRed];
@@ -4283,7 +4283,7 @@ Game.scenes.PLANET_EXPLORE = {
 
     // --- SUPER BOSS SPAWN (only after exploring + killing aliens) ---
     var alreadyDefeatedBoss = Game.saveData.bossesDefeated && Game.saveData.bossesDefeated.indexOf(this.planetIndex) >= 0;
-    if (!this.bossSpawned && !this.bossDefeated && !alreadyDefeatedBoss) {
+    if (!this.bossSpawned && !this.bossDefeated && !alreadyDefeatedBoss && this.planetIndex > 0) {
       this.bossSpawnTimer -= dt;
       // Boss requires: 5+ kills AND timer expired
       if (this.killCount >= 5 && this.bossSpawnTimer <= 0) {
