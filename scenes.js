@@ -73,9 +73,14 @@ Game.scenes.LAUNCH_BASE = {
     if (Game.Input.wasPressed(' ') || Game.Input.wasPressed('Enter')) {
       this.startLaunch();
     }
-    if (this.btnBounds && Game.Input.mouse.clicked) {
-      if (Game.UI.isMouseInRect(this.btnBounds.x, this.btnBounds.y, this.btnBounds.w, this.btnBounds.h)) {
+    if (Game.Input.mouse.clicked) {
+      if (this.btnBounds && Game.UI.isMouseInRect(this.btnBounds.x, this.btnBounds.y, this.btnBounds.w, this.btnBounds.h)) {
         this.startLaunch();
+      }
+      if (this.creativeBounds && Game.UI.isMouseInRect(this.creativeBounds.x, this.creativeBounds.y, this.creativeBounds.w, this.creativeBounds.h)) {
+        Game.godMode = !Game.godMode;
+        if (Game.Audio) Game.Audio.sfx.easterEgg();
+        Game.showMessage(Game.godMode ? 'MODO CRIATIVO ATIVADO! Recursos infinitos!' : 'Modo criativo desativado. Boa sorte, explorador!', 3);
       }
     }
   },
@@ -185,6 +190,22 @@ Game.scenes.LAUNCH_BASE = {
       ctx.restore();
 
       this.btnBounds = Game.UI.button(ctx, 'LANCAR', btnX, btnY, btnW, btnH, hovered, '#ff6b35');
+
+      // "MODO CRIATIVO" button (smaller, below LANCAR)
+      var crW = 140, crH = 30;
+      var crX = Game.CANVAS_W / 2 - crW / 2;
+      var crY = btnY - 45;
+      var crHovered = Game.UI.isMouseInRect(crX, crY, crW, crH);
+      ctx.fillStyle = crHovered ? '#2a1a4a' : '#1a1030';
+      ctx.fillRect(crX, crY, crW, crH);
+      ctx.strokeStyle = Game.godMode ? '#e040fb' : '#6a4a8a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(crX, crY, crW, crH);
+      var crLabel = Game.godMode ? 'CRIATIVO: ON' : 'MODO CRIATIVO';
+      var crColor = Game.godMode ? '#e040fb' : '#9a7aba';
+      Game.UI.textBold(ctx, crLabel, crX + crW / 2, crY + 10, 11, crColor, 'center');
+      Game.UI.text(ctx, 'Recursos infinitos', crX + crW / 2, crY + 22, 8, '#666', 'center');
+      this.creativeBounds = { x: crX, y: crY, w: crW, h: crH };
 
       // Save hint
       var save = Game.Save.load();
