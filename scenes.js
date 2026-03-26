@@ -487,7 +487,7 @@ Game.scenes.SPACE_FREE = {
         Game.saveData.coins = Math.floor(Game.saveData.coins * 0.8);
         Game.saveData.currentPlanet = 0; // volta para Terra
         Game.Save.save(Game.saveData);
-        Game.showMessage('Nave destruida! Retornando a Terra com 30% fuel', 3);
+        Game.showMessage('Sua nave se despedacou no vazio do espaco... Os destrocos flutuam em silencio. Um sinal de emergencia te puxa de volta a Terra.', 5);
         var terra = Game.PlanetData[0];
         this.shipX = terra.gx * this.worldScale;
         this.shipY = terra.gy * this.worldScale + 80;
@@ -572,7 +572,7 @@ Game.scenes.SPACE_FREE = {
       this.portalActive = true;
       this.portalX = this.shipX + 2000;
       this.portalY = this.shipY - 1000;
-      Game.showMessage('O PORTAL DA ESMERALDA se abriu! Encontre-o no mapa!', 4);
+      Game.showMessage('A Esmeralda pulsa com uma energia antiga... Um portal misterioso rasgou o tecido do espaco! Algo terrivel espera do outro lado.', 6);
     }
     if (this.portalActive) {
       var pdx = this.portalX - this.shipX, pdy = this.portalY - this.shipY;
@@ -588,7 +588,7 @@ Game.scenes.SPACE_FREE = {
         this.finalBossPhase = 0;
         this.finalBossTimer = 0;
         this.finalBossAttackTimer = 3;
-        Game.showMessage('BOSS FINAL: IMPERADOR DAS TREVAS!', 4);
+        Game.showMessage('O universo treme... Uma presenca milenar desperta. O IMPERADOR DAS TREVAS surgiu das profundezas do cosmos. Prepare-se para a batalha final!', 6);
         Game.triggerShake(15, 1);
         if (Game.Audio) Game.Audio.sfx.warning();
         if (Game.Audio) Game.Audio.sfx.easterEgg();
@@ -708,7 +708,7 @@ Game.scenes.SPACE_FREE = {
       this.blackHoleWarning = true;
       if (!this._boundaryWarned) {
         this._boundaryWarned = true;
-        Game.showMessage('PERIGO! Borda da galaxia! Buracos negros por toda parte!', 3);
+        Game.showMessage('ALERTA CRITICO! Voce esta alem dos limites da galaxia conhecida! Forcas gravitacionais desconhecidas puxam sua nave. VOLTE AGORA!', 5);
         if (Game.Audio) Game.Audio.sfx.warning();
       }
     } else {
@@ -753,7 +753,7 @@ Game.scenes.SPACE_FREE = {
         life: 5,
         warned: false
       };
-      Game.showMessage('COMETA HALLEY DETECTADO! DESVIE!', 3);
+      Game.showMessage('ALARME! O Cometa Halley esta em rota de colisao! Sua cauda de fogo ilumina o espaco. DESVIE OU SERA DESTRUIDO!', 5);
       if (Game.Audio) Game.Audio.sfx.warning();
     }
     if (this.activeComet) {
@@ -775,7 +775,7 @@ Game.scenes.SPACE_FREE = {
         for (var cp = 0; cp < 50; cp++) Game.spawnParticles(this.shipX, this.shipY, 1, ['#ff9800','#ffeb3b','#f44336'][cp%3], 2);
         Game.triggerShake(25, 2);
         if (Game.Audio) Game.Audio.sfx.explosion();
-        Game.showMessage('ATINGIDO PELO COMETA HALLEY!', 3);
+        Game.showMessage('IMPACTO! O cometa Halley atingiu sua nave em cheio! O casco se parte, sistemas falhando... Tudo escurece.', 5);
       }
       if (comet.life <= 0) this.activeComet = null;
     }
@@ -846,7 +846,7 @@ Game.scenes.SPACE_FREE = {
         this.shipY = safeP.gy * this.worldScale + 80;
         this.shipVX = 0;
         this.shipVY = 0;
-        Game.showMessage('Sugado pelo buraco negro! -30% moedas, -50% fuel', 3);
+        Game.showMessage('A gravidade te engoliu... Sua nave gira descontrolada dentro do buraco negro. Por um milagre, voce escapou, mas a um custo terrivel.', 5);
         Game.Save.save(Game.saveData);
       }
     }
@@ -3059,7 +3059,7 @@ Game.RepairPuzzle = {
   complete: function() {
     this.active = false;
     Game.subState = Game.SubStates.NONE;
-    Game.showMessage('Foguete reparado!', 2);
+    Game.showMessage('Os reparos estao completos! O casco brilha como novo. Hora de voltar ao vazio!', 3);
     Game.spawnParticles(Game.CANVAS_W / 2, Game.CANVAS_H / 2, 20, '#4caf50', 1.5);
     if (this.onComplete) this.onComplete();
   },
@@ -3318,7 +3318,7 @@ Game.scenes.FLIGHT = {
     // Black hole encounter (at 40-60% of flight)
     if (this.blackHole && !this.blackHoleSucking && altPct > 0.4 && altPct < 0.6 && !this.blackHoleWarned) {
       this.blackHoleWarned = true;
-      Game.showMessage('PERIGO! PERIGO! Buraco negro ' + this.blackHole.name + '!', 4);
+      Game.showMessage('PERIGO! PERIGO! A area de succao do buraco negro ' + this.blackHole.name + ' esta puxando sua nave! Os motores lutam contra a gravidade!', 5);
       if (Game.Audio) Game.Audio.sfx.warning();
       Game.triggerShake(8, 2);
     }
@@ -3346,7 +3346,7 @@ Game.scenes.FLIGHT = {
         // Game over - return to cockpit
         Game.subState = Game.SubStates.GAMEOVER;
         this.gameOverTimer = 4;
-        Game.showMessage('Foguete destruido pelo buraco negro!', 4);
+        Game.showMessage('Sua nave nao resistiu... A gravidade esmagadora do buraco negro engoliu tudo. So restou silencio.', 5);
         // Lose some coins but not all
         Game.saveData.coins = Math.floor(Game.saveData.coins * 0.7);
         Game.saveData.fuel = Math.max(10, Game.saveData.fuel * 0.5);
@@ -3527,7 +3527,7 @@ Game.scenes.FLIGHT = {
       }
       Game.saveData.fuel = this.rocket.fuel;
       Game.Save.save(Game.saveData);
-      Game.showMessage('Chegou em ' + Game.PlanetData[nextPlanetIdx].name + '!', 2);
+      Game.showMessage('Apos cruzar o vazio infinito, voce avista ' + Game.PlanetData[nextPlanetIdx].name + ' surgindo no horizonte. Um novo mundo te espera!', 5);
       if (Game.Audio) Game.Audio.sfx.milestone();
       Game.changeStateImmediate(Game.States.COCKPIT);
       return;
@@ -3537,7 +3537,7 @@ Game.scenes.FLIGHT = {
     if (this.rocket.parachute && !this.rocket.active) {
       Game.saveData.fuel = 0;
       Game.Save.save(Game.saveData);
-      Game.showMessage('Fuel esgotado! Voltando para ' + Game.PlanetData[currentPlanet].name, 2);
+      Game.showMessage('Os tanques estao vazios... Os motores morrem no silencio do espaco. A gravidade de ' + Game.PlanetData[currentPlanet].name + ' te puxa de volta.', 5);
       Game.changeStateImmediate(Game.States.COCKPIT);
       return;
     }
@@ -3547,9 +3547,9 @@ Game.scenes.FLIGHT = {
     var type = Math.random() < 0.5 ? 'meteor_shower' : 'enemy_fleet';
     this.eventActive = { type: type, timer: 5, spawnTimer: 0 };
     if (type === 'meteor_shower') {
-      Game.showMessage('CHUVA DE METEOROS!', 2);
+      Game.showMessage('O ceu se ilumina com uma chuva mortal de meteoros! Fragmentos de mundos destruidos vem em sua direcao!', 4);
     } else {
-      Game.showMessage('FROTA INIMIGA!', 2);
+      Game.showMessage('Sensores detectam uma frota inimiga se aproximando! Dezenas de naves hostis cercam voce!', 4);
     }
     Game.triggerShake(4, 0.5);
   },
@@ -4308,7 +4308,7 @@ Game.scenes.PLANET_EXPLORE = {
       // Boss requires: 5+ kills AND timer expired
       if (this.killCount >= 5 && this.bossSpawnTimer <= 0) {
         this.bossSpawned = true;
-        Game.showMessage('A TERRA TREME... O GUARDIAO E SUA GUARDA APARECERAM!', 4);
+        Game.showMessage('O chao racha sob seus pes... Uma energia sombria emerge das profundezas. O GUARDIAO deste mundo despertou, e trouxe sua guarda de elite!', 6);
         Game.triggerShake(8, 0.5);
         if (Game.Audio) Game.Audio.sfx.warning();
 
@@ -4533,9 +4533,9 @@ Game.scenes.PLANET_EXPLORE = {
                 Game.addFloatingText('FRAGMENTO DE ESMERALDA!', this.x, this.y - 60, '#4caf50', 20);
 
                 if (Game.saveData.emeraldShards >= 5) {
-                  Game.showMessage('ESMERALDA COMPLETA! Um portal se abriu no espaco...', 5);
+                  Game.showMessage('Os 5 fragmentos se unem num brilho cegante... A ESMERALDA COSMICA esta completa! O tecido do espaco-tempo se rasga e um portal ancestral se abre!', 7);
                 } else {
-                  Game.showMessage('Fragmento ' + Game.saveData.emeraldShards + '/5 da Esmeralda! Derrote mais guardioes!', 4);
+                  Game.showMessage('Um fragmento da Esmeralda Cosmica brilha em suas maos! ' + Game.saveData.emeraldShards + ' de 5 coletados. A energia antiga pulsa... busque os outros guardioes!', 6);
                 }
               }
 
@@ -4561,7 +4561,7 @@ Game.scenes.PLANET_EXPLORE = {
 
     // --- ASTRONAUT HP CHECK ---
     if (this.astronaut.hp <= 0) {
-      Game.showMessage('Voce foi derrotado! Voltando ao foguete...', 2);
+      Game.showMessage('Seu corpo cai no chao alienigena... A visao escurece. Um pulso de emergencia do traje te teletransporta de volta ao foguete. Voce sobreviveu, por pouco.', 5);
       this.astronaut.hp = this.astronaut.maxHp;
       this.astronaut.x = this.rocketPadPos.x;
       this.astronaut.y = this.rocketPadPos.y - 20;
@@ -4657,7 +4657,7 @@ Game.scenes.PLANET_EXPLORE = {
         Game.saveData.foundEasterEgg = true;
         Game.Save.save(Game.saveData);
         this.easterEggPos = null;
-        Game.showMessage('NUCLEO ESTELAR encontrado! -30% consumo fuel!', 4);
+        Game.showMessage('Uma luz dourada emana do chao... O NUCLEO ESTELAR! Uma reliquia de uma civilizacao extinta que reduz drasticamente o consumo de fuel!', 6);
         Game.spawnParticles(this.astronaut.x, this.astronaut.y - 20, 30, '#e040fb', 2);
         if (Game.Audio) Game.Audio.sfx.easterEgg();
         Game.triggerShake(6, 0.5);
@@ -4988,7 +4988,7 @@ Game.scenes.PLANET_EXPLORE = {
     if ((rktHovered && Game.Input.mouse.clicked) || Game.Input.wasPressed('f') || Game.Input.wasPressed('F')) {
       this.astronaut.x = this.rocketPadPos.x;
       this.astronaut.y = this.rocketPadPos.y - 20;
-      Game.showMessage('Teletransportado ao foguete!', 1.5);
+      Game.showMessage('Um flash de luz e voce esta de volta ao foguete. O motor ronrona, pronto para decolar.', 3);
     }
 
     // Scrap counter
