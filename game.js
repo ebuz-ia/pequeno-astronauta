@@ -743,6 +743,13 @@ Game.loop = function(timestamp) {
   if (Game.Milestones) Game.Milestones.update(dt);
   if (Game.updateFloatingTexts) Game.updateFloatingTexts(dt);
 
+  // Infinite fuel + coins (dev/test mode)
+  if (Game.saveData) {
+    if (Game.saveData.coins < 999999) Game.saveData.coins = 999999;
+    if (Game.saveData.fuel < 9999) Game.saveData.fuel = 9999;
+    if (Game.saveData.ammo !== undefined && Game.saveData.ammo < 999) Game.saveData.ammo = 999;
+  }
+
   if (!Game.paused && Game.scenes[Game.state]) {
     Game.scenes[Game.state].update(dt);
   }
