@@ -270,7 +270,7 @@ Game.scenes.SPACE_FREE = {
   bombCooldown: 0,
 
   // Planets in world space
-  worldScale: 800, // pixels per gx/gy unit
+  worldScale: 1200, // pixels per gx/gy unit (more spread out)
   nearPlanet: -1,
 
   // Flame
@@ -698,7 +698,7 @@ Game.scenes.SPACE_FREE = {
     }
 
     // --- MAP BOUNDARY (black holes push back) ---
-    var mapLimit = 12000; // world radius
+    var mapLimit = 18000; // world radius (covers all 15 planets at scale 1200)
     var distFromCenter = Math.sqrt(this.shipX * this.shipX + this.shipY * this.shipY);
     if (distFromCenter > mapLimit) {
       // Strong push toward center
