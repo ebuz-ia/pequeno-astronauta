@@ -484,11 +484,12 @@ Game.scenes.SPACE_FREE = {
         var stats2 = Game.getRocketStats(Game.saveData);
         Game.saveData.fuel = Math.floor(stats2.maxFuel * 0.3);
         Game.saveData.coins = Math.floor(Game.saveData.coins * 0.8);
+        Game.saveData.currentPlanet = 0; // volta para Terra
         Game.Save.save(Game.saveData);
-        Game.showMessage('Nave destruida! Reconstruida com 30% fuel, -20% moedas', 3);
-        var safeP2 = Game.PlanetData[Game.saveData.currentPlanet];
-        this.shipX = safeP2.gx * this.worldScale;
-        this.shipY = safeP2.gy * this.worldScale + 80;
+        Game.showMessage('Nave destruida! Retornando a Terra com 30% fuel', 3);
+        var terra = Game.PlanetData[0];
+        this.shipX = terra.gx * this.worldScale;
+        this.shipY = terra.gy * this.worldScale + 80;
         this.shipVX = 0;
         this.shipVY = 0;
       }
