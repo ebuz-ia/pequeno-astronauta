@@ -743,8 +743,8 @@ Game.loop = function(timestamp) {
   if (Game.Milestones) Game.Milestones.update(dt);
   if (Game.updateFloatingTexts) Game.updateFloatingTexts(dt);
 
-  // Infinite fuel + coins (dev/test mode)
-  if (Game.saveData) {
+  // Cheat code: digitar GODMODE ativa infinito
+  if (Game.godMode && Game.saveData) {
     if (Game.saveData.coins < 999999) Game.saveData.coins = 999999;
     if (Game.saveData.fuel < 9999) Game.saveData.fuel = 9999;
     if (Game.saveData.ammo !== undefined && Game.saveData.ammo < 999) Game.saveData.ammo = 999;
@@ -833,6 +833,20 @@ Game.init = function() {
 
   // Init milestones
   if (Game.Milestones) Game.Milestones.init();
+
+  // Cheat code detector: digitar GODMODE
+  Game.godMode = false;
+  Game.cheatBuffer = '';
+  window.addEventListener('keydown', function(e) {
+    Game.cheatBuffer += e.key.toUpperCase();
+    if (Game.cheatBuffer.length > 20) Game.cheatBuffer = Game.cheatBuffer.slice(-20);
+    if (Game.cheatBuffer.indexOf('GODMODE') >= 0) {
+      Game.godMode = !Game.godMode;
+      Game.cheatBuffer = '';
+      Game.showMessage(Game.godMode ? 'GOD MODE ATIVADO!' : 'GOD MODE DESATIVADO', 3);
+      if (Game.Audio) Game.Audio.sfx.easterEgg();
+    }
+  });
   window.addEventListener('resize', Game.resize);
 
   Game.state = Game.States.LAUNCH_BASE;
