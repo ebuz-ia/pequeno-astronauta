@@ -361,7 +361,8 @@ Game.scenes.SPACE_FREE = {
     // Normal shot (Space or shoot button)
     this.fireCooldown = (this.fireCooldown || 0) - dt * 1000;
     this.bombCooldown = (this.bombCooldown || 0) - dt * 1000;
-    var shooting = Game.Input.keys[' '] || this.pressing.shoot || Game.Input.mouse.down;
+    var mouseShoot = Game.Input.mouse.down && !this.pressing.anyControl;
+    var shooting = Game.Input.keys[' '] || this.pressing.shoot || mouseShoot;
     var bombing = Game.Input.wasPressed('b') || Game.Input.wasPressed('B') || this.pressing.bomb;
 
     if (Game.saveData.ammo === undefined) { Game.saveData.ammo = 50; Game.saveData.maxAmmo = 50; }
@@ -2302,6 +2303,8 @@ Game.scenes.SPACE_FREE = {
       if (hitIn(px, py, actionX, actionY, bs, bs)) this.pressing.shoot = true;
       if (hitIn(px, py, bombX, actionY, bs, bs)) this.pressing.bomb = true;
     }
+    // Track if mouse is on any control button (to prevent shooting when clicking controls)
+    this.pressing.anyControl = this.pressing.left || this.pressing.right || this.pressing.thrust || this.pressing.brake;
   },
 
   drawControlBtn: function(ctx, x, y, size, label, active, id) {
