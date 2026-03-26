@@ -3840,9 +3840,9 @@ Game.scenes.PLANET_EXPLORE = {
     this.terrain = Game.TerrainGenerator.generate(this.planetIndex, this.terrainWidth);
 
     // Place main structures spread across terrain
-    this.rocketPadPos.x = Math.floor(this.terrainWidth * 0.1); // rocket pad near start
+    this.rocketPadPos.x = Math.floor(this.terrainWidth * 0.5); // rocket pad no centro
     this.rocketPadPos.y = this.terrain[this.rocketPadPos.x];
-    this.shopPos.x = Math.floor(this.terrainWidth * 0.2);
+    this.shopPos.x = Math.floor(this.terrainWidth * 0.45); // loja perto do centro
     this.shopPos.y = this.terrain[this.shopPos.x];
 
     // Flatten terrain around structures
