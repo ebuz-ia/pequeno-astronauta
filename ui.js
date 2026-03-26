@@ -409,19 +409,26 @@ Game.ShopUI = {
     // Check which parts are available on this planet
     var planet = Game.PlanetData[saveData.currentPlanet];
 
-    for (var i = 0; i < parts.length; i++) {
-      var part = parts[i];
+    // Filter to only available parts on this planet
+    var planetIdx = Game.saveData.currentPlanet || 0;
+    var visibleParts = [];
+    for (var fi = 0; fi < parts.length; fi++) {
+      var avail = Game.ShopData.isPartAvailable ? Game.ShopData.isPartAvailable(parts[fi].key, planetIdx) : true;
+      if (avail) visibleParts.push(parts[fi]);
+    }
+
+    for (var i = 0; i < visibleParts.length; i++) {
+      var part = visibleParts[i];
       var col = i % 2;
       var row = Math.floor(i / 2);
       var cx = startX + col * gapX;
       var cy = py + row * gapY;
-      var planetIdx = Game.saveData.currentPlanet || 0;
       var level = saveData.rocketParts[part.key] || 0;
       var effectiveMax = Game.ShopData.getPartMaxLevel ? Game.ShopData.getPartMaxLevel(part.key, planetIdx) : part.maxLevel;
       var maxed = level >= effectiveMax;
       var cost = Game.ShopData.getPartCost(part.key, level, planetIdx);
       var canBuy = !maxed && cost > 0 && saveData.coins >= cost;
-      var available = Game.ShopData.isPartAvailable ? Game.ShopData.isPartAvailable(part.key, planetIdx) : (planet.shopItems.indexOf(part.key) !== -1);
+      var available = true; // already filtered above
       var discount = Game.ShopData.getPlanetDiscount ? Game.ShopData.getPlanetDiscount(planetIdx) : 0;
       var hovered = available && Game.UI.isMouseInRect(cx, cy, cardW, cardH);
 
