@@ -415,11 +415,14 @@ Game.ShopUI = {
       var row = Math.floor(i / 2);
       var cx = startX + col * gapX;
       var cy = py + row * gapY;
+      var planetIdx = Game.saveData.currentPlanet || 0;
       var level = saveData.rocketParts[part.key] || 0;
-      var maxed = level >= part.maxLevel;
-      var cost = Game.ShopData.getPartCost(part.key, level);
-      var canBuy = !maxed && saveData.coins >= cost;
-      var available = planet.shopItems.indexOf(part.key) !== -1;
+      var effectiveMax = Game.ShopData.getPartMaxLevel ? Game.ShopData.getPartMaxLevel(part.key, planetIdx) : part.maxLevel;
+      var maxed = level >= effectiveMax;
+      var cost = Game.ShopData.getPartCost(part.key, level, planetIdx);
+      var canBuy = !maxed && cost > 0 && saveData.coins >= cost;
+      var available = Game.ShopData.isPartAvailable ? Game.ShopData.isPartAvailable(part.key, planetIdx) : (planet.shopItems.indexOf(part.key) !== -1);
+      var discount = Game.ShopData.getPlanetDiscount ? Game.ShopData.getPlanetDiscount(planetIdx) : 0;
       var hovered = available && Game.UI.isMouseInRect(cx, cy, cardW, cardH);
 
       // Card background
@@ -435,18 +438,27 @@ Game.ShopUI = {
 
       // Name + level
       Game.UI.textBold(ctx, part.name, cx + 15, cy + 10, 15, available ? '#fff' : '#555');
-      Game.UI.text(ctx, 'Nivel ' + level + '/' + part.maxLevel, cx + 15, cy + 30, 11, available ? '#aaa' : '#444');
-      Game.UI.text(ctx, part.desc + '/nivel', cx + 15, cy + 48, 11, available ? part.color : '#444');
+      Game.UI.text(ctx, 'Nivel ' + level + '/' + effectiveMax, cx + 15, cy + 30, 11, available ? '#aaa' : '#444');
+      var descText = part.desc + '/nivel';
+      if (discount > 0 && available) descText += ' (-' + Math.round(discount * 100) + '%)';
+      Game.UI.text(ctx, descText, cx + 15, cy + 48, 11, available ? part.color : '#444');
 
       // Level pips
-      for (var lv = 0; lv < part.maxLevel; lv++) {
+      for (var lv = 0; lv < effectiveMax; lv++) {
         ctx.fillStyle = lv < level ? part.color : '#333';
-        ctx.fillRect(cx + 15 + lv * 18, cy + 66, 14, 6);
+        ctx.fillRect(cx + 15 + lv * 14, cy + 66, 10, 6);
+      }
+
+      // Discount badge
+      if (available && discount > 0 && !maxed) {
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(cx + cardW - 55, cy + 2, 52, 14);
+        Game.UI.text(ctx, '-' + Math.round(discount * 100) + '% OFF', cx + cardW - 29, cy + 8, 8, '#fff', 'center');
       }
 
       // Cost / status
       if (!available) {
-        Game.UI.text(ctx, 'Indisponivel', cx + cardW - 65, cy + 35, 11, '#555', 'center', 'middle');
+        Game.UI.text(ctx, 'Planeta avancado', cx + cardW - 65, cy + 35, 9, '#555', 'center', 'middle');
       } else if (maxed) {
         Game.UI.textBold(ctx, 'MAX', cx + cardW - 40, cy + 35, 14, '#ffd700', 'center', 'middle');
       } else {

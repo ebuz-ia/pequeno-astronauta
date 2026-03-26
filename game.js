@@ -527,10 +527,43 @@ Game.ShopData = {
     { key: 'purple', name: 'Nebula', cost: 120, color: '#9c27b0' }
   ],
 
-  getPartCost: function(partKey, currentLevel) {
+  // Planetas mais dificeis = desconto maior na loja
+  // Terra: 0%, Lua: 5%, Marte: 10%, Venus: 15%, Plutao: 20%
+  // Tier 1 planets (5-9): 25%, Tier 2 (10-14): 35%
+  getPlanetDiscount: function(planetIndex) {
+    if (planetIndex >= 10) return 0.35;
+    if (planetIndex >= 5) return 0.25;
+    return planetIndex * 0.05;
+  },
+
+  // Itens exclusivos por tier de planeta
+  // Tier 0 (0-4): basicos (engine, fuelTank, heatShield, nozzle)
+  // Tier 1 (5-9): + armor, laser, magnet
+  // Tier 2 (10-14): + radar + maxLevel aumentado
+  isPartAvailable: function(partKey, planetIndex) {
+    var advanced = ['armor', 'laser', 'magnet', 'radar'];
+    var superAdvanced = ['radar'];
+    if (superAdvanced.indexOf(partKey) >= 0) return planetIndex >= 10;
+    if (advanced.indexOf(partKey) >= 0) return planetIndex >= 5;
+    return true;
+  },
+
+  getPartCost: function(partKey, currentLevel, planetIndex) {
     var part = this.parts.find(function(p) { return p.key === partKey; });
     if (!part || currentLevel >= part.maxLevel) return -1;
-    return Math.floor(part.baseCost * Math.pow(part.costScale, currentLevel));
+    var base = Math.floor(part.baseCost * Math.pow(part.costScale, currentLevel));
+    var discount = this.getPlanetDiscount(planetIndex || 0);
+    return Math.floor(base * (1 - discount));
+  },
+
+  // Max level boost em planetas avancados
+  getPartMaxLevel: function(partKey, planetIndex) {
+    var part = this.parts.find(function(p) { return p.key === partKey; });
+    if (!part) return 0;
+    var bonus = 0;
+    if (planetIndex >= 10) bonus = 2;
+    else if (planetIndex >= 5) bonus = 1;
+    return part.maxLevel + bonus;
   }
 };
 
