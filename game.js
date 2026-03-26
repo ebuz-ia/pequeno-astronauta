@@ -541,10 +541,13 @@ Game.ShopData = {
   // Tier 1 (5-9): + armor, laser, magnet
   // Tier 2 (10-14): + radar + maxLevel aumentado
   isPartAvailable: function(partKey, planetIndex) {
-    var advanced = ['armor', 'laser', 'magnet', 'radar'];
     var superAdvanced = ['radar'];
+    var advanced = ['armor', 'laser', 'magnet'];
+    var mid = ['heatShield', 'nozzle'];
     if (superAdvanced.indexOf(partKey) >= 0) return planetIndex >= 10;
     if (advanced.indexOf(partKey) >= 0) return planetIndex >= 5;
+    if (mid.indexOf(partKey) >= 0) return planetIndex >= 1;
+    // Terra: only engine + fuelTank
     return true;
   },
 
