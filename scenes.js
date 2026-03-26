@@ -4975,6 +4975,22 @@ Game.scenes.PLANET_EXPLORE = {
     Game.UI.textBold(ctx, weapName, 56, 77, 9, weapColors[weapName] || '#fff', 'center');
     Game.UI.text(ctx, '[Q] trocar', 56, 87, 7, '#666', 'center');
 
+    // "FOGUETE" button (top right) - teleport back to rocket
+    var rktBtnX = Game.CANVAS_W - 120, rktBtnY = 10, rktBtnW = 110, rktBtnH = 32;
+    var rktHovered = Game.UI.isMouseInRect(rktBtnX, rktBtnY, rktBtnW, rktBtnH);
+    ctx.fillStyle = rktHovered ? '#2a4a2a' : '#1a2a1a';
+    ctx.fillRect(rktBtnX, rktBtnY, rktBtnW, rktBtnH);
+    ctx.strokeStyle = '#4caf50';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rktBtnX, rktBtnY, rktBtnW, rktBtnH);
+    Game.UI.textBold(ctx, 'FOGUETE', rktBtnX + rktBtnW / 2, rktBtnY + 10, 12, '#4caf50', 'center');
+    Game.UI.text(ctx, '[F]', rktBtnX + rktBtnW / 2, rktBtnY + 22, 9, '#666', 'center');
+    if ((rktHovered && Game.Input.mouse.clicked) || Game.Input.wasPressed('f') || Game.Input.wasPressed('F')) {
+      this.astronaut.x = this.rocketPadPos.x;
+      this.astronaut.y = this.rocketPadPos.y - 20;
+      Game.showMessage('Teletransportado ao foguete!', 1.5);
+    }
+
     // Scrap counter
     var scraps = Game.saveData.scrapsCollected || 0;
     Game.UI.text(ctx, 'Sucatas: ' + (scraps % 3) + '/3', 56, 98, 8, '#ff9800', 'center');
