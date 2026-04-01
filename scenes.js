@@ -2171,22 +2171,12 @@ Game.scenes.SPACE_FREE = {
     // Label
     Game.UI.text(ctx, 'MAPA', mapX + mapW / 2, mapY + 8, 8, '#556', 'center');
 
-    // Calculate map scale to fit all planets
-    var minGX = 0, maxGX = 0, minGY = 0, maxGY = 0;
-    for (var p = 0; p < Game.PlanetData.length; p++) {
-      var pl = Game.PlanetData[p];
-      var req = p < 5 ? 0 : (p < 10 ? 5 : 10);
-      if ((Game.saveData.planetsVisited || 0) < req) continue;
-      if (pl.gx < minGX) minGX = pl.gx;
-      if (pl.gx > maxGX) maxGX = pl.gx;
-      if (pl.gy < minGY) minGY = pl.gy;
-      if (pl.gy > maxGY) maxGY = pl.gy;
-    }
-    var rangeX = Math.max(maxGX - minGX, 4);
-    var rangeY = Math.max(maxGY - minGY, 4);
-    var scale = Math.min((mapW - 30) / rangeX, (mapH - 30) / rangeY);
-    var centerGX = (minGX + maxGX) / 2;
-    var centerGY = (minGY + maxGY) / 2;
+    // Center map on SHIP position (you are always in the center)
+    var shipGX = this.shipX / this.worldScale;
+    var shipGY = this.shipY / this.worldScale;
+    var scale = 8; // fixed zoom: 1 galaxy unit = 8 pixels on minimap
+    var centerGX = shipGX;
+    var centerGY = shipGY;
     var mcx = mapX + mapW / 2;
     var mcy = mapY + mapH / 2 + 5;
 
@@ -2233,12 +2223,9 @@ Game.scenes.SPACE_FREE = {
       }
     }
 
-    // Draw ship position (blinking white dot)
-    var shipMX = mcx + (this.shipX / this.worldScale - centerGX) * scale;
-    var shipMY = mcy + (this.shipY / this.worldScale - centerGY) * scale;
-    // Clamp to map bounds
-    shipMX = Math.max(mapX + 3, Math.min(mapX + mapW - 3, shipMX));
-    shipMY = Math.max(mapY + 3, Math.min(mapY + mapH - 3, shipMY));
+    // Ship is ALWAYS at center of minimap
+    var shipMX = mcx;
+    var shipMY = mcy;
 
     // Ship direction indicator (small line)
     var dirLen = 8;
