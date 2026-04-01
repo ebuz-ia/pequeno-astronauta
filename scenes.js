@@ -4329,7 +4329,28 @@ Game.scenes.PLANET_EXPLORE = {
       // Boss requires: 5+ kills AND timer expired
       if (this.killCount >= 5 && this.bossSpawnTimer <= 0) {
         this.bossSpawned = true;
-        Game.showMessage('O chao racha sob seus pes... Uma energia sombria emerge das profundezas. O GUARDIAO deste mundo despertou, e trouxe sua guarda de elite!', 6);
+        var bossNames = ['', 'ESPECTRO LUNAR', 'DEMONIO FLAMEJANTE', 'HYDRA VENENOSA', 'TITAN DE GELO',
+                         'SENTINELA DE EUROPA', 'KRAKEN DE TITAN', 'VULCANO DE IO', 'COLOSSUS DE GANIMEDES', 'GUARDIAO DE CERES',
+                         'ORACULO DE KEPLER', 'SOMBRA DE PROXIMA', 'DEVORADOR DE TRAPPIST', 'NEBULA VIVA', 'ENTIDADE DO CENTRO'];
+        var bossName = bossNames[this.planetIndex] || 'GUARDIAO';
+        var bossIntros = [
+          '',
+          'A gravidade vacila... Esferas de luz espectral cercam voce. O ESPECTRO LUNAR se materializa do nada, com seus orbes mortiferos!',
+          'O chao racha e lava jorra! O DEMONIO FLAMEJANTE emerge das profundezas de Marte, deixando um rastro de fogo por onde passa!',
+          'Vapores toxicos se condensam... Tres cabecas serpentinas emergem da nevoa acida. A HYDRA VENENOSA de Venus desperta furiosa!',
+          'O gelo estala e se ergue em muralhas! O TITAN DE GELO acorda do sono milenar, e seu olhar congela tudo ao redor!',
+          'As aguas profundas se agitam... A SENTINELA emerge do oceano subterraneo!',
+          'Tentaculos imensos rompem a crosta! O KRAKEN DE TITAN veio cobrar tributo!',
+          'Magma vivo toma forma! O VULCANO DE IO e pura furia elementar!',
+          'A propria rocha ganha consciencia! O COLOSSUS de Ganimedes se levanta!',
+          'Cristais antigos pulsam com energia! O GUARDIAO DE CERES desperta!',
+          'Sinais alienigenas se intensificam... O ORACULO DE KEPLER se revela!',
+          'A escuridao ganha forma... A SOMBRA DE PROXIMA te encontrou!',
+          'A atmosfera se distorce! O DEVORADOR DE TRAPPIST se alimenta de mundos!',
+          'A propria nebulosa esta viva... e faminta!',
+          'A ENTIDADE DO CENTRO GALACTICO te observa ha eons. Agora, ela age.'
+        ];
+        Game.showMessage(bossIntros[this.planetIndex] || 'O GUARDIAO deste mundo despertou!', 6);
         Game.triggerShake(8, 0.5);
         if (Game.Audio) Game.Audio.sfx.warning();
 
@@ -4405,65 +4426,210 @@ Game.scenes.PLANET_EXPLORE = {
             var ast = Game.scenes.PLANET_EXPLORE.astronaut;
             var dx = ast.x - this.x;
             this.facing = dx > 0 ? 1 : -1;
+            var pi = self.planetIndex % 5;
+            var scene = Game.scenes.PLANET_EXPLORE;
 
-            // Movement phases
-            if (this.phase === 0) {
-              // Chase
-              if (Math.abs(dx) > 60) this.x += this.facing * 70 * dt2;
-              if (this.phaseTimer > 4) { this.phase = 1; this.phaseTimer = 0; }
-            } else if (this.phase === 1) {
-              // Jump attack
-              this.y -= 200 * dt2;
-              if (this.phaseTimer > 0.5) { this.phase = 2; this.phaseTimer = 0; }
-            } else if (this.phase === 2) {
-              // Slam down
-              this.y += 300 * dt2;
-              var gx2 = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
-              var gy2 = Game.scenes.PLANET_EXPLORE.terrain[Math.max(0, gx2)];
-              if (this.y >= gy2 - 40) {
-                this.y = gy2 - 40;
-                Game.triggerShake(6, 0.3);
-                // Shockwave - damage nearby
-                if (Math.abs(dx) < 120) {
-                  ast.hp = Math.max(0, ast.hp - 15);
-                  Game.addFloatingText('-15 HP', ast.x, ast.y - 30, '#f44336');
-                  if (Game.Audio) Game.Audio.sfx.damage();
+            // ===== BOSS AI PER PLANET =====
+
+            if (pi === 1) {
+              // LUA - ESPECTRO LUNAR: Teleport + orb barrage
+              if (this.phase === 0) {
+                // Float toward player slowly
+                if (Math.abs(dx) > 80) this.x += this.facing * 40 * dt2;
+                this.y += Math.sin(this.animTime * 3) * 30 * dt2; // float
+                if (this.phaseTimer > 3) { this.phase = 1; this.phaseTimer = 0; }
+              } else if (this.phase === 1) {
+                // Teleport near player
+                if (this.phaseTimer < 0.3) {
+                  // Fade out effect
+                } else if (this.phaseTimer < 0.5) {
+                  this.x = ast.x + (Math.random() < 0.5 ? 150 : -150);
+                  this.x = Math.max(50, Math.min(scene.terrainWidth - 50, this.x));
+                  Game.spawnParticles(this.x, this.y, 6, '#42a5f5', 0.5);
+                  this.phase = 2; this.phaseTimer = 0;
                 }
-                // Spawn projectiles
-                for (var bp = 0; bp < 3; bp++) {
-                  var bpDir = -1 + bp;
+              } else if (this.phase === 2) {
+                // Fire orb barrage (5 orbs in spread)
+                if (this.phaseTimer < 0.1) {
+                  for (var oi = 0; oi < 5; oi++) {
+                    var orbAngle = -0.6 + oi * 0.3;
+                    Game.EntityManager.add('particles', {
+                      x: this.x, y: this.y - 10, radius: 6, active: true,
+                      vx: Math.cos(orbAngle) * this.facing * 200, vy: Math.sin(orbAngle) * 200 - 50,
+                      life: 2, color: '#42a5f5', isEnemyBullet: true,
+                      update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { Game.Pixel.drawGlowCircle(ctx2, this.x-(ox||0), this.y-(oy||0), 4, this.color, 8); }
+                    });
+                  }
+                  if (Game.Audio) Game.Audio.sfx.robotShoot();
+                }
+                if (this.phaseTimer > 1.5) { this.phase = 0; this.phaseTimer = 0; }
+              }
+              // Float on terrain
+              var gxL = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+              if (gxL >= 0) { var targetY = scene.terrain[gxL] - 60; this.y += (targetY - this.y) * 2 * dt2; }
+
+            } else if (pi === 2) {
+              // MARTE - DEMONIO FLAMEJANTE: Charge + fire trail + meteor rain
+              if (this.phase === 0) {
+                if (Math.abs(dx) > 50) this.x += this.facing * 60 * dt2;
+                if (this.phaseTimer > 2.5) { this.phase = 1; this.phaseTimer = 0; }
+              } else if (this.phase === 1) {
+                // CHARGE! Sprint toward player leaving fire
+                this.x += this.facing * 350 * dt2;
+                // Fire trail
+                if (Math.random() < 0.5) {
                   Game.EntityManager.add('particles', {
-                    x: this.x + bpDir * 40, y: this.y, radius: 5, active: true,
-                    vx: bpDir * 150, vy: -100, life: 1.5, color: '#ff4081', isEnemyBullet: true,
-                    update: function(dt3) {
-                      this.x += this.vx * dt3; this.y += this.vy * dt3;
-                      this.vy += 200 * dt3;
-                      this.life -= dt3; if (this.life <= 0) this.active = false;
-                    },
-                    render: function(ctx2, ox, oy) {
-                      ctx2.fillStyle = this.color;
-                      ctx2.fillRect(this.x - (ox||0) - 4, this.y - (oy||0) - 4, 8, 8);
-                    }
+                    x: this.x, y: this.y + 20, radius: 8, active: true,
+                    vx: 0, vy: -20, life: 1.5, color: '#ff6b35', isEnemyBullet: true,
+                    update: function(dt3) { this.vy -= 10 * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                    render: function(ctx2, ox, oy) { ctx2.save(); ctx2.globalAlpha = this.life; ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-5, this.y-(oy||0)-5, 10, 10); ctx2.restore(); }
                   });
                 }
-                this.phase = 0; this.phaseTimer = 0;
+                if (this.phaseTimer > 1.2) { this.phase = 2; this.phaseTimer = 0; }
+              } else if (this.phase === 2) {
+                // Meteor rain from above
+                if (this.phaseTimer < 0.1) {
+                  for (var mi = 0; mi < 4; mi++) {
+                    var mRainX = ast.x + (Math.random() - 0.5) * 300;
+                    Game.EntityManager.add('particles', {
+                      x: mRainX, y: this.y - 300, radius: 8, active: true,
+                      vx: (Math.random() - 0.5) * 40, vy: 250 + Math.random() * 100, life: 2, color: '#ff9800', isEnemyBullet: true,
+                      update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 6, 0, Math.PI*2); ctx2.fill(); }
+                    });
+                  }
+                  if (Game.Audio) Game.Audio.sfx.warning();
+                }
+                if (this.phaseTimer > 2) { this.phase = 0; this.phaseTimer = 0; }
+              }
+              var gxM = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+              if (gxM >= 0) this.y = scene.terrain[gxM] - 40;
+
+            } else if (pi === 3) {
+              // VENUS - HYDRA VENENOSA: 3 heads attack independently + poison clouds
+              if (this.phase === 0) {
+                if (Math.abs(dx) > 70) this.x += this.facing * 45 * dt2;
+                if (this.phaseTimer > 2) { this.phase = 1; this.phaseTimer = 0; }
+              } else if (this.phase === 1) {
+                // Each head spits poison at different angles
+                if (this.phaseTimer < 0.1) {
+                  for (var hi = 0; hi < 3; hi++) {
+                    var headAngle = -0.8 + hi * 0.8;
+                    var spitVX = Math.cos(headAngle) * this.facing * 180;
+                    var spitVY = Math.sin(headAngle) * 180 - 80;
+                    Game.EntityManager.add('particles', {
+                      x: this.x + this.facing * 25, y: this.y - 15 + hi * 10, radius: 7, active: true,
+                      vx: spitVX, vy: spitVY, life: 2.5, color: '#76ff03', isEnemyBullet: true,
+                      update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.vy += 80 * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { ctx2.save(); ctx2.globalAlpha = 0.7; ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 5, 0, Math.PI*2); ctx2.fill(); ctx2.restore(); }
+                    });
+                  }
+                  if (Game.Audio) Game.Audio.sfx.shoot();
+                }
+                if (this.phaseTimer > 1) { this.phase = 2; this.phaseTimer = 0; }
+              } else if (this.phase === 2) {
+                // Poison cloud area denial
+                if (this.phaseTimer < 0.1) {
+                  var cloudX = ast.x + (Math.random() - 0.5) * 100;
+                  for (var ci = 0; ci < 8; ci++) {
+                    Game.EntityManager.add('particles', {
+                      x: cloudX + (Math.random()-0.5)*40, y: this.y - Math.random()*30, radius: 12, active: true,
+                      vx: (Math.random()-0.5)*20, vy: -15 - Math.random()*10, life: 3, color: '#4a148c', isEnemyBullet: true,
+                      update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { ctx2.save(); ctx2.globalAlpha = this.life * 0.2; ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 15, 0, Math.PI*2); ctx2.fill(); ctx2.restore(); }
+                    });
+                  }
+                }
+                if (this.phaseTimer > 2) { this.phase = 0; this.phaseTimer = 0; }
+              }
+              var gxV = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+              if (gxV >= 0) this.y = scene.terrain[gxV] - 40;
+
+            } else if (pi === 4) {
+              // PLUTAO - TITAN DE GELO: Freeze rays + ice walls + blizzard
+              if (this.phase === 0) {
+                if (Math.abs(dx) > 80) this.x += this.facing * 35 * dt2;
+                if (this.phaseTimer > 3) { this.phase = 1; this.phaseTimer = 0; }
+              } else if (this.phase === 1) {
+                // Freeze ray - continuous beam toward player
+                if (this.phaseTimer < 1.5) {
+                  if (Math.random() < 0.3) {
+                    Game.EntityManager.add('particles', {
+                      x: this.x + this.facing * 20, y: this.y - 10, radius: 4, active: true,
+                      vx: this.facing * 400, vy: (Math.random()-0.5) * 40, life: 0.8, color: '#b3e5fc', isEnemyBullet: true,
+                      update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { ctx2.save(); ctx2.globalAlpha = this.life; ctx2.fillStyle = '#e1f5fe'; ctx2.fillRect(this.x-(ox||0)-8, this.y-(oy||0)-2, 16, 4); ctx2.restore(); }
+                    });
+                  }
+                } else { this.phase = 2; this.phaseTimer = 0; }
+              } else if (this.phase === 2) {
+                // Ice wall slam - create barriers
+                if (this.phaseTimer < 0.1) {
+                  Game.triggerShake(8, 0.4);
+                  for (var wi = 0; wi < 3; wi++) {
+                    var wallX = this.x + this.facing * (80 + wi * 60);
+                    Game.EntityManager.add('particles', {
+                      x: wallX, y: this.y + 10, radius: 10, active: true,
+                      vx: 0, vy: 0, life: 4, color: '#4fc3f7', isEnemyBullet: true,
+                      update: function(dt3) { this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { ctx2.save(); ctx2.globalAlpha = Math.min(1, this.life * 0.5); ctx2.fillStyle = '#b3e5fc'; ctx2.fillRect(this.x-(ox||0)-6, this.y-(oy||0)-30, 12, 35); ctx2.fillStyle = '#e1f5fe'; ctx2.fillRect(this.x-(ox||0)-4, this.y-(oy||0)-28, 8, 31); ctx2.restore(); }
+                    });
+                  }
+                  if (Game.Audio) Game.Audio.sfx.hit();
+                }
+                if (this.phaseTimer > 2.5) { this.phase = 0; this.phaseTimer = 0; }
+              }
+              var gxP = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+              if (gxP >= 0) this.y = scene.terrain[gxP] - 40;
+
+            } else {
+              // DEFAULT / TERRA - GOLEM: Jump + slam + shockwave (original)
+              if (this.phase === 0) {
+                if (Math.abs(dx) > 60) this.x += this.facing * 70 * dt2;
+                if (this.phaseTimer > 4) { this.phase = 1; this.phaseTimer = 0; }
+              } else if (this.phase === 1) {
+                this.y -= 200 * dt2;
+                if (this.phaseTimer > 0.5) { this.phase = 2; this.phaseTimer = 0; }
+              } else if (this.phase === 2) {
+                this.y += 300 * dt2;
+                var gx2 = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+                var gy2 = scene.terrain[Math.max(0, gx2)];
+                if (this.y >= gy2 - 40) {
+                  this.y = gy2 - 40;
+                  Game.triggerShake(6, 0.3);
+                  if (Math.abs(dx) < 120) {
+                    ast.hp = Math.max(0, ast.hp - 15);
+                    Game.addFloatingText('-15 HP', ast.x, ast.y - 30, '#f44336');
+                    if (Game.Audio) Game.Audio.sfx.damage();
+                  }
+                  for (var bp = 0; bp < 3; bp++) {
+                    var bpDir = -1 + bp;
+                    Game.EntityManager.add('particles', {
+                      x: this.x + bpDir * 40, y: this.y, radius: 5, active: true,
+                      vx: bpDir * 150, vy: -100, life: 1.5, color: '#ff4081', isEnemyBullet: true,
+                      update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.vy += 200 * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                      render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.fillRect(this.x-(ox||0)-4, this.y-(oy||0)-4, 8, 8); }
+                    });
+                  }
+                  this.phase = 0; this.phaseTimer = 0;
+                }
+              }
+              if (this.phase === 0) {
+                var gx3 = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+                if (gx3 >= 0) this.y = scene.terrain[gx3] - 40;
               }
             }
 
-            // Stay on ground (phase 0)
-            if (this.phase === 0) {
-              var gx3 = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
-              if (gx3 >= 0) this.y = Game.scenes.PLANET_EXPLORE.terrain[gx3] - 40;
-            }
-
-            // Contact damage
+            // Contact damage (all bosses)
             if (Math.abs(dx) < 35 && Math.abs(ast.y - this.y) < 40) {
               if (!this._hitCD || this._hitCD <= 0) {
-                ast.hp = Math.max(0, ast.hp - 20);
-                this._hitCD = 1.5;
+                var contactDmg = 15 + pi * 3;
+                ast.hp = Math.max(0, ast.hp - contactDmg);
+                this._hitCD = 1.2;
                 Game.triggerShake(5, 0.2);
                 if (Game.Audio) Game.Audio.sfx.damage();
-                Game.addFloatingText('-20 HP', ast.x, ast.y - 30, '#f44336');
+                Game.addFloatingText('-' + contactDmg + ' HP', ast.x, ast.y - 30, '#f44336');
               }
             }
             if (this._hitCD > 0) this._hitCD -= dt2;
@@ -4526,7 +4692,8 @@ Game.scenes.PLANET_EXPLORE = {
             ctx2.fillRect(sx - 30, sy - r - 20, 60, 6);
             ctx2.fillStyle = hpPct > 0.5 ? '#f44336' : '#ff6f00';
             ctx2.fillRect(sx - 29, sy - r - 19, 58 * hpPct, 4);
-            Game.UI.text(ctx2, 'BOSS', sx, sy - r - 24, 8, '#ff4081', 'center');
+            var bNames = ['GOLEM','ESPECTRO','DEMONIO','HYDRA','TITAN','SENTINELA','KRAKEN','VULCANO','COLOSSUS','GUARDIAO','ORACULO','SOMBRA','DEVORADOR','NEBULA','ENTIDADE'];
+            Game.UI.text(ctx2, bNames[self.planetIndex] || 'BOSS', sx, sy - r - 24, 8, '#ff4081', 'center');
           },
           takeDamage: function(dmg) {
             this.hp -= dmg;
