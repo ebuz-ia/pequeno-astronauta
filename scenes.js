@@ -1569,6 +1569,21 @@ Game.scenes.SPACE_FREE = {
     ctx.fillRect(14, 44, 112 * ammoPct, 8);
     Game.UI.text(ctx, 'BALAS ' + ammo + '/' + maxAmmo, 70, 47, 8, '#fff', 'center');
 
+    // Armor bar
+    var armorLevel = (Game.saveData.rocketParts && Game.saveData.rocketParts.armor) || 0;
+    var shieldLevel = (Game.saveData.rocketParts && Game.saveData.rocketParts.heatShield) || 0;
+    var totalArmor = armorLevel + shieldLevel;
+    var maxArmor = 8; // 4 armor + 4 shield max
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, 60, 120, 16);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(14, 64, 112, 8);
+    var armorPct = totalArmor / maxArmor;
+    ctx.fillStyle = armorPct > 0.5 ? '#9c27b0' : (armorPct > 0.25 ? '#ff9800' : '#f44336');
+    ctx.fillRect(14, 64, 112 * armorPct, 8);
+    var dmgReduction = Math.floor((shieldLevel * 0.15 + armorLevel * 0.1) * 100);
+    Game.UI.text(ctx, 'ARMADURA -' + dmgReduction + '% dano', 70, 67, 7, '#fff', 'center');
+
     // Coins (top right)
     Game.UI.text(ctx, '' + Game.saveData.coins, W - 60, 22, 14, '#ffd700', 'center');
 
@@ -5155,13 +5170,26 @@ Game.scenes.PLANET_EXPLORE = {
       if (starveBlink) Game.UI.textBold(ctx, 'FAMINTO!', 56, 62, 9, '#f44336', 'center');
     }
 
+    // Armor bar (planet)
+    var armorLvl2 = (Game.saveData.rocketParts && Game.saveData.rocketParts.armor) || 0;
+    var shieldLvl2 = (Game.saveData.rocketParts && Game.saveData.rocketParts.heatShield) || 0;
+    var totalArmor2 = armorLvl2 + shieldLvl2;
+    var maxArmor2 = 8;
+    ctx.fillStyle = '#111';
+    ctx.fillRect(15, 58, 82, 10);
+    var aPct2 = totalArmor2 / maxArmor2;
+    ctx.fillStyle = aPct2 > 0.5 ? '#9c27b0' : (aPct2 > 0.25 ? '#ff9800' : '#f44336');
+    ctx.fillRect(16, 59, 80 * aPct2, 8);
+    var dmgRed2 = Math.floor((shieldLvl2 * 0.15 + armorLvl2 * 0.1) * 100);
+    Game.UI.text(ctx, 'ARM -' + dmgRed2 + '%', 56, 62, 7, '#fff', 'center');
+
     // Ammo + Weapon
     var ammo2 = Game.saveData.ammo || 0;
-    Game.UI.text(ctx, 'BALAS: ' + ammo2, 56, 65, 8, '#4fc3f7', 'center');
+    Game.UI.text(ctx, 'BALAS: ' + ammo2, 56, 75, 8, '#4fc3f7', 'center');
     var weapName = (Game.saveData.currentWeapon || 'blaster').toUpperCase();
     var weapColors = { BLASTER: '#4fc3f7', SHOTGUN: '#ff9800', LASER: '#f44336', MISSILE: '#ff5722', PLASMA: '#e040fb' };
-    Game.UI.textBold(ctx, weapName, 56, 77, 9, weapColors[weapName] || '#fff', 'center');
-    Game.UI.text(ctx, '[Q] trocar', 56, 87, 7, '#666', 'center');
+    Game.UI.textBold(ctx, weapName, 56, 87, 9, weapColors[weapName] || '#fff', 'center');
+    Game.UI.text(ctx, '[Q] trocar', 56, 97, 7, '#666', 'center');
 
     // "FOGUETE" button (top right) - teleport back to rocket
     var rktBtnX = Game.CANVAS_W - 120, rktBtnY = 10, rktBtnW = 110, rktBtnH = 32;
