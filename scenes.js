@@ -1569,19 +1569,17 @@ Game.scenes.SPACE_FREE = {
     ctx.fillRect(14, 44, 112 * ammoPct, 8);
     Game.UI.text(ctx, 'BALAS ' + ammo + '/' + maxAmmo, 70, 47, 8, '#fff', 'center');
 
-    // Armor bar
+    // Armor bar (shows actual damage reduction %)
     var armorLevel = (Game.saveData.rocketParts && Game.saveData.rocketParts.armor) || 0;
     var shieldLevel = (Game.saveData.rocketParts && Game.saveData.rocketParts.heatShield) || 0;
-    var totalArmor = armorLevel + shieldLevel;
-    var maxArmor = 8; // 4 armor + 4 shield max
+    var dmgReduction = Math.min(75, Math.floor((shieldLevel * 15 + armorLevel * 10))); // cap at 75%
+    var dmgPct = dmgReduction / 75; // bar fills relative to max 75%
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(10, 60, 120, 16);
     ctx.fillStyle = '#333';
     ctx.fillRect(14, 64, 112, 8);
-    var armorPct = totalArmor / maxArmor;
-    ctx.fillStyle = armorPct > 0.5 ? '#9c27b0' : (armorPct > 0.25 ? '#ff9800' : '#f44336');
-    ctx.fillRect(14, 64, 112 * armorPct, 8);
-    var dmgReduction = Math.floor((shieldLevel * 0.15 + armorLevel * 0.1) * 100);
+    ctx.fillStyle = dmgPct > 0.5 ? '#9c27b0' : (dmgPct > 0.25 ? '#ff9800' : '#f44336');
+    ctx.fillRect(14, 64, 112 * dmgPct, 8);
     Game.UI.text(ctx, 'ARMADURA -' + dmgReduction + '% dano', 70, 67, 7, '#fff', 'center');
 
     // Coins (top right)
@@ -5170,17 +5168,15 @@ Game.scenes.PLANET_EXPLORE = {
       if (starveBlink) Game.UI.textBold(ctx, 'FAMINTO!', 56, 62, 9, '#f44336', 'center');
     }
 
-    // Armor bar (planet)
+    // Armor bar (planet - shows actual damage reduction %)
     var armorLvl2 = (Game.saveData.rocketParts && Game.saveData.rocketParts.armor) || 0;
     var shieldLvl2 = (Game.saveData.rocketParts && Game.saveData.rocketParts.heatShield) || 0;
-    var totalArmor2 = armorLvl2 + shieldLvl2;
-    var maxArmor2 = 8;
+    var dmgRed2 = Math.min(75, Math.floor(shieldLvl2 * 15 + armorLvl2 * 10));
+    var aPct2 = dmgRed2 / 75;
     ctx.fillStyle = '#111';
     ctx.fillRect(15, 58, 82, 10);
-    var aPct2 = totalArmor2 / maxArmor2;
     ctx.fillStyle = aPct2 > 0.5 ? '#9c27b0' : (aPct2 > 0.25 ? '#ff9800' : '#f44336');
     ctx.fillRect(16, 59, 80 * aPct2, 8);
-    var dmgRed2 = Math.floor((shieldLvl2 * 0.15 + armorLvl2 * 0.1) * 100);
     Game.UI.text(ctx, 'ARM -' + dmgRed2 + '%', 56, 62, 7, '#fff', 'center');
 
     // Ammo + Weapon
