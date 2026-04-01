@@ -1294,90 +1294,204 @@ Game.scenes.SPACE_FREE = {
       // Skip if off screen
       if (psx < -100 || psx > W + 100 || psy < -100 || psy > H + 100) continue;
 
-      var planetRadius = accessible ? 35 : 15;
+      var planetRadius = accessible ? 40 : 15;
       var planetColor = accessible ? planet.groundColor : '#333';
+      var pi = p % 5;
 
-      // Atmosphere glow (smooth radial)
-      if (accessible) {
-        ctx.save();
-        var atmoGrad = ctx.createRadialGradient(psx, psy, planetRadius, psx, psy, planetRadius + 25);
-        atmoGrad.addColorStop(0, (planet.skyBottom || '#334') + '40');
-        atmoGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = atmoGrad;
-        ctx.beginPath();
-        ctx.arc(psx, psy, planetRadius + 25, 0, Math.PI * 2);
-        ctx.fill();
+      if (!accessible) {
+        // Locked planet - dim dot
+        ctx.save(); ctx.globalAlpha = 0.3;
+        Game.Pixel.drawSmoothCircle(ctx, psx, psy, 8, '#333');
         ctx.restore();
+        continue;
       }
 
-      // Rings (Saturn-like for planets 5,7,11)
-      if (accessible && (p === 5 || p === 7 || p === 11)) {
+      // === OUTER ATMOSPHERE (3 layers of glow) ===
+      ctx.save();
+      var atmo1 = ctx.createRadialGradient(psx, psy, planetRadius * 0.9, psx, psy, planetRadius + 35);
+      atmo1.addColorStop(0, (planet.skyBottom || '#334') + '30');
+      atmo1.addColorStop(0.5, (planet.skyBottom || '#334') + '15');
+      atmo1.addColorStop(1, 'transparent');
+      ctx.fillStyle = atmo1;
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius + 35, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      // Inner atmosphere rim
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = planet.skyBottom || '#88aacc';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius + 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+
+      // === RINGS (planets 5,7,11 - Saturn-like with color gradient) ===
+      if (p === 5 || p === 7 || p === 11) {
         ctx.save();
-        ctx.globalAlpha = 0.4;
-        ctx.strokeStyle = '#c0a060';
-        ctx.lineWidth = 2;
-        for (var ri = -1; ri <= 1; ri++) {
+        var ringColors = ['#c0985080', '#d4a86080', '#b8884040', '#c0a06060', '#a0804030'];
+        for (var ri = 0; ri < 5; ri++) {
+          ctx.strokeStyle = ringColors[ri];
+          ctx.lineWidth = 3 - ri * 0.3;
           ctx.beginPath();
-          ctx.ellipse(psx, psy, planetRadius + 16 + ri * 5, (planetRadius + 16 + ri * 5) * 0.3, 0, 0, Math.PI * 2);
+          ctx.ellipse(psx, psy, planetRadius + 18 + ri * 6, (planetRadius + 18 + ri * 6) * 0.25, 0.15, 0, Math.PI * 2);
           ctx.stroke();
         }
         ctx.restore();
       }
 
-      // Planet body (smooth gradient sphere)
-      Game.Pixel.drawGradientCircle(ctx, psx, psy, planetRadius,
-        accessible ? (planet.surfaceDetail || '#5cb85c') : '#555',
-        planetColor);
+      // === PLANET BODY (multi-layer gradient sphere) ===
+      // Base sphere
+      var baseGrad = ctx.createRadialGradient(psx - planetRadius * 0.3, psy - planetRadius * 0.3, planetRadius * 0.05, psx + planetRadius * 0.1, psy + planetRadius * 0.1, planetRadius);
+      baseGrad.addColorStop(0, planet.surfaceDetail || '#6dce5a');
+      baseGrad.addColorStop(0.4, planetColor);
+      baseGrad.addColorStop(1, planet.groundDark || '#1a4010');
+      ctx.fillStyle = baseGrad;
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.fill();
 
-      // Surface details (smooth)
-      if (accessible) {
-        ctx.save();
-        ctx.globalAlpha = 0.3;
-        Game.Pixel.drawSmoothCircle(ctx, psx - 6, psy - 5, planetRadius * 0.25, planet.surfaceDetail || '#5cb85c');
-        Game.Pixel.drawSmoothCircle(ctx, psx + 8, psy + 6, planetRadius * 0.15, planet.groundDark || '#2a5020');
-        ctx.restore();
-        // Shadow (crescent)
-        ctx.save();
-        ctx.globalAlpha = 0.35;
-        var shadowGrad = ctx.createRadialGradient(psx + planetRadius * 0.5, psy + planetRadius * 0.3, 0, psx, psy, planetRadius);
-        shadowGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
-        shadowGrad.addColorStop(0.6, 'rgba(0,0,0,0.2)');
-        shadowGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = shadowGrad;
-        ctx.beginPath();
-        ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Orbiting moon (smooth)
-      if (accessible && (p === 0 || p === 1 || p === 4 || p === 8)) {
-        var moonAngle = this.time * 0.8 + p * 2;
-        var moonDist = planetRadius + 22;
-        var moonX = psx + Math.cos(moonAngle) * moonDist;
-        var moonY = psy + Math.sin(moonAngle) * moonDist * 0.6;
-        Game.Pixel.drawGradientCircle(ctx, moonX, moonY, 5, '#ddd', '#888');
-      }
-
-      // Name label
-      var labelColor = p === this.nearPlanet ? '#4caf50' : (accessible ? '#ccc' : '#444');
+      // === SURFACE FEATURES (unique per planet type) ===
       ctx.save();
-      ctx.font = '10px "Segoe UI", Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#000';
-      ctx.fillText(planet.name, psx + 1, psy + planetRadius + 17);
-      ctx.fillStyle = labelColor;
-      ctx.fillText(planet.name, psx, psy + planetRadius + 16);
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.clip();
+
+      if (pi === 0) {
+        // TERRA type: continents + oceans
+        ctx.fillStyle = planet.surfaceDetail || '#5cb85c';
+        ctx.beginPath(); ctx.arc(psx - 8, psy - 4, planetRadius * 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(psx + 12, psy + 8, planetRadius * 0.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(psx - 3, psy + 14, planetRadius * 0.15, 0, Math.PI * 2); ctx.fill();
+        // Clouds
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.ellipse(psx - 5, psy - 10, 18, 5, 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(psx + 10, psy + 5, 14, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+      } else if (pi === 1) {
+        // LUA type: craters
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = planet.groundDark || '#888';
+        var craterPositions = [[-10,-8,8],[-3,10,5],[12,-3,6],[8,12,4],[-14,4,3]];
+        for (var cr = 0; cr < craterPositions.length; cr++) {
+          ctx.beginPath(); ctx.arc(psx + craterPositions[cr][0], psy + craterPositions[cr][1], craterPositions[cr][2], 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = '#fff';
+        for (var cr2 = 0; cr2 < craterPositions.length; cr2++) {
+          ctx.beginPath(); ctx.arc(psx + craterPositions[cr2][0] - 1, psy + craterPositions[cr2][1] - 1, craterPositions[cr2][2] * 0.5, 0, Math.PI * 2); ctx.fill();
+        }
+      } else if (pi === 2) {
+        // MARTE type: canyons + dust
+        ctx.globalAlpha = 0.25;
+        ctx.strokeStyle = planet.groundDark || '#8b3a0a';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(psx - 15, psy - 5); ctx.quadraticCurveTo(psx, psy + 8, psx + 18, psy - 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(psx - 8, psy + 10); ctx.quadraticCurveTo(psx + 5, psy + 15, psx + 12, psy + 8); ctx.stroke();
+        // Polar cap
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = '#ddd';
+        ctx.beginPath(); ctx.ellipse(psx, psy - planetRadius * 0.7, planetRadius * 0.5, planetRadius * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (pi === 3) {
+        // VENUS type: thick swirling clouds
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = '#f0d080';
+        for (var vc = 0; vc < 4; vc++) {
+          var vAngle = this.time * 0.1 + vc * 1.5;
+          ctx.beginPath(); ctx.ellipse(psx + Math.cos(vAngle) * 8, psy + Math.sin(vAngle) * 5 + vc * 8 - 12, 22, 5, vAngle * 0.3, 0, Math.PI * 2); ctx.fill();
+        }
+        // Volcanic glow
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = '#ff6b35';
+        ctx.beginPath(); ctx.arc(psx + 5, psy + 8, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(psx - 10, psy - 3, 4, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // PLUTAO type: ice patterns + fractures
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = '#e1f5fe';
+        ctx.beginPath(); ctx.arc(psx - 5, psy - 8, planetRadius * 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#b3e5fc';
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.moveTo(psx - 12, psy - 10); ctx.lineTo(psx + 5, psy + 3); ctx.lineTo(psx + 15, psy - 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(psx - 5, psy + 5); ctx.lineTo(psx + 8, psy + 15); ctx.stroke();
+        // Heart shape (Pluto's Tombaugh Regio)
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(psx + 3, psy + 2, 8, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
 
-      // Current planet indicator (smooth ring)
-      if (p === Game.saveData.currentPlanet) {
-        Game.Pixel.drawSmoothRing(ctx, psx, psy, planetRadius + 8, '#4caf50', 2);
+      // === SPECULAR HIGHLIGHT (light reflection) ===
+      ctx.save();
+      var specGrad = ctx.createRadialGradient(psx - planetRadius * 0.35, psy - planetRadius * 0.35, 0, psx - planetRadius * 0.2, psy - planetRadius * 0.2, planetRadius * 0.5);
+      specGrad.addColorStop(0, 'rgba(255,255,255,0.25)');
+      specGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = specGrad;
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // === SHADOW (crescent - more dramatic) ===
+      ctx.save();
+      var shadowGrad = ctx.createRadialGradient(psx + planetRadius * 0.6, psy + planetRadius * 0.4, 0, psx + planetRadius * 0.1, psy, planetRadius * 1.1);
+      shadowGrad.addColorStop(0, 'rgba(0,0,0,0.7)');
+      shadowGrad.addColorStop(0.5, 'rgba(0,0,0,0.3)');
+      shadowGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = shadowGrad;
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // === ORBITING MOONS (with shadow + trail) ===
+      if (p === 0 || p === 1 || p === 4 || p === 8 || p === 6 || p === 9) {
+        var numMoons = (p === 6 || p === 8) ? 2 : 1;
+        for (var mi = 0; mi < numMoons; mi++) {
+          var moonAngle = this.time * (0.6 + mi * 0.3) + p * 2 + mi * 3;
+          var moonDist = planetRadius + 18 + mi * 12;
+          var moonR = 4 - mi;
+          var moonX = psx + Math.cos(moonAngle) * moonDist;
+          var moonY = psy + Math.sin(moonAngle) * moonDist * 0.5;
+          // Moon orbit trail
+          ctx.save(); ctx.globalAlpha = 0.06;
+          ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.ellipse(psx, psy, moonDist, moonDist * 0.5, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.restore();
+          // Moon body
+          Game.Pixel.drawGradientCircle(ctx, moonX, moonY, moonR, '#ddd', '#777');
+          // Moon shadow
+          ctx.save(); ctx.globalAlpha = 0.4;
+          ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(moonX + 1, moonY + 1, moonR * 0.7, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
       }
 
-      // Near planet glow
+      // === NAME LABEL (with glow) ===
+      var labelColor = p === this.nearPlanet ? '#4caf50' : '#bbb';
+      ctx.save();
+      ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'center';
       if (p === this.nearPlanet) {
-        Game.Pixel.drawGlowCircle(ctx, psx, psy, planetRadius + 5, 'rgba(76,175,80,0.15)', 20);
+        ctx.shadowColor = '#4caf50'; ctx.shadowBlur = 6;
+      }
+      ctx.fillStyle = '#000';
+      ctx.fillText(planet.name, psx + 1, psy + planetRadius + 19);
+      ctx.fillStyle = labelColor;
+      ctx.fillText(planet.name, psx, psy + planetRadius + 18);
+      ctx.restore();
+
+      // === CURRENT PLANET INDICATOR (animated ring) ===
+      if (p === Game.saveData.currentPlanet) {
+        ctx.save();
+        ctx.strokeStyle = '#4caf50';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = -this.time * 20;
+        ctx.beginPath(); ctx.arc(psx, psy, planetRadius + 10, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
+      // === NEAR PLANET GLOW (pulsing) ===
+      if (p === this.nearPlanet) {
+        ctx.save();
+        var nearGlow = ctx.createRadialGradient(psx, psy, planetRadius, psx, psy, planetRadius + 20);
+        nearGlow.addColorStop(0, 'rgba(76,175,80,' + (0.15 + Math.sin(this.time * 3) * 0.08) + ')');
+        nearGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = nearGlow;
+        ctx.beginPath(); ctx.arc(psx, psy, planetRadius + 20, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
     }
 
