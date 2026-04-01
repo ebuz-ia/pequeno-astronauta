@@ -1337,30 +1337,112 @@ Game.scenes.SPACE_FREE = {
         ctx.restore();
       }
 
-      // === PLANET BODY (multi-layer gradient sphere) ===
-      // Base sphere
-      var baseGrad = ctx.createRadialGradient(psx - planetRadius * 0.3, psy - planetRadius * 0.3, planetRadius * 0.05, psx + planetRadius * 0.1, psy + planetRadius * 0.1, planetRadius);
-      baseGrad.addColorStop(0, planet.surfaceDetail || '#6dce5a');
-      baseGrad.addColorStop(0.4, planetColor);
-      baseGrad.addColorStop(1, planet.groundDark || '#1a4010');
-      ctx.fillStyle = baseGrad;
-      ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.fill();
-
-      // === SURFACE FEATURES (unique per planet type) ===
+      // === PLANET BODY ===
       ctx.save();
       ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.clip();
 
-      if (pi === 0) {
-        // TERRA type: continents + oceans
-        ctx.fillStyle = planet.surfaceDetail || '#5cb85c';
-        ctx.beginPath(); ctx.arc(psx - 8, psy - 4, planetRadius * 0.35, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(psx + 12, psy + 8, planetRadius * 0.2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(psx - 3, psy + 14, planetRadius * 0.15, 0, Math.PI * 2); ctx.fill();
-        // Clouds
-        ctx.globalAlpha = 0.15;
+      if (pi === 0 && accessible) {
+        // *** TERRA REALISTA ***
+        // Ocean base (deep blue gradient)
+        var oceanGrad = ctx.createRadialGradient(psx - planetRadius * 0.25, psy - planetRadius * 0.2, 0, psx, psy, planetRadius);
+        oceanGrad.addColorStop(0, '#1565c0');
+        oceanGrad.addColorStop(0.4, '#0d47a1');
+        oceanGrad.addColorStop(0.8, '#0a2e6e');
+        oceanGrad.addColorStop(1, '#061838');
+        ctx.fillStyle = oceanGrad;
+        ctx.fillRect(psx - planetRadius, psy - planetRadius, planetRadius * 2, planetRadius * 2);
+
+        // Americas (left continent group)
+        ctx.fillStyle = '#2e7d32';
+        ctx.beginPath();
+        ctx.moveTo(psx - 18, psy - 20);
+        ctx.quadraticCurveTo(psx - 22, psy - 12, psx - 16, psy - 5);
+        ctx.quadraticCurveTo(psx - 20, psy + 2, psx - 14, psy + 8);
+        ctx.quadraticCurveTo(psx - 10, psy + 16, psx - 16, psy + 22);
+        ctx.quadraticCurveTo(psx - 12, psy + 20, psx - 8, psy + 14);
+        ctx.quadraticCurveTo(psx - 4, psy + 6, psx - 8, psy - 2);
+        ctx.quadraticCurveTo(psx - 6, psy - 10, psx - 12, psy - 18);
+        ctx.closePath();
+        ctx.fill();
+        // South America
+        ctx.beginPath();
+        ctx.moveTo(psx - 8, psy + 4);
+        ctx.quadraticCurveTo(psx - 4, psy + 10, psx - 6, psy + 18);
+        ctx.quadraticCurveTo(psx - 10, psy + 26, psx - 12, psy + 20);
+        ctx.quadraticCurveTo(psx - 14, psy + 14, psx - 10, psy + 6);
+        ctx.closePath();
+        ctx.fill();
+
+        // Africa + Europe (right continent group)
+        ctx.fillStyle = '#33691e';
+        ctx.beginPath();
+        ctx.moveTo(psx + 8, psy - 16);
+        ctx.quadraticCurveTo(psx + 14, psy - 12, psx + 16, psy - 4);
+        ctx.quadraticCurveTo(psx + 20, psy + 6, psx + 14, psy + 16);
+        ctx.quadraticCurveTo(psx + 8, psy + 12, psx + 6, psy + 4);
+        ctx.quadraticCurveTo(psx + 4, psy - 4, psx + 6, psy - 12);
+        ctx.closePath();
+        ctx.fill();
+        // Europe
+        ctx.fillStyle = '#4a7c3f';
+        ctx.beginPath();
+        ctx.moveTo(psx + 4, psy - 18);
+        ctx.quadraticCurveTo(psx + 12, psy - 20, psx + 16, psy - 14);
+        ctx.quadraticCurveTo(psx + 14, psy - 10, psx + 8, psy - 12);
+        ctx.closePath();
+        ctx.fill();
+
+        // Desert areas (Sahara, Middle East)
+        ctx.fillStyle = '#c8a96e';
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.arc(psx + 10, psy - 6, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(psx + 16, psy - 2, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Polar ice caps
+        ctx.fillStyle = '#e8f0f8';
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.ellipse(psx, psy - planetRadius * 0.82, planetRadius * 0.55, planetRadius * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(psx, psy + planetRadius * 0.85, planetRadius * 0.45, planetRadius * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Ocean depth variation
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(psx - 5, psy + 5, planetRadius * 0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Animated clouds (multiple layers, slow rotation)
+        ctx.globalAlpha = 0.2;
         ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.ellipse(psx - 5, psy - 10, 18, 5, 0.3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(psx + 10, psy + 5, 14, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+        var cloudOffset = this.time * 0.3;
+        ctx.beginPath(); ctx.ellipse(psx - 12 + Math.sin(cloudOffset) * 3, psy - 12, 20, 5, 0.2 + cloudOffset * 0.02, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(psx + 8 + Math.cos(cloudOffset * 0.7) * 4, psy + 3, 16, 4, -0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(psx - 3 + Math.sin(cloudOffset * 0.5) * 2, psy + 16, 12, 3, 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.12;
+        ctx.beginPath(); ctx.ellipse(psx + 15 + Math.cos(cloudOffset * 0.8) * 2, psy - 5, 10, 6, 1.2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(psx - 18 + Math.sin(cloudOffset * 0.6) * 3, psy + 8, 14, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+
+      } else {
+        // Non-Terra planets: generic gradient sphere
+        var baseGrad = ctx.createRadialGradient(psx - planetRadius * 0.3, psy - planetRadius * 0.3, planetRadius * 0.05, psx + planetRadius * 0.1, psy + planetRadius * 0.1, planetRadius);
+        baseGrad.addColorStop(0, planet.surfaceDetail || '#6dce5a');
+        baseGrad.addColorStop(0.4, planetColor);
+        baseGrad.addColorStop(1, planet.groundDark || '#1a4010');
+        ctx.fillStyle = baseGrad;
+        ctx.fillRect(psx - planetRadius, psy - planetRadius, planetRadius * 2, planetRadius * 2);
+      }
+      ctx.restore();
+
+      // === SURFACE FEATURES (non-Terra planets) ===
+      if (pi !== 0 || !accessible) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(psx, psy, planetRadius, 0, Math.PI * 2); ctx.clip();
+      }
+
+      if (pi === 0 && accessible) {
+        // Terra already drawn above - close non-terra guard
       } else if (pi === 1) {
         // LUA type: craters
         ctx.globalAlpha = 0.3;
