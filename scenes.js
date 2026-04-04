@@ -4395,71 +4395,286 @@ Game.scenes.PLANET_EXPLORE = {
     this.alienSpawnTimer -= dt;
     if (this.alienSpawnTimer <= 0 && this.planetIndex > 0) {
       this.alienSpawnTimer = 4 + Math.random() * 6;
-      // Multiple alien types per planet (random pick, weighted by planet)
-      var alienPool = [Game.Sprites.alienGreen, Game.Sprites.alienPurple, Game.Sprites.alienRed];
-      var alienSprite = alienPool[Math.floor(Math.random() * alienPool.length)];
+
+      // === ALIENS ESPECIFICOS POR PLANETA ===
+      var pi = this.planetIndex % 5;
+      var alienTypes = {
+        1: [ // LUA
+          { name: 'Crawler', color: '#b0b0b0', eyeColor: '#ff0000', speed: 55, hp: 20, dmg: 8, behavior: 'crawl', size: 12, dropFood: 'fungo_lunar', foodHunger: 15,
+            desc: 'Rastejador que sai das crateras' },
+          { name: 'Flutuante', color: '#42a5f5', eyeColor: '#fff', speed: 30, hp: 15, dmg: 12, behavior: 'float', size: 10, dropFood: 'geleia_espacial', foodHunger: 20,
+            desc: 'Medusa lunar que flutua e dispara' }
+        ],
+        2: [ // MARTE
+          { name: 'Escorpiao', color: '#c1440e', eyeColor: '#ffeb3b', speed: 70, hp: 30, dmg: 15, behavior: 'charge', size: 16, dropFood: 'carne_marciana', foodHunger: 25,
+            desc: 'Escorpiao de areia que avanca rapido' },
+          { name: 'Verme', color: '#8b4513', eyeColor: '#ff6b35', speed: 40, hp: 45, dmg: 10, behavior: 'burrow', size: 14, dropFood: 'raiz_marte', foodHunger: 20,
+            desc: 'Emerge do chao pra atacar' }
+        ],
+        3: [ // VENUS
+          { name: 'Toxigeno', color: '#76ff03', eyeColor: '#e040fb', speed: 45, hp: 25, dmg: 10, behavior: 'poison', size: 13, dropFood: 'fruta_acida', foodHunger: 18,
+            desc: 'Libera nuvem de veneno ao morrer' },
+          { name: 'Lava Slime', color: '#ff6b35', eyeColor: '#fff', speed: 35, hp: 35, dmg: 18, behavior: 'split', size: 18, dropFood: 'cristal_quente', foodHunger: 30,
+            desc: 'Se divide em 2 ao morrer' }
+        ],
+        4: [ // PLUTAO
+          { name: 'Criogeno', color: '#b3e5fc', eyeColor: '#1565c0', speed: 50, hp: 35, dmg: 12, behavior: 'freeze', size: 14, dropFood: 'gelo_nutritivo', foodHunger: 22,
+            desc: 'Congela o astronauta por 1s' },
+          { name: 'Sombra', color: '#1a1a2e', eyeColor: '#f44336', speed: 80, hp: 20, dmg: 20, behavior: 'teleport', size: 11, dropFood: 'essencia_sombria', foodHunger: 35,
+            desc: 'Teleporta e ataca pelas costas' }
+        ]
+      };
+      // Fallback para planetas 5+
+      var typePool = alienTypes[pi] || alienTypes[1];
+      var alienDef = typePool[Math.floor(Math.random() * typePool.length)];
+
       var alienX = this.astronaut.x + (Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 200);
       alienX = Math.max(50, Math.min(this.terrainWidth - 50, alienX));
       var alienGroundY = this.terrain[Math.min(Math.floor(alienX), this.terrain.length - 1)];
+      var planetIdx = this.planetIndex;
 
       Game.EntityManager.add('enemies', {
-        x: alienX, y: alienGroundY - 18, radius: 15, hp: 20 + this.planetIndex * 5,
-        active: true, sprite: alienSprite, facing: 1, animTimer: 0,
-        coinDrop: 5 + this.planetIndex * 3 + Math.floor(Math.random() * 5),
-        groundY: alienGroundY,
+        x: alienX, y: alienGroundY - 18, radius: alienDef.size, hp: alienDef.hp + planetIdx * 3,
+        maxHp: alienDef.hp + planetIdx * 3,
+        active: true, facing: 1, animTimer: 0,
+        alienDef: alienDef, alienColor: alienDef.color, alienEye: alienDef.eyeColor,
+        coinDrop: 5 + planetIdx * 3 + Math.floor(Math.random() * 5),
+        groundY: alienGroundY, shootTimer: 2 + Math.random() * 2,
+        burrowTimer: 0, burrowPhase: 0, freezeApplied: false, teleportCD: 3,
         update: function(dt2) {
           this.animTimer += dt2;
-          // Chase astronaut
           var ast = Game.scenes.PLANET_EXPLORE.astronaut;
           var dx = ast.x - this.x;
           this.facing = dx > 0 ? 1 : -1;
-          if (Math.abs(dx) > 30) {
-            this.x += this.facing * (40 + Game.scenes.PLANET_EXPLORE.planetIndex * 8) * dt2;
+          var scene = Game.scenes.PLANET_EXPLORE;
+          var behavior = this.alienDef.behavior;
+
+          // === BEHAVIOR PER TYPE ===
+          if (behavior === 'crawl') {
+            // Crawl: steady chase
+            if (Math.abs(dx) > 25) this.x += this.facing * this.alienDef.speed * dt2;
+          } else if (behavior === 'float') {
+            // Float: hover above ground + shoot orbs
+            if (Math.abs(dx) > 60) this.x += this.facing * this.alienDef.speed * dt2;
+            this.y = this.groundY - 50 + Math.sin(this.animTimer * 3) * 10;
+            this.shootTimer -= dt2;
+            if (this.shootTimer <= 0 && Math.abs(dx) < 400) {
+              this.shootTimer = 2.5;
+              Game.EntityManager.add('particles', {
+                x: this.x, y: this.y, radius: 5, active: true,
+                vx: this.facing * 150, vy: 30, life: 2, color: '#42a5f5', isEnemyBullet: true,
+                update: function(dt3) { this.x += this.vx * dt3; this.y += this.vy * dt3; this.life -= dt3; if (this.life <= 0) this.active = false; },
+                render: function(ctx3, ox, oy) { ctx3.save(); ctx3.shadowColor = '#42a5f5'; ctx3.shadowBlur = 6; ctx3.fillStyle = '#42a5f5'; ctx3.beginPath(); ctx3.arc(this.x-(ox||0), this.y-(oy||0), 4, 0, Math.PI*2); ctx3.fill(); ctx3.restore(); }
+              });
+            }
+            return; // skip ground check
+          } else if (behavior === 'charge') {
+            // Charge: fast sprint when close
+            var chargeSpeed = Math.abs(dx) < 200 ? this.alienDef.speed * 2 : this.alienDef.speed * 0.5;
+            if (Math.abs(dx) > 25) this.x += this.facing * chargeSpeed * dt2;
+          } else if (behavior === 'burrow') {
+            // Burrow: hide underground, emerge to attack
+            this.burrowTimer += dt2;
+            if (this.burrowPhase === 0) {
+              // Underground (invisible), move toward player
+              this.x += (dx > 0 ? 1 : -1) * 60 * dt2;
+              if (this.burrowTimer > 3 || Math.abs(dx) < 80) { this.burrowPhase = 1; this.burrowTimer = 0; }
+              this.y = this.groundY + 10; // hidden below
+              return;
+            } else if (this.burrowPhase === 1) {
+              // Emerge!
+              this.y = this.groundY - 18 - this.burrowTimer * 40;
+              if (this.burrowTimer > 0.5) { this.burrowPhase = 2; this.burrowTimer = 0; Game.triggerShake(3, 0.15); }
+              return;
+            } else {
+              // Chase normally for a bit
+              if (Math.abs(dx) > 25) this.x += this.facing * this.alienDef.speed * dt2;
+              if (this.burrowTimer > 4) { this.burrowPhase = 0; this.burrowTimer = 0; }
+            }
+          } else if (behavior === 'poison') {
+            if (Math.abs(dx) > 30) this.x += this.facing * this.alienDef.speed * dt2;
+          } else if (behavior === 'split') {
+            if (Math.abs(dx) > 30) this.x += this.facing * this.alienDef.speed * dt2;
+          } else if (behavior === 'freeze') {
+            if (Math.abs(dx) > 30) this.x += this.facing * this.alienDef.speed * dt2;
+          } else if (behavior === 'teleport') {
+            this.teleportCD -= dt2;
+            if (this.teleportCD <= 0 && Math.abs(dx) < 300) {
+              // Teleport behind player
+              this.x = ast.x + (ast.facing > 0 ? -60 : 60);
+              this.teleportCD = 2.5 + Math.random();
+              Game.spawnParticles(this.x, this.y, 5, '#1a1a2e', 0.4);
+            }
+            if (Math.abs(dx) > 30) this.x += this.facing * this.alienDef.speed * dt2;
+          } else {
+            if (Math.abs(dx) > 30) this.x += this.facing * this.alienDef.speed * dt2;
           }
+
           // Stay on ground
-          var gx = Math.min(Math.floor(this.x), Game.scenes.PLANET_EXPLORE.terrain.length - 1);
-          if (gx >= 0 && gx < Game.scenes.PLANET_EXPLORE.terrain.length) {
-            this.groundY = Game.scenes.PLANET_EXPLORE.terrain[gx];
+          var gx = Math.min(Math.floor(this.x), scene.terrain.length - 1);
+          if (gx >= 0 && gx < scene.terrain.length) {
+            this.groundY = scene.terrain[gx];
             this.y = this.groundY - 18;
           }
-          // Damage astronaut on contact (wider hitbox)
+          // Contact damage
           if (Math.abs(dx) < 40 && Math.abs(ast.y - this.y) < 45) {
             if (!this._hitCooldown || this._hitCooldown <= 0) {
-              ast.hp = Math.max(0, ast.hp - 15);
+              var dmgAmount = this.alienDef.dmg;
+              ast.hp = Math.max(0, ast.hp - dmgAmount);
               this._hitCooldown = 0.8;
               Game.triggerShake(4, 0.15);
               if (Game.Audio) Game.Audio.sfx.damage();
-              Game.addFloatingText('-10 HP', ast.x, ast.y - 30, '#f44336');
+              Game.addFloatingText('-' + dmgAmount + ' HP', ast.x, ast.y - 30, '#f44336');
+              // Freeze effect
+              if (behavior === 'freeze' && !this.freezeApplied) {
+                this.freezeApplied = true;
+                ast.frozen = true; ast.frozenTimer = 1.2;
+                Game.addFloatingText('CONGELADO!', ast.x, ast.y - 50, '#b3e5fc', 14);
+              }
             }
           }
           if (this._hitCooldown > 0) this._hitCooldown -= dt2;
-          // Despawn if too far
           if (Math.abs(this.x - ast.x) > 800) this.active = false;
         },
         render: function(ctx2, ox, oy) {
-          Game.Pixel.drawCentered(ctx2, this.sprite, this.x - (ox||0), this.y - (oy||0), 3, this.facing === -1);
+          var sx = this.x - (ox||0), sy = this.y - (oy||0);
+          var def = this.alienDef;
+          var r = def.size;
+          var pulse = 1 + Math.sin(this.animTimer * 4) * 0.08;
+          var flip = this.facing === -1;
+
+          // Burrow: show dust particles only
+          if (def.behavior === 'burrow' && this.burrowPhase === 0) {
+            if (Math.random() < 0.1) {
+              ctx2.fillStyle = '#8b4513';
+              ctx2.fillRect(sx - 3 + Math.random()*6, sy + 10, 4, 2);
+            }
+            return;
+          }
+
+          // Body
+          ctx2.save();
+          if (def.behavior === 'teleport') { ctx2.globalAlpha = 0.7 + Math.sin(this.animTimer * 8) * 0.2; }
+          ctx2.fillStyle = this.alienColor;
+          ctx2.beginPath(); ctx2.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx2.fill();
+
+          // Inner body gradient
+          var innerGrad = ctx2.createRadialGradient(sx - r*0.2, sy - r*0.2, 0, sx, sy, r);
+          innerGrad.addColorStop(0, this.alienColor);
+          innerGrad.addColorStop(1, '#000');
+          ctx2.globalAlpha = 0.3;
+          ctx2.fillStyle = innerGrad;
+          ctx2.beginPath(); ctx2.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx2.fill();
+          ctx2.globalAlpha = 1;
+
+          // Eyes
+          var eyeOff = flip ? -4 : 4;
+          ctx2.fillStyle = this.alienEye;
+          ctx2.beginPath(); ctx2.arc(sx + eyeOff - 3, sy - 3, 3, 0, Math.PI * 2); ctx2.fill();
+          ctx2.beginPath(); ctx2.arc(sx + eyeOff + 3, sy - 3, 3, 0, Math.PI * 2); ctx2.fill();
+          ctx2.fillStyle = '#000';
+          ctx2.beginPath(); ctx2.arc(sx + eyeOff - 3, sy - 3, 1.5, 0, Math.PI * 2); ctx2.fill();
+          ctx2.beginPath(); ctx2.arc(sx + eyeOff + 3, sy - 3, 1.5, 0, Math.PI * 2); ctx2.fill();
+
+          // Type-specific details
+          if (def.behavior === 'float') {
+            // Tentacles
+            for (var ti = 0; ti < 3; ti++) {
+              var tx = sx - 6 + ti * 6 + Math.sin(this.animTimer * 3 + ti) * 3;
+              var ty = sy + r;
+              ctx2.strokeStyle = this.alienColor; ctx2.lineWidth = 2;
+              ctx2.beginPath(); ctx2.moveTo(tx, ty); ctx2.quadraticCurveTo(tx + Math.sin(this.animTimer*4+ti)*4, ty+8, tx, ty+14); ctx2.stroke();
+            }
+          } else if (def.behavior === 'charge') {
+            // Pincers
+            ctx2.fillStyle = '#ff6b35';
+            var px = flip ? -1 : 1;
+            ctx2.beginPath(); ctx2.moveTo(sx + px*r, sy); ctx2.lineTo(sx + px*(r+8), sy-5); ctx2.lineTo(sx + px*(r+6), sy+3); ctx2.closePath(); ctx2.fill();
+            ctx2.beginPath(); ctx2.moveTo(sx + px*r, sy+4); ctx2.lineTo(sx + px*(r+8), sy+9); ctx2.lineTo(sx + px*(r+6), sy+1); ctx2.closePath(); ctx2.fill();
+          } else if (def.behavior === 'poison') {
+            // Poison aura
+            ctx2.globalAlpha = 0.15;
+            ctx2.fillStyle = '#76ff03';
+            ctx2.beginPath(); ctx2.arc(sx, sy, r + 8, 0, Math.PI * 2); ctx2.fill();
+          } else if (def.behavior === 'freeze') {
+            // Ice crystals around body
+            ctx2.fillStyle = '#e1f5fe';
+            for (var ic = 0; ic < 4; ic++) {
+              var ica = this.animTimer * 2 + ic * 1.57;
+              ctx2.fillRect(sx + Math.cos(ica) * (r+4) - 1, sy + Math.sin(ica) * (r+4) - 2, 3, 4);
+            }
+          }
+
+          // HP bar
+          if (this.hp < this.maxHp) {
+            var hpPct = this.hp / this.maxHp;
+            ctx2.fillStyle = '#000'; ctx2.fillRect(sx - 12, sy - r - 8, 24, 4);
+            ctx2.fillStyle = hpPct > 0.5 ? '#4caf50' : (hpPct > 0.25 ? '#ff9800' : '#f44336');
+            ctx2.fillRect(sx - 11, sy - r - 7, 22 * hpPct, 2);
+          }
+
+          // Name tag
+          ctx2.globalAlpha = 0.6;
+          ctx2.font = '7px Arial'; ctx2.textAlign = 'center'; ctx2.fillStyle = '#fff';
+          ctx2.fillText(def.name, sx, sy - r - 10);
+
+          ctx2.restore();
         },
         takeDamage: function(dmg) {
           this.hp -= dmg;
-          Game.spawnParticles(this.x, this.y, 3, '#4caf50', 0.5);
+          Game.spawnParticles(this.x, this.y, 3, this.alienColor, 0.5);
           if (this.hp <= 0) {
             this.active = false;
-            Game.spawnParticles(this.x, this.y, 10, '#4caf50', 1);
+            var def = this.alienDef;
+            Game.spawnParticles(this.x, this.y, 10, this.alienColor, 1);
             Game.EntityManager.add('coins', Game.createCoin(this.x, this.y, this.coinDrop));
             Game.addFloatingText('+' + this.coinDrop, this.x, this.y - 20, '#ffd700');
             if (Game.Audio) Game.Audio.sfx.explosion();
-            // Count kill for boss trigger
             if (Game.scenes.PLANET_EXPLORE) Game.scenes.PLANET_EXPLORE.killCount++;
-            // Drop food (40% chance)
+
+            // POISON: death cloud
+            if (def.behavior === 'poison') {
+              for (var pc = 0; pc < 6; pc++) {
+                Game.EntityManager.add('particles', {
+                  x: this.x + (Math.random()-0.5)*30, y: this.y - Math.random()*15, radius: 10, active: true,
+                  vx: (Math.random()-0.5)*15, vy: -10, life: 3, color: '#76ff03', isEnemyBullet: true,
+                  update: function(dt3) { this.x += this.vx*dt3; this.y += this.vy*dt3; this.life -= dt3; if (this.life<=0) this.active=false; },
+                  render: function(ctx3, ox, oy) { ctx3.save(); ctx3.globalAlpha=this.life*0.15; ctx3.fillStyle=this.color; ctx3.beginPath(); ctx3.arc(this.x-(ox||0),this.y-(oy||0),12,0,Math.PI*2); ctx3.fill(); ctx3.restore(); }
+                });
+              }
+              Game.addFloatingText('NUVEM TOXICA!', this.x, this.y - 40, '#76ff03', 12);
+            }
+            // SPLIT: spawn 2 mini aliens
+            if (def.behavior === 'split') {
+              for (var si = 0; si < 2; si++) {
+                var splitX = this.x + (si === 0 ? -30 : 30);
+                Game.EntityManager.add('particles', {
+                  x: splitX, y: this.y, radius: 8, active: true, hp: 12,
+                  vx: (si===0?-1:1)*40, vy: 0, life: 8, color: '#ff6b35', isEnemy: true,
+                  update: function(dt3) {
+                    this.x += this.vx*dt3; this.life -= dt3;
+                    var ast3 = Game.scenes.PLANET_EXPLORE.astronaut;
+                    if (Math.abs(ast3.x-this.x)<30 && Math.abs(ast3.y-this.y)<30) {
+                      ast3.hp = Math.max(0, ast3.hp-8); this.active=false; Game.addFloatingText('-8',ast3.x,ast3.y-20,'#f44336');
+                    }
+                    if (this.life<=0) this.active=false;
+                  },
+                  render: function(ctx3, ox, oy) { ctx3.fillStyle=this.color; ctx3.beginPath(); ctx3.arc(this.x-(ox||0),this.y-(oy||0),6,0,Math.PI*2); ctx3.fill(); }
+                });
+              }
+              Game.addFloatingText('DIVIDIU!', this.x, this.y - 40, '#ff6b35', 12);
+            }
+
+            // Drop planet-specific food (40% chance)
             if (Math.random() < 0.4 && Game.scenes.PLANET_EXPLORE.foodItems) {
               Game.scenes.PLANET_EXPLORE.foodItems.push({
-                x: this.x, y: this.y, type: 'carne',
-                hunger: 20 + Math.floor(Math.random() * 10), collected: false
+                x: this.x, y: this.y, type: def.dropFood || 'carne',
+                hunger: def.foodHunger || 20, collected: false
               });
             }
             // Drop ammo (30% chance)
             if (Math.random() < 0.3) {
-              Game.saveData.ammo = Math.min((Game.saveData.maxAmmo || 50), (Game.saveData.ammo || 0) + 5);
+              Game.saveData.ammo = Math.min((Game.saveData.maxAmmo||50), (Game.saveData.ammo||0) + 5);
               Game.addFloatingText('+5 balas', this.x, this.y - 35, '#4fc3f7', 10);
             }
           }
