@@ -561,32 +561,6 @@ Game.scenes.SPACE_FREE = {
       this.robot.x += (this.robot.targetX - this.robot.x) * 5 * dt;
       this.robot.y += (this.robot.targetY - this.robot.y) * 5 * dt;
 
-      // Auto-shoot at nearest enemy/meteor
-      this.robot.shootTimer -= dt * 1000;
-      if (this.robot.shootTimer <= 0) {
-        var meteors = Game.EntityManager.meteors;
-        var nearest = null;
-        var nearDist = 250;
-        for (var ri = 0; ri < meteors.length; ri++) {
-          if (!meteors[ri].active) continue;
-          var rdx = meteors[ri].x - this.robot.x;
-          var rdy = meteors[ri].y - this.robot.y;
-          var rd = Math.sqrt(rdx*rdx + rdy*rdy);
-          if (rd < nearDist) { nearDist = rd; nearest = meteors[ri]; }
-        }
-        if (nearest) {
-          var bAngle = Math.atan2(nearest.y - this.robot.y, nearest.x - this.robot.x);
-          Game.EntityManager.add('bullets', {
-            x: this.robot.x, y: this.robot.y, radius: 4, active: true,
-            vx: Math.cos(bAngle) * 400, vy: Math.sin(bAngle) * 400, life: 1.5, color: '#4fc3f7', damage: 8,
-            update: function(dt2) { this.x += this.vx*dt2; this.y += this.vy*dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
-            render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 3, 0, Math.PI*2); ctx2.fill(); }
-          });
-          this.robot.shootTimer = 600;
-          if (Game.Audio) Game.Audio.sfx.robotShoot();
-        }
-      }
-
       // Auto-collect coins
       var coins = Game.EntityManager.coins;
       for (var rci = coins.length - 1; rci >= 0; rci--) {
@@ -5020,32 +4994,6 @@ Game.scenes.PLANET_EXPLORE = {
       // Stay on ground
       var prGx = Math.min(Math.floor(pr.x), this.terrain.length - 1);
       if (prGx >= 0) pr.y = this.terrain[prGx] - 12;
-
-      // Auto-shoot at nearest enemy
-      pr.shootTimer -= dt * 1000;
-      if (pr.shootTimer <= 0) {
-        var enemies = Game.EntityManager.enemies;
-        var nearestE = null;
-        var nearestD = 200;
-        for (var rei = 0; rei < enemies.length; rei++) {
-          if (!enemies[rei].active) continue;
-          var redx = enemies[rei].x - pr.x;
-          var redy = enemies[rei].y - pr.y;
-          var red = Math.sqrt(redx*redx + redy*redy);
-          if (red < nearestD) { nearestD = red; nearestE = enemies[rei]; }
-        }
-        if (nearestE) {
-          var rBdir = nearestE.x > pr.x ? 1 : -1;
-          Game.EntityManager.add('bullets', {
-            x: pr.x + rBdir * 10, y: pr.y - 5, radius: 3, active: true,
-            vx: rBdir * 300, vy: 0, life: 1.2, color: '#4fc3f7', damage: 6,
-            update: function(dt2) { this.x += this.vx*dt2; this.y += this.vy*dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
-            render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 2, 0, Math.PI*2); ctx2.fill(); }
-          });
-          pr.shootTimer = 800;
-          if (Game.Audio) Game.Audio.sfx.robotShoot();
-        }
-      }
 
       // Collect coins on the ground
       var pCoins = Game.EntityManager.coins;
