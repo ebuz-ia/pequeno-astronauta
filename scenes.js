@@ -1644,84 +1644,204 @@ Game.scenes.SPACE_FREE = {
     ctx.translate(shipSX, shipSY);
     ctx.rotate(this.shipAngle);
 
-    // Smooth rocket body
-    // Nose cone
-    ctx.fillStyle = '#e0e0e0';
-    ctx.beginPath();
-    ctx.moveTo(0, -30);
-    ctx.lineTo(-10, -10);
-    ctx.lineTo(10, -10);
-    ctx.closePath();
-    ctx.fill();
-    // Body
-    var bodyGrad = ctx.createLinearGradient(-12, 0, 12, 0);
-    bodyGrad.addColorStop(0, '#bbb');
-    bodyGrad.addColorStop(0.3, '#e8e8e8');
-    bodyGrad.addColorStop(0.7, '#ddd');
-    bodyGrad.addColorStop(1, '#999');
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(-10, -10, 20, 30);
-    // Window
-    ctx.fillStyle = '#1e88e5';
-    ctx.beginPath();
-    ctx.arc(0, -5, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#64b5f6';
-    ctx.beginPath();
-    ctx.arc(-1, -6, 2, 0, Math.PI * 2);
-    ctx.fill();
-    // Fins
-    ctx.fillStyle = '#f44336';
-    ctx.beginPath();
-    ctx.moveTo(-10, 15);
-    ctx.lineTo(-18, 25);
-    ctx.lineTo(-10, 20);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(10, 15);
-    ctx.lineTo(18, 25);
-    ctx.lineTo(10, 20);
-    ctx.closePath();
-    ctx.fill();
-    // Nozzle
-    ctx.fillStyle = '#555';
-    ctx.fillRect(-6, 20, 12, 5);
-
-    // Flame when thrusting (smooth fire)
+    // === FOGUETE DETALHADO ===
     var isThrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || this.pressing.thrust;
-    if (isThrusting && Game.saveData.fuel > 0) {
-      var flameH = 15 + Math.random() * 10;
-      var flameGrad = ctx.createLinearGradient(0, 25, 0, 25 + flameH);
-      flameGrad.addColorStop(0, '#ffeb3b');
-      flameGrad.addColorStop(0.4, '#ff9800');
-      flameGrad.addColorStop(1, 'rgba(244,67,54,0)');
-      ctx.fillStyle = flameGrad;
-      ctx.beginPath();
-      ctx.moveTo(-6, 25);
-      ctx.lineTo(0, 25 + flameH);
-      ctx.lineTo(6, 25);
-      ctx.closePath();
-      ctx.fill();
-      // Inner flame
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.beginPath();
-      ctx.moveTo(-3, 25);
-      ctx.lineTo(0, 25 + flameH * 0.5);
-      ctx.lineTo(3, 25);
-      ctx.closePath();
-      ctx.fill();
+    var thrustActive = isThrusting && Game.saveData.fuel > 0;
+
+    // Engine glow (behind rocket)
+    if (thrustActive) {
+      ctx.save();
+      var engGlow = ctx.createRadialGradient(0, 32, 0, 0, 32, 25);
+      engGlow.addColorStop(0, 'rgba(255,150,50,0.4)');
+      engGlow.addColorStop(0.5, 'rgba(255,100,30,0.15)');
+      engGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = engGlow;
+      ctx.beginPath(); ctx.arc(0, 32, 25, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
 
-    // Engine glow
-    ctx.save();
-    ctx.shadowColor = '#ff6b35';
-    ctx.shadowBlur = isThrusting && Game.saveData.fuel > 0 ? 15 : 0;
-    ctx.fillStyle = 'rgba(255,107,53,0.1)';
+    // Flame (behind rocket body)
+    if (thrustActive) {
+      var flameH = 20 + Math.random() * 15;
+      var flameW = 8 + Math.random() * 4;
+      // Outer flame (orange-red)
+      var fGrad = ctx.createLinearGradient(0, 26, 0, 26 + flameH);
+      fGrad.addColorStop(0, '#ffeb3b');
+      fGrad.addColorStop(0.3, '#ff9800');
+      fGrad.addColorStop(0.7, '#f44336');
+      fGrad.addColorStop(1, 'rgba(200,30,0,0)');
+      ctx.fillStyle = fGrad;
+      ctx.beginPath();
+      ctx.moveTo(-flameW, 26);
+      ctx.quadraticCurveTo(-flameW * 0.6, 26 + flameH * 0.6, 0, 26 + flameH);
+      ctx.quadraticCurveTo(flameW * 0.6, 26 + flameH * 0.6, flameW, 26);
+      ctx.closePath(); ctx.fill();
+      // Inner flame (white-yellow)
+      var fGrad2 = ctx.createLinearGradient(0, 26, 0, 26 + flameH * 0.5);
+      fGrad2.addColorStop(0, 'rgba(255,255,255,0.9)');
+      fGrad2.addColorStop(0.5, 'rgba(255,235,59,0.6)');
+      fGrad2.addColorStop(1, 'transparent');
+      ctx.fillStyle = fGrad2;
+      ctx.beginPath();
+      ctx.moveTo(-flameW * 0.4, 26);
+      ctx.quadraticCurveTo(0, 26 + flameH * 0.4, 0, 26 + flameH * 0.55);
+      ctx.quadraticCurveTo(0, 26 + flameH * 0.4, flameW * 0.4, 26);
+      ctx.closePath(); ctx.fill();
+      // Side exhaust sparks
+      if (Math.random() < 0.4) {
+        ctx.fillStyle = '#ffeb3b';
+        ctx.beginPath(); ctx.arc((Math.random()-0.5)*10, 28 + Math.random()*flameH*0.5, 1.5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // Fins (behind body) - larger, swept-back
+    var finGrad = ctx.createLinearGradient(-18, 10, -8, 28);
+    finGrad.addColorStop(0, '#d32f2f');
+    finGrad.addColorStop(1, '#8b0000');
+    ctx.fillStyle = finGrad;
+    // Left fin
     ctx.beginPath();
-    ctx.arc(0, 25, 8, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(-10, 8);
+    ctx.lineTo(-20, 28);
+    ctx.lineTo(-18, 30);
+    ctx.lineTo(-10, 22);
+    ctx.closePath(); ctx.fill();
+    // Right fin
+    var finGrad2 = ctx.createLinearGradient(8, 10, 18, 28);
+    finGrad2.addColorStop(0, '#e53935');
+    finGrad2.addColorStop(1, '#b71c1c');
+    ctx.fillStyle = finGrad2;
+    ctx.beginPath();
+    ctx.moveTo(10, 8);
+    ctx.lineTo(20, 28);
+    ctx.lineTo(18, 30);
+    ctx.lineTo(10, 22);
+    ctx.closePath(); ctx.fill();
+    // Fin tips (white accent)
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.moveTo(-10, 8); ctx.lineTo(-15, 18); ctx.lineTo(-10, 14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(15, 18); ctx.lineTo(10, 14); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Main body (curved capsule shape)
+    var bodyGrad = ctx.createLinearGradient(-12, -35, 12, -35);
+    bodyGrad.addColorStop(0, '#8a8a8a');
+    bodyGrad.addColorStop(0.15, '#c0c0c0');
+    bodyGrad.addColorStop(0.35, '#e8e8e8');
+    bodyGrad.addColorStop(0.65, '#f0f0f0');
+    bodyGrad.addColorStop(0.85, '#d0d0d0');
+    bodyGrad.addColorStop(1, '#909090');
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, -38);
+    ctx.quadraticCurveTo(12, -30, 12, -10);
+    ctx.lineTo(12, 20);
+    ctx.quadraticCurveTo(12, 26, 8, 26);
+    ctx.lineTo(-8, 26);
+    ctx.quadraticCurveTo(-12, 26, -12, 20);
+    ctx.lineTo(-12, -10);
+    ctx.quadraticCurveTo(-12, -30, 0, -38);
+    ctx.closePath(); ctx.fill();
+
+    // Nose cone (smooth red tip)
+    var noseGrad = ctx.createLinearGradient(-6, -38, 6, -38);
+    noseGrad.addColorStop(0, '#c62828');
+    noseGrad.addColorStop(0.5, '#ef5350');
+    noseGrad.addColorStop(1, '#b71c1c');
+    ctx.fillStyle = noseGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, -42);
+    ctx.quadraticCurveTo(8, -34, 8, -28);
+    ctx.lineTo(-8, -28);
+    ctx.quadraticCurveTo(-8, -34, 0, -42);
+    ctx.closePath(); ctx.fill();
+    // Nose highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath();
+    ctx.moveTo(-1, -41);
+    ctx.quadraticCurveTo(-5, -36, -5, -30);
+    ctx.lineTo(-2, -30);
+    ctx.quadraticCurveTo(-2, -36, -1, -41);
+    ctx.closePath(); ctx.fill();
+
+    // Body panel lines (horizontal stripes)
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 0.5;
+    for (var bl = -20; bl <= 15; bl += 7) {
+      ctx.beginPath(); ctx.moveTo(-11, bl); ctx.lineTo(11, bl); ctx.stroke();
+    }
+
+    // Main window (porthole)
+    ctx.save();
+    // Window frame
+    ctx.fillStyle = '#546e7a';
+    ctx.beginPath(); ctx.arc(0, -12, 8, 0, Math.PI * 2); ctx.fill();
+    // Glass
+    var glassGrad = ctx.createRadialGradient(-2, -14, 0, 0, -12, 7);
+    glassGrad.addColorStop(0, '#4fc3f7');
+    glassGrad.addColorStop(0.5, '#1e88e5');
+    glassGrad.addColorStop(1, '#0d47a1');
+    ctx.fillStyle = glassGrad;
+    ctx.beginPath(); ctx.arc(0, -12, 6.5, 0, Math.PI * 2); ctx.fill();
+    // Glass reflection
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(-2, -14, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath(); ctx.ellipse(2, -10, 3, 1.5, 0.5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+
+    // Side windows (small portholes)
+    for (var sw = 0; sw < 2; sw++) {
+      var swY = 2 + sw * 10;
+      ctx.fillStyle = '#455a64';
+      ctx.beginPath(); ctx.arc(0, swY, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1565c0';
+      ctx.beginPath(); ctx.arc(0, swY, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath(); ctx.arc(-0.5, swY - 0.5, 1, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Nozzle bell (engine)
+    var nozGrad = ctx.createLinearGradient(-8, 22, 8, 22);
+    nozGrad.addColorStop(0, '#424242');
+    nozGrad.addColorStop(0.5, '#616161');
+    nozGrad.addColorStop(1, '#333');
+    ctx.fillStyle = nozGrad;
+    ctx.beginPath();
+    ctx.moveTo(-7, 22);
+    ctx.lineTo(-9, 28);
+    ctx.lineTo(9, 28);
+    ctx.lineTo(7, 22);
+    ctx.closePath(); ctx.fill();
+    // Nozzle inner
+    ctx.fillStyle = thrustActive ? '#ff8a65' : '#1a1a1a';
+    ctx.beginPath();
+    ctx.moveTo(-5, 24);
+    ctx.lineTo(-7, 28);
+    ctx.lineTo(7, 28);
+    ctx.lineTo(5, 24);
+    ctx.closePath(); ctx.fill();
+
+    // Body highlight (left edge reflection)
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(-10, -25);
+    ctx.quadraticCurveTo(-12, -10, -11, 18);
+    ctx.lineTo(-8, 18);
+    ctx.quadraticCurveTo(-9, -10, -8, -25);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Ship tier badge (colored stripe)
+    var tierColors = ['#4caf50', '#2196f3', '#ff9800'];
+    var tierIdx = Game.getShipTier ? Game.getShipTier(Game.saveData.planetsVisited || 0) : 0;
+    ctx.fillStyle = tierColors[tierIdx] || '#4caf50';
+    ctx.fillRect(-12, -3, 24, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(-12, -3, 24, 1);
 
     ctx.restore();
 
