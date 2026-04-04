@@ -1649,7 +1649,7 @@ Game.scenes.SPACE_FREE = {
     var thrustActive = isThrusting && Game.saveData.fuel > 0;
 
     // Rocket sprite
-    ctx.scale(1.2, 1.2);
+    ctx.scale(1.8, 1.8);
     Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, 0, 0, 2);
 
     // Flame
