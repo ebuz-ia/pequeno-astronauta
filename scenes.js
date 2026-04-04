@@ -333,6 +333,18 @@ Game.scenes.SPACE_FREE = {
       });
     }
 
+    // Robot companion
+    this.robot = null;
+    if (Game.saveData.hasRobot) {
+      this.robot = {
+        x: 0, y: 0,
+        targetX: 0, targetY: 0,
+        mode: 'follow', // follow, shoot, collect
+        shootTimer: 0,
+        animTimer: 0
+      };
+    }
+
     // Position ship at current planet
     var cp = Game.PlanetData[Game.saveData.currentPlanet];
     this.shipX = cp.gx * this.worldScale;
@@ -538,6 +550,57 @@ Game.scenes.SPACE_FREE = {
     this.shipX += this.shipVX * dt;
     this.shipY += this.shipVY * dt;
 
+    // --- ROBOT COMPANION UPDATE ---
+    if (this.robot) {
+      this.robot.animTimer += dt;
+      // Follow ship (orbit around it)
+      var robotOrbitDist = 40;
+      var robotAngle = this.time * 1.5;
+      this.robot.targetX = this.shipX + Math.cos(robotAngle) * robotOrbitDist;
+      this.robot.targetY = this.shipY + Math.sin(robotAngle) * robotOrbitDist;
+      this.robot.x += (this.robot.targetX - this.robot.x) * 5 * dt;
+      this.robot.y += (this.robot.targetY - this.robot.y) * 5 * dt;
+
+      // Auto-shoot at nearest enemy/meteor
+      this.robot.shootTimer -= dt * 1000;
+      if (this.robot.shootTimer <= 0) {
+        var meteors = Game.EntityManager.meteors;
+        var nearest = null;
+        var nearDist = 250;
+        for (var ri = 0; ri < meteors.length; ri++) {
+          if (!meteors[ri].active) continue;
+          var rdx = meteors[ri].x - this.robot.x;
+          var rdy = meteors[ri].y - this.robot.y;
+          var rd = Math.sqrt(rdx*rdx + rdy*rdy);
+          if (rd < nearDist) { nearDist = rd; nearest = meteors[ri]; }
+        }
+        if (nearest) {
+          var bAngle = Math.atan2(nearest.y - this.robot.y, nearest.x - this.robot.x);
+          Game.EntityManager.add('bullets', {
+            x: this.robot.x, y: this.robot.y, radius: 4, active: true,
+            vx: Math.cos(bAngle) * 400, vy: Math.sin(bAngle) * 400, life: 1.5, color: '#4fc3f7', damage: 8,
+            update: function(dt2) { this.x += this.vx*dt2; this.y += this.vy*dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+            render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 3, 0, Math.PI*2); ctx2.fill(); }
+          });
+          this.robot.shootTimer = 600;
+          if (Game.Audio) Game.Audio.sfx.robotShoot();
+        }
+      }
+
+      // Auto-collect coins
+      var coins = Game.EntityManager.coins;
+      for (var rci = coins.length - 1; rci >= 0; rci--) {
+        if (!coins[rci].active) continue;
+        var rcdx = coins[rci].x - this.robot.x;
+        var rcdy = coins[rci].y - this.robot.y;
+        if (Math.sqrt(rcdx*rcdx + rcdy*rcdy) < 30) {
+          Game.saveData.coins += coins[rci].value;
+          coins[rci].active = false;
+          if (Game.Audio) Game.Audio.sfx.coin();
+        }
+      }
+    }
+
     // Camera follows ship
     this.camX = this.shipX - Game.CANVAS_W / 2;
     this.camY = this.shipY - Game.CANVAS_H / 2;
@@ -558,14 +621,15 @@ Game.scenes.SPACE_FREE = {
       }
     }
 
-    // Enter planet
-    if (this.nearPlanet >= 0 && (Game.Input.wasPressed('e') || Game.Input.wasPressed('E'))) {
+    // Enter planet AUTOMATICAMENTE ao encostar
+    if (this.nearPlanet >= 0) {
       Game.saveData.currentPlanet = this.nearPlanet;
       if (Game.saveData.visitedPlanets.indexOf(this.nearPlanet) === -1) {
         Game.saveData.visitedPlanets.push(this.nearPlanet);
         Game.saveData.planetsVisited = Game.saveData.visitedPlanets.length;
       }
       Game.Save.save(Game.saveData);
+      Game.showMessage('Entrando em ' + Game.PlanetData[this.nearPlanet].name + '...', 2);
       Game.changeStateImmediate(Game.States.PLANET_EXPLORE, { planetIndex: this.nearPlanet });
       return;
     }
@@ -1668,6 +1732,45 @@ Game.scenes.SPACE_FREE = {
     }
 
     ctx.restore();
+
+    // --- ROBOT COMPANION ---
+    if (this.robot) {
+      var rsx = this.robot.x - this.camX;
+      var rsy = this.robot.y - this.camY;
+      // Robot body
+      ctx.save();
+      var robotBob = Math.sin(this.time * 3) * 3;
+      ctx.translate(rsx, rsy + robotBob);
+      // Glow
+      ctx.save();
+      ctx.shadowColor = '#4fc3f7';
+      ctx.shadowBlur = 8;
+      // Body
+      ctx.fillStyle = '#546e7a';
+      ctx.fillRect(-6, -5, 12, 10);
+      // Head
+      ctx.fillStyle = '#78909c';
+      ctx.fillRect(-5, -9, 10, 5);
+      // Eye
+      ctx.fillStyle = '#4fc3f7';
+      ctx.beginPath(); ctx.arc(0, -7, 2.5, 0, Math.PI * 2); ctx.fill();
+      // Antenna
+      ctx.strokeStyle = '#90a4ae';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, -14); ctx.stroke();
+      ctx.fillStyle = '#f44336';
+      ctx.beginPath(); ctx.arc(0, -14, 1.5, 0, Math.PI * 2); ctx.fill();
+      // Arms
+      var armSwing = Math.sin(this.time * 4) * 0.3;
+      ctx.strokeStyle = '#546e7a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-6, -2); ctx.lineTo(-10, 2 + armSwing * 3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, -2); ctx.lineTo(10, 2 - armSwing * 3); ctx.stroke();
+      // Thruster glow
+      ctx.fillStyle = 'rgba(79,195,247,0.3)';
+      ctx.beginPath(); ctx.arc(0, 8, 4 + Math.sin(this.time * 6) * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      ctx.restore();
+    }
 
     // --- WINGMEN ---
     for (var wi = 0; wi < this.wingmen.length; wi++) {
