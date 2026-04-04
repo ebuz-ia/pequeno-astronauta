@@ -1649,11 +1649,11 @@ Game.scenes.SPACE_FREE = {
     var thrustActive = isThrusting && Game.saveData.fuel > 0;
 
     // Rocket sprite
-    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, 0, 0, 3);
+    Game.Pixel.drawCentered(ctx, Game.Sprites.rocket, 0, 0, 2);
 
     // Flame
     if (thrustActive) {
-      Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame || 0], 0, 44, 3);
+      Game.Pixel.drawCentered(ctx, Game.Sprites.flame[this.flameFrame || 0], 0, 30, 2);
     }
 
     // Engine glow
