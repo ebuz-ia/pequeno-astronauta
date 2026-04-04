@@ -4130,6 +4130,19 @@ Game.scenes.PLANET_EXPLORE = {
     Game.EntityManager.clear();
     this.nearShop = false;
     this.nearRocket = false;
+    // Robot companion no planeta
+    this.planetRobot = null;
+    if (Game.saveData.hasRobot) {
+      this.planetRobot = {
+        x: this.astronaut.x + 30,
+        y: this.astronaut.y,
+        facing: 1,
+        animTimer: 0,
+        shootTimer: 0,
+        bobTimer: 0
+      };
+    }
+
     this.alienSpawnTimer = 3 + Math.random() * 5;
     this.astronaut.hp = this.astronaut.maxHp;
     this.astronaut.shootCooldown = 0;
@@ -4995,6 +5008,59 @@ Game.scenes.PLANET_EXPLORE = {
     }
 
     // Camera follow
+    // --- ROBOT COMPANION UPDATE (planeta) ---
+    if (this.planetRobot) {
+      var pr = this.planetRobot;
+      pr.animTimer += dt;
+      pr.bobTimer += dt;
+      // Follow astronaut (stay behind)
+      var followX = this.astronaut.x - this.astronaut.facing * 35;
+      pr.x += (followX - pr.x) * 4 * dt;
+      pr.facing = this.astronaut.facing;
+      // Stay on ground
+      var prGx = Math.min(Math.floor(pr.x), this.terrain.length - 1);
+      if (prGx >= 0) pr.y = this.terrain[prGx] - 12;
+
+      // Auto-shoot at nearest enemy
+      pr.shootTimer -= dt * 1000;
+      if (pr.shootTimer <= 0) {
+        var enemies = Game.EntityManager.enemies;
+        var nearestE = null;
+        var nearestD = 200;
+        for (var rei = 0; rei < enemies.length; rei++) {
+          if (!enemies[rei].active) continue;
+          var redx = enemies[rei].x - pr.x;
+          var redy = enemies[rei].y - pr.y;
+          var red = Math.sqrt(redx*redx + redy*redy);
+          if (red < nearestD) { nearestD = red; nearestE = enemies[rei]; }
+        }
+        if (nearestE) {
+          var rBdir = nearestE.x > pr.x ? 1 : -1;
+          Game.EntityManager.add('bullets', {
+            x: pr.x + rBdir * 10, y: pr.y - 5, radius: 3, active: true,
+            vx: rBdir * 300, vy: 0, life: 1.2, color: '#4fc3f7', damage: 6,
+            update: function(dt2) { this.x += this.vx*dt2; this.y += this.vy*dt2; this.life -= dt2; if (this.life <= 0) this.active = false; },
+            render: function(ctx2, ox, oy) { ctx2.fillStyle = this.color; ctx2.beginPath(); ctx2.arc(this.x-(ox||0), this.y-(oy||0), 2, 0, Math.PI*2); ctx2.fill(); }
+          });
+          pr.shootTimer = 800;
+          if (Game.Audio) Game.Audio.sfx.robotShoot();
+        }
+      }
+
+      // Collect coins on the ground
+      var pCoins = Game.EntityManager.coins;
+      for (var pci = pCoins.length - 1; pci >= 0; pci--) {
+        if (!pCoins[pci].active) continue;
+        var pcdx = pCoins[pci].x - pr.x;
+        var pcdy = pCoins[pci].y - pr.y;
+        if (Math.sqrt(pcdx*pcdx + pcdy*pcdy) < 25) {
+          Game.saveData.coins += pCoins[pci].value;
+          pCoins[pci].active = false;
+          if (Game.Audio) Game.Audio.sfx.coin();
+        }
+      }
+    }
+
     Game.Camera.follow(this.astronaut, dt);
 
     // Proximity checks
@@ -5365,6 +5431,36 @@ Game.scenes.PLANET_EXPLORE = {
 
     // Astronaut
     this.astronaut.render(ctx, camX, 0);
+
+    // Robot companion no planeta
+    if (this.planetRobot) {
+      var pr = this.planetRobot;
+      var prsx = pr.x - camX;
+      var prsy = pr.y;
+      var prBob = Math.sin(pr.bobTimer * 3) * 2;
+      ctx.save();
+      ctx.translate(prsx, prsy + prBob);
+      // Body
+      ctx.fillStyle = '#546e7a';
+      ctx.fillRect(-5, -8, 10, 10);
+      // Head
+      ctx.fillStyle = '#78909c';
+      ctx.fillRect(-4, -12, 8, 5);
+      // Eye (faces direction)
+      ctx.fillStyle = '#4fc3f7';
+      ctx.beginPath(); ctx.arc(pr.facing * 2, -10, 2, 0, Math.PI * 2); ctx.fill();
+      // Antenna
+      ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, -16); ctx.stroke();
+      ctx.fillStyle = '#f44336';
+      ctx.beginPath(); ctx.arc(0, -16, 1.5, 0, Math.PI * 2); ctx.fill();
+      // Legs (walking animation)
+      var legAnim = Math.sin(pr.animTimer * 6) * 3;
+      ctx.strokeStyle = '#455a64'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-3, 2); ctx.lineTo(-4, 8 + legAnim); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(3, 2); ctx.lineTo(4, 8 - legAnim); ctx.stroke();
+      ctx.restore();
+    }
 
     // Particles + enemies
     Game.EntityManager.renderAll(ctx, camX, 0);
