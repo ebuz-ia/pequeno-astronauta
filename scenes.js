@@ -4540,69 +4540,328 @@ Game.scenes.PLANET_EXPLORE = {
           var sx = this.x - (ox||0), sy = this.y - (oy||0);
           var def = this.alienDef;
           var r = def.size;
-          var pulse = 1 + Math.sin(this.animTimer * 4) * 0.08;
-          var flip = this.facing === -1;
+          var t = this.animTimer;
+          var pulse = 1 + Math.sin(t * 4) * 0.05;
+          var d = this.facing === -1 ? -1 : 1;
 
-          // Burrow: show dust particles only
+          // Burrow underground: dust only
           if (def.behavior === 'burrow' && this.burrowPhase === 0) {
-            if (Math.random() < 0.1) {
-              ctx2.fillStyle = '#8b4513';
-              ctx2.fillRect(sx - 3 + Math.random()*6, sy + 10, 4, 2);
-            }
+            if (Math.random() < 0.15) { ctx2.fillStyle = '#8b4513'; ctx2.fillRect(sx-3+Math.random()*6, sy+10, 5, 3); }
             return;
           }
 
-          // Body
           ctx2.save();
-          if (def.behavior === 'teleport') { ctx2.globalAlpha = 0.7 + Math.sin(this.animTimer * 8) * 0.2; }
-          ctx2.fillStyle = this.alienColor;
-          ctx2.beginPath(); ctx2.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx2.fill();
+          if (def.behavior === 'teleport') ctx2.globalAlpha = 0.6 + Math.sin(t*10)*0.3;
 
-          // Inner body gradient
-          var innerGrad = ctx2.createRadialGradient(sx - r*0.2, sy - r*0.2, 0, sx, sy, r);
-          innerGrad.addColorStop(0, this.alienColor);
-          innerGrad.addColorStop(1, '#000');
-          ctx2.globalAlpha = 0.3;
-          ctx2.fillStyle = innerGrad;
-          ctx2.beginPath(); ctx2.arc(sx, sy, r * pulse, 0, Math.PI * 2); ctx2.fill();
-          ctx2.globalAlpha = 1;
+          // ======= UNIQUE BODY PER TYPE =======
 
-          // Eyes
-          var eyeOff = flip ? -4 : 4;
-          ctx2.fillStyle = this.alienEye;
-          ctx2.beginPath(); ctx2.arc(sx + eyeOff - 3, sy - 3, 3, 0, Math.PI * 2); ctx2.fill();
-          ctx2.beginPath(); ctx2.arc(sx + eyeOff + 3, sy - 3, 3, 0, Math.PI * 2); ctx2.fill();
-          ctx2.fillStyle = '#000';
-          ctx2.beginPath(); ctx2.arc(sx + eyeOff - 3, sy - 3, 1.5, 0, Math.PI * 2); ctx2.fill();
-          ctx2.beginPath(); ctx2.arc(sx + eyeOff + 3, sy - 3, 1.5, 0, Math.PI * 2); ctx2.fill();
-
-          // Type-specific details
-          if (def.behavior === 'float') {
-            // Tentacles
-            for (var ti = 0; ti < 3; ti++) {
-              var tx = sx - 6 + ti * 6 + Math.sin(this.animTimer * 3 + ti) * 3;
-              var ty = sy + r;
-              ctx2.strokeStyle = this.alienColor; ctx2.lineWidth = 2;
-              ctx2.beginPath(); ctx2.moveTo(tx, ty); ctx2.quadraticCurveTo(tx + Math.sin(this.animTimer*4+ti)*4, ty+8, tx, ty+14); ctx2.stroke();
+          if (def.behavior === 'crawl') {
+            // CRAWLER: segmented bug/centipede with 4 legs per side
+            var segments = 4;
+            for (var si = segments-1; si >= 0; si--) {
+              var segX = sx - d * si * 8;
+              var segR = r - si * 1.5;
+              var segY = sy + Math.sin(t*6 + si*0.8) * 2;
+              // Segment body
+              var segGrad = ctx2.createRadialGradient(segX, segY, 0, segX, segY, segR);
+              segGrad.addColorStop(0, '#c0c0c0');
+              segGrad.addColorStop(1, '#666');
+              ctx2.fillStyle = segGrad;
+              ctx2.beginPath(); ctx2.ellipse(segX, segY, segR, segR*0.7, 0, 0, Math.PI*2); ctx2.fill();
+              // Legs (2 per segment)
+              ctx2.strokeStyle = '#888'; ctx2.lineWidth = 1.5;
+              var legAngle = Math.sin(t*8 + si*1.2) * 0.4;
+              ctx2.beginPath(); ctx2.moveTo(segX, segY+3); ctx2.lineTo(segX-8, segY+10+Math.sin(legAngle)*3); ctx2.stroke();
+              ctx2.beginPath(); ctx2.moveTo(segX, segY+3); ctx2.lineTo(segX+8, segY+10-Math.sin(legAngle)*3); ctx2.stroke();
             }
+            // Head (front segment)
+            var headGrad = ctx2.createRadialGradient(sx+d*4, sy, 0, sx+d*4, sy, r+2);
+            headGrad.addColorStop(0, '#e0e0e0');
+            headGrad.addColorStop(1, '#777');
+            ctx2.fillStyle = headGrad;
+            ctx2.beginPath(); ctx2.ellipse(sx+d*4, sy, r+2, r*0.8, 0, 0, Math.PI*2); ctx2.fill();
+            // Red eyes
+            ctx2.fillStyle = '#ff0000'; ctx2.shadowColor = '#ff0000'; ctx2.shadowBlur = 4;
+            ctx2.beginPath(); ctx2.arc(sx+d*8, sy-4, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+d*8, sy+2, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.shadowBlur = 0;
+            // Mandibles
+            ctx2.strokeStyle = '#999'; ctx2.lineWidth = 2;
+            ctx2.beginPath(); ctx2.moveTo(sx+d*12, sy-3); ctx2.lineTo(sx+d*18, sy-6+Math.sin(t*5)*2); ctx2.stroke();
+            ctx2.beginPath(); ctx2.moveTo(sx+d*12, sy+3); ctx2.lineTo(sx+d*18, sy+6-Math.sin(t*5)*2); ctx2.stroke();
+
+          } else if (def.behavior === 'float') {
+            // FLUTUANTE: jellyfish/medusa with dome + flowing tentacles
+            // Dome (pulsing)
+            var domeH = r * 1.2 * (1 + Math.sin(t*3)*0.15);
+            var domeGrad = ctx2.createRadialGradient(sx, sy-5, 0, sx, sy, r*1.3);
+            domeGrad.addColorStop(0, '#90caf9');
+            domeGrad.addColorStop(0.5, '#42a5f5');
+            domeGrad.addColorStop(1, '#1565c080');
+            ctx2.fillStyle = domeGrad;
+            ctx2.beginPath(); ctx2.ellipse(sx, sy-3, r*1.1, domeH, 0, Math.PI, 0); ctx2.fill();
+            // Inner glow
+            ctx2.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx2.beginPath(); ctx2.ellipse(sx-3, sy-8, r*0.5, r*0.3, -0.3, 0, Math.PI*2); ctx2.fill();
+            // Bioluminescent core
+            ctx2.save(); ctx2.shadowColor = '#fff'; ctx2.shadowBlur = 6;
+            ctx2.fillStyle = '#fff';
+            ctx2.beginPath(); ctx2.arc(sx, sy-4, 3, 0, Math.PI*2); ctx2.fill();
+            ctx2.restore();
+            // 5 tentacles (flowing, different lengths)
+            var tentLengths = [18, 22, 16, 20, 14];
+            for (var ti = 0; ti < 5; ti++) {
+              var tBaseX = sx - 8 + ti * 4;
+              var tBaseY = sy + 3;
+              var tLen = tentLengths[ti];
+              ctx2.strokeStyle = 'rgba(66,165,245,' + (0.4 + ti*0.1) + ')';
+              ctx2.lineWidth = 1.5;
+              ctx2.beginPath();
+              ctx2.moveTo(tBaseX, tBaseY);
+              ctx2.quadraticCurveTo(tBaseX + Math.sin(t*2.5+ti)*8, tBaseY+tLen*0.5, tBaseX + Math.sin(t*3+ti*0.7)*6, tBaseY+tLen);
+              ctx2.stroke();
+              // Tip glow
+              ctx2.fillStyle = '#bbdefb';
+              ctx2.beginPath(); ctx2.arc(tBaseX + Math.sin(t*3+ti*0.7)*6, tBaseY+tLen, 1.5, 0, Math.PI*2); ctx2.fill();
+            }
+
           } else if (def.behavior === 'charge') {
-            // Pincers
+            // ESCORPIAO: armored body, large pincers, curved tail with stinger
+            // Body (oval, segmented armor)
+            ctx2.fillStyle = '#8b3a0a';
+            ctx2.beginPath(); ctx2.ellipse(sx, sy, r*1.3, r*0.7, 0, 0, Math.PI*2); ctx2.fill();
+            // Armor plates
+            ctx2.strokeStyle = '#c1440e'; ctx2.lineWidth = 1;
+            for (var ap = -2; ap <= 2; ap++) { ctx2.beginPath(); ctx2.moveTo(sx+ap*5, sy-r*0.6); ctx2.lineTo(sx+ap*5, sy+r*0.6); ctx2.stroke(); }
+            // Head
+            ctx2.fillStyle = '#a0522d';
+            ctx2.beginPath(); ctx2.ellipse(sx+d*14, sy, 7, 6, 0, 0, Math.PI*2); ctx2.fill();
+            // Eyes (yellow, menacing)
+            ctx2.fillStyle = '#ffeb3b'; ctx2.shadowColor = '#ffeb3b'; ctx2.shadowBlur = 3;
+            ctx2.beginPath(); ctx2.arc(sx+d*17, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+d*17, sy+3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.shadowBlur = 0;
+            // Large pincers
+            ctx2.fillStyle = '#d32f2f';
+            ctx2.beginPath();
+            ctx2.moveTo(sx+d*18, sy-5);
+            ctx2.lineTo(sx+d*28, sy-10);
+            ctx2.lineTo(sx+d*24, sy-4);
+            ctx2.lineTo(sx+d*28, sy-2);
+            ctx2.lineTo(sx+d*18, sy-1);
+            ctx2.closePath(); ctx2.fill();
+            ctx2.beginPath();
+            ctx2.moveTo(sx+d*18, sy+5);
+            ctx2.lineTo(sx+d*28, sy+10);
+            ctx2.lineTo(sx+d*24, sy+4);
+            ctx2.lineTo(sx+d*28, sy+2);
+            ctx2.lineTo(sx+d*18, sy+1);
+            ctx2.closePath(); ctx2.fill();
+            // Curved tail with stinger
+            ctx2.strokeStyle = '#a0522d'; ctx2.lineWidth = 3;
+            var tailCurve = Math.sin(t*2) * 0.3;
+            ctx2.beginPath();
+            ctx2.moveTo(sx-d*14, sy);
+            ctx2.quadraticCurveTo(sx-d*22, sy-20+tailCurve*10, sx-d*16, sy-30);
+            ctx2.stroke();
+            // Stinger
             ctx2.fillStyle = '#ff6b35';
-            var px = flip ? -1 : 1;
-            ctx2.beginPath(); ctx2.moveTo(sx + px*r, sy); ctx2.lineTo(sx + px*(r+8), sy-5); ctx2.lineTo(sx + px*(r+6), sy+3); ctx2.closePath(); ctx2.fill();
-            ctx2.beginPath(); ctx2.moveTo(sx + px*r, sy+4); ctx2.lineTo(sx + px*(r+8), sy+9); ctx2.lineTo(sx + px*(r+6), sy+1); ctx2.closePath(); ctx2.fill();
-          } else if (def.behavior === 'poison') {
-            // Poison aura
-            ctx2.globalAlpha = 0.15;
-            ctx2.fillStyle = '#76ff03';
-            ctx2.beginPath(); ctx2.arc(sx, sy, r + 8, 0, Math.PI * 2); ctx2.fill();
-          } else if (def.behavior === 'freeze') {
-            // Ice crystals around body
-            ctx2.fillStyle = '#e1f5fe';
-            for (var ic = 0; ic < 4; ic++) {
-              var ica = this.animTimer * 2 + ic * 1.57;
-              ctx2.fillRect(sx + Math.cos(ica) * (r+4) - 1, sy + Math.sin(ica) * (r+4) - 2, 3, 4);
+            ctx2.beginPath(); ctx2.arc(sx-d*16, sy-30, 3, 0, Math.PI*2); ctx2.fill();
+            // 4 legs per side
+            ctx2.strokeStyle = '#8b4513'; ctx2.lineWidth = 1.5;
+            for (var li = 0; li < 4; li++) {
+              var lx = sx - 8 + li * 5;
+              var la = Math.sin(t*6+li*1.5) * 4;
+              ctx2.beginPath(); ctx2.moveTo(lx, sy+r*0.5); ctx2.lineTo(lx-5, sy+r*0.5+10+la); ctx2.stroke();
+              ctx2.beginPath(); ctx2.moveTo(lx, sy+r*0.5); ctx2.lineTo(lx+5, sy+r*0.5+10-la); ctx2.stroke();
             }
+
+          } else if (def.behavior === 'burrow') {
+            // VERME: segmented worm emerging from ground
+            var wormSegs = 6;
+            for (var wi = wormSegs-1; wi >= 0; wi--) {
+              var wSegY = sy - wi * 7;
+              var wWobble = Math.sin(t*4 + wi*0.8) * 3;
+              var wR = r * (1 - wi*0.08);
+              var wGrad = ctx2.createRadialGradient(sx+wWobble, wSegY, 0, sx+wWobble, wSegY, wR);
+              wGrad.addColorStop(0, '#a0522d');
+              wGrad.addColorStop(1, '#5d3a1a');
+              ctx2.fillStyle = wGrad;
+              ctx2.beginPath(); ctx2.ellipse(sx+wWobble, wSegY, wR, wR*0.6, 0, 0, Math.PI*2); ctx2.fill();
+              // Segment rings
+              ctx2.strokeStyle = '#3e2712'; ctx2.lineWidth = 0.5;
+              ctx2.beginPath(); ctx2.ellipse(sx+wWobble, wSegY, wR*0.9, wR*0.5, 0, 0, Math.PI*2); ctx2.stroke();
+            }
+            // Head
+            var hx = sx + Math.sin(t*4)*3;
+            ctx2.fillStyle = '#bf8040';
+            ctx2.beginPath(); ctx2.arc(hx, sy-wormSegs*7, r*1.1, 0, Math.PI*2); ctx2.fill();
+            // Mouth (open/close)
+            var mouthOpen = Math.abs(Math.sin(t*3)) * 4;
+            ctx2.fillStyle = '#2d1a0a';
+            ctx2.beginPath(); ctx2.ellipse(hx+d*5, sy-wormSegs*7, 4, mouthOpen, 0, 0, Math.PI*2); ctx2.fill();
+            // Eyes
+            ctx2.fillStyle = '#ff6b35'; ctx2.shadowColor = '#ff6b35'; ctx2.shadowBlur = 3;
+            ctx2.beginPath(); ctx2.arc(hx+d*3, sy-wormSegs*7-5, 2, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(hx+d*8, sy-wormSegs*7-3, 2, 0, Math.PI*2); ctx2.fill();
+            ctx2.shadowBlur = 0;
+
+          } else if (def.behavior === 'poison') {
+            // TOXIGENO: mushroom/fungus alien with spore cloud
+            // Stem
+            ctx2.fillStyle = '#558b2f';
+            ctx2.fillRect(sx-4, sy, 8, 12);
+            // Cap (mushroom dome)
+            var capGrad = ctx2.createRadialGradient(sx, sy-2, 0, sx, sy, r*1.2);
+            capGrad.addColorStop(0, '#aed581');
+            capGrad.addColorStop(0.5, '#76ff03');
+            capGrad.addColorStop(1, '#33691e');
+            ctx2.fillStyle = capGrad;
+            ctx2.beginPath(); ctx2.ellipse(sx, sy-2, r*1.3, r*0.9, 0, Math.PI, 0); ctx2.fill();
+            // Spots on cap
+            ctx2.fillStyle = '#e040fb';
+            var spots = [[sx-6,sy-6,3],[sx+4,sy-8,2.5],[sx-2,sy-3,2],[sx+8,sy-4,2]];
+            for (var sp = 0; sp < spots.length; sp++) {
+              ctx2.beginPath(); ctx2.arc(spots[sp][0], spots[sp][1], spots[sp][2], 0, Math.PI*2); ctx2.fill();
+            }
+            // Spore particles floating
+            ctx2.globalAlpha = 0.3;
+            for (var spi = 0; spi < 5; spi++) {
+              var spx = sx + Math.sin(t*1.5+spi*1.3) * 15;
+              var spy = sy - 10 - Math.abs(Math.sin(t+spi)) * 15;
+              ctx2.fillStyle = '#76ff03';
+              ctx2.beginPath(); ctx2.arc(spx, spy, 1.5, 0, Math.PI*2); ctx2.fill();
+            }
+            ctx2.globalAlpha = 1;
+            // Eyes (hidden in cap)
+            ctx2.fillStyle = '#e040fb'; ctx2.shadowColor = '#e040fb'; ctx2.shadowBlur = 4;
+            ctx2.beginPath(); ctx2.arc(sx-5, sy-1, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+5, sy-1, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.shadowBlur = 0;
+
+          } else if (def.behavior === 'split') {
+            // LAVA SLIME: amorphous blob with magma veins
+            var blobR = r * pulse;
+            // Outer glow
+            ctx2.save(); ctx2.shadowColor = '#ff6b35'; ctx2.shadowBlur = 10;
+            var lavaGrad = ctx2.createRadialGradient(sx, sy, 0, sx, sy, blobR);
+            lavaGrad.addColorStop(0, '#ffeb3b');
+            lavaGrad.addColorStop(0.3, '#ff9800');
+            lavaGrad.addColorStop(0.7, '#f44336');
+            lavaGrad.addColorStop(1, '#880000');
+            ctx2.fillStyle = lavaGrad;
+            // Blobby shape (not a circle)
+            ctx2.beginPath();
+            for (var ba = 0; ba < 8; ba++) {
+              var bAngle = ba / 8 * Math.PI * 2;
+              var bDist = blobR * (0.8 + Math.sin(t*3+ba*1.2)*0.2);
+              var bx2 = sx + Math.cos(bAngle) * bDist;
+              var by2 = sy + Math.sin(bAngle) * bDist;
+              if (ba === 0) ctx2.moveTo(bx2, by2); else ctx2.lineTo(bx2, by2);
+            }
+            ctx2.closePath(); ctx2.fill();
+            ctx2.restore();
+            // Magma veins
+            ctx2.strokeStyle = '#ffeb3b'; ctx2.lineWidth = 1.5; ctx2.globalAlpha = 0.6;
+            ctx2.beginPath(); ctx2.moveTo(sx-5, sy-3); ctx2.quadraticCurveTo(sx, sy+2, sx+6, sy-4); ctx2.stroke();
+            ctx2.beginPath(); ctx2.moveTo(sx+2, sy+3); ctx2.quadraticCurveTo(sx-3, sy-1, sx-7, sy+5); ctx2.stroke();
+            ctx2.globalAlpha = 1;
+            // Eyes (white hot)
+            ctx2.fillStyle = '#fff';
+            ctx2.beginPath(); ctx2.arc(sx-4, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+4, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.fillStyle = '#f44336';
+            ctx2.beginPath(); ctx2.arc(sx-4, sy-3, 1, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+4, sy-3, 1, 0, Math.PI*2); ctx2.fill();
+
+          } else if (def.behavior === 'freeze') {
+            // CRIOGENO: crystalline ice golem
+            // Body (hexagonal crystal)
+            ctx2.fillStyle = '#e1f5fe';
+            ctx2.beginPath();
+            for (var ci = 0; ci < 6; ci++) {
+              var cAngle = ci / 6 * Math.PI * 2 - Math.PI/2;
+              var cx2 = sx + Math.cos(cAngle) * r;
+              var cy2 = sy + Math.sin(cAngle) * r;
+              if (ci === 0) ctx2.moveTo(cx2, cy2); else ctx2.lineTo(cx2, cy2);
+            }
+            ctx2.closePath(); ctx2.fill();
+            // Inner crystal facets
+            var crystGrad = ctx2.createLinearGradient(sx-r, sy-r, sx+r, sy+r);
+            crystGrad.addColorStop(0, 'rgba(179,229,252,0.6)');
+            crystGrad.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+            crystGrad.addColorStop(1, 'rgba(100,181,246,0.5)');
+            ctx2.fillStyle = crystGrad;
+            ctx2.beginPath();
+            for (var ci2 = 0; ci2 < 6; ci2++) {
+              var cAngle2 = ci2 / 6 * Math.PI * 2 - Math.PI/2;
+              var cx3 = sx + Math.cos(cAngle2) * r * 0.8;
+              var cy3 = sy + Math.sin(cAngle2) * r * 0.8;
+              if (ci2 === 0) ctx2.moveTo(cx3, cy3); else ctx2.lineTo(cx3, cy3);
+            }
+            ctx2.closePath(); ctx2.fill();
+            // Crystal spikes on top
+            ctx2.fillStyle = '#b3e5fc';
+            ctx2.beginPath(); ctx2.moveTo(sx-6, sy-r); ctx2.lineTo(sx-3, sy-r-10); ctx2.lineTo(sx, sy-r); ctx2.closePath(); ctx2.fill();
+            ctx2.beginPath(); ctx2.moveTo(sx+2, sy-r); ctx2.lineTo(sx+5, sy-r-14); ctx2.lineTo(sx+8, sy-r); ctx2.closePath(); ctx2.fill();
+            ctx2.beginPath(); ctx2.moveTo(sx-9, sy-r+3); ctx2.lineTo(sx-7, sy-r-6); ctx2.lineTo(sx-5, sy-r+3); ctx2.closePath(); ctx2.fill();
+            // Orbiting ice shards
+            for (var oi = 0; oi < 4; oi++) {
+              var oAngle = t * 2 + oi * 1.57;
+              var oR = r + 8;
+              ctx2.fillStyle = '#e1f5fe';
+              ctx2.save(); ctx2.translate(sx+Math.cos(oAngle)*oR, sy+Math.sin(oAngle)*oR);
+              ctx2.rotate(oAngle); ctx2.fillRect(-2, -3, 4, 6); ctx2.restore();
+            }
+            // Eyes (deep blue, glowing)
+            ctx2.fillStyle = '#1565c0'; ctx2.shadowColor = '#42a5f5'; ctx2.shadowBlur = 5;
+            ctx2.beginPath(); ctx2.arc(sx-4, sy-3, 3, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+4, sy-3, 3, 0, Math.PI*2); ctx2.fill();
+            ctx2.shadowBlur = 0;
+            // Frost aura
+            ctx2.save(); ctx2.globalAlpha = 0.08;
+            ctx2.fillStyle = '#b3e5fc';
+            ctx2.beginPath(); ctx2.arc(sx, sy, r+12, 0, Math.PI*2); ctx2.fill();
+            ctx2.restore();
+
+          } else if (def.behavior === 'teleport') {
+            // SOMBRA: wraith/ghost with trailing shadow particles
+            // Shadow trail
+            ctx2.globalAlpha = 0.15;
+            for (var sti = 0; sti < 3; sti++) {
+              ctx2.fillStyle = '#1a1a2e';
+              ctx2.beginPath(); ctx2.arc(sx-d*sti*8, sy+sti*2, r-sti*2, 0, Math.PI*2); ctx2.fill();
+            }
+            ctx2.globalAlpha = 0.6 + Math.sin(t*10)*0.3;
+            // Body (wispy, not solid)
+            var wraithGrad = ctx2.createRadialGradient(sx, sy, 0, sx, sy, r);
+            wraithGrad.addColorStop(0, '#2a1a3e');
+            wraithGrad.addColorStop(0.5, '#1a1a2e');
+            wraithGrad.addColorStop(1, 'transparent');
+            ctx2.fillStyle = wraithGrad;
+            ctx2.beginPath(); ctx2.arc(sx, sy, r*1.2, 0, Math.PI*2); ctx2.fill();
+            // Cloak wisps
+            ctx2.strokeStyle = '#2a1a3e'; ctx2.lineWidth = 2;
+            for (var cwi = 0; cwi < 3; cwi++) {
+              ctx2.beginPath();
+              ctx2.moveTo(sx - 6 + cwi*6, sy + r*0.5);
+              ctx2.quadraticCurveTo(sx - 6 + cwi*6 + Math.sin(t*3+cwi)*4, sy+r+8, sx-6+cwi*6, sy+r+16+Math.sin(t*2+cwi)*4);
+              ctx2.stroke();
+            }
+            ctx2.globalAlpha = 1;
+            // Eyes (piercing red, glowing)
+            ctx2.fillStyle = '#f44336'; ctx2.shadowColor = '#f44336'; ctx2.shadowBlur = 8;
+            ctx2.beginPath(); ctx2.arc(sx-5, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+5, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.shadowBlur = 0;
+
+          } else {
+            // DEFAULT: simple blob
+            ctx2.fillStyle = this.alienColor;
+            ctx2.beginPath(); ctx2.arc(sx, sy, r*pulse, 0, Math.PI*2); ctx2.fill();
+            ctx2.fillStyle = this.alienEye;
+            ctx2.beginPath(); ctx2.arc(sx-4, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
+            ctx2.beginPath(); ctx2.arc(sx+4, sy-3, 2.5, 0, Math.PI*2); ctx2.fill();
           }
 
           // HP bar
