@@ -843,7 +843,11 @@ Game.init = function() {
     if (Game.cheatBuffer.indexOf('GODMODE') >= 0) {
       Game.godMode = !Game.godMode;
       Game.cheatBuffer = '';
-      Game.showMessage(Game.godMode ? 'GOD MODE ATIVADO!' : 'GOD MODE DESATIVADO', 3);
+      if (Game.godMode) {
+        Game.saveData.hasRobot = true;
+        Game.Save.save(Game.saveData);
+      }
+      Game.showMessage(Game.godMode ? 'GOD MODE ATIVADO! (robot incluido)' : 'GOD MODE DESATIVADO', 3);
       if (Game.Audio) Game.Audio.sfx.easterEgg();
     }
   });

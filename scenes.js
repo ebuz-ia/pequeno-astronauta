@@ -551,6 +551,9 @@ Game.scenes.SPACE_FREE = {
     this.shipY += this.shipVY * dt;
 
     // --- ROBOT COMPANION UPDATE ---
+    if (!this.robot && Game.saveData.hasRobot) {
+      this.robot = { x: this.shipX, y: this.shipY, targetX: 0, targetY: 0, mode: 'follow', shootTimer: 0, animTimer: 0 };
+    }
     if (this.robot) {
       this.robot.animTimer += dt;
       // Follow ship (orbit around it)
@@ -4983,6 +4986,13 @@ Game.scenes.PLANET_EXPLORE = {
 
     // Camera follow
     // --- ROBOT COMPANION UPDATE (planeta) ---
+    // Criar robot se foi comprado/ativado depois de entrar na cena
+    if (!this.planetRobot && Game.saveData.hasRobot) {
+      this.planetRobot = {
+        x: this.astronaut.x + 30, y: this.astronaut.y,
+        facing: 1, animTimer: 0, shootTimer: 0, bobTimer: 0
+      };
+    }
     if (this.planetRobot) {
       var pr = this.planetRobot;
       pr.animTimer += dt;
