@@ -1648,6 +1648,9 @@ Game.scenes.SPACE_FREE = {
     var isThrusting = Game.Input.keys['ArrowUp'] || Game.Input.keys['w'] || Game.Input.keys['W'] || this.pressing.thrust;
     var thrustActive = isThrusting && Game.saveData.fuel > 0;
 
+    // Scale up the rocket (1.8x bigger)
+    ctx.scale(1.8, 1.8);
+
     // Engine glow (behind rocket)
     if (thrustActive) {
       ctx.save();
