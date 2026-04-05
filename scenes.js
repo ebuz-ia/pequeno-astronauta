@@ -2410,22 +2410,22 @@ Game.scenes.SPACE_FREE = {
     var wheelSpin = t * 3;
     ctx.fillStyle = '#37474f';
     // Left wheel
-    ctx.beginPath(); ctx.arc(-5, bh/2 + 1, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-5, bh/2 + 1, 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#455a64'; ctx.lineWidth = 1;
     ctx.stroke();
     // Wheel spoke
     ctx.beginPath();
-    ctx.moveTo(-5 + Math.cos(wheelSpin) * 2.5, bh/2 + 1 + Math.sin(wheelSpin) * 2.5);
-    ctx.lineTo(-5 - Math.cos(wheelSpin) * 2.5, bh/2 + 1 - Math.sin(wheelSpin) * 2.5);
+    ctx.moveTo(-5 + Math.cos(wheelSpin) * 1.5, bh/2 + 1 + Math.sin(wheelSpin) * 1.5);
+    ctx.lineTo(-5 - Math.cos(wheelSpin) * 1.5, bh/2 + 1 - Math.sin(wheelSpin) * 1.5);
     ctx.stroke();
     // Right wheel
     ctx.fillStyle = '#37474f';
-    ctx.beginPath(); ctx.arc(5, bh/2 + 1, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, bh/2 + 1, 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#455a64';
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(5 + Math.cos(wheelSpin) * 2.5, bh/2 + 1 + Math.sin(wheelSpin) * 2.5);
-    ctx.lineTo(5 - Math.cos(wheelSpin) * 2.5, bh/2 + 1 - Math.sin(wheelSpin) * 2.5);
+    ctx.moveTo(5 + Math.cos(wheelSpin) * 1.5, bh/2 + 1 + Math.sin(wheelSpin) * 1.5);
+    ctx.lineTo(5 - Math.cos(wheelSpin) * 1.5, bh/2 + 1 - Math.sin(wheelSpin) * 1.5);
     ctx.stroke();
     // Wheel axle
     ctx.fillStyle = '#455a64';
