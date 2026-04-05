@@ -1714,38 +1714,10 @@ Game.scenes.SPACE_FREE = {
     if (this.robot) {
       var rsx = this.robot.x - this.camX;
       var rsy = this.robot.y - this.camY;
-      // Robot body
       ctx.save();
-      var robotBob = Math.sin(this.time * 3) * 3;
+      var robotBob = Math.sin(this.time * 3) * 2;
       ctx.translate(rsx, rsy + robotBob);
-      // Glow
-      ctx.save();
-      ctx.shadowColor = '#4fc3f7';
-      ctx.shadowBlur = 8;
-      // Body
-      ctx.fillStyle = '#546e7a';
-      ctx.fillRect(-6, -5, 12, 10);
-      // Head
-      ctx.fillStyle = '#78909c';
-      ctx.fillRect(-5, -9, 10, 5);
-      // Eye
-      ctx.fillStyle = '#4fc3f7';
-      ctx.beginPath(); ctx.arc(0, -7, 2.5, 0, Math.PI * 2); ctx.fill();
-      // Antenna
-      ctx.strokeStyle = '#90a4ae';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, -14); ctx.stroke();
-      ctx.fillStyle = '#f44336';
-      ctx.beginPath(); ctx.arc(0, -14, 1.5, 0, Math.PI * 2); ctx.fill();
-      // Arms
-      var armSwing = Math.sin(this.time * 4) * 0.3;
-      ctx.strokeStyle = '#546e7a'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(-6, -2); ctx.lineTo(-10, 2 + armSwing * 3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(6, -2); ctx.lineTo(10, 2 - armSwing * 3); ctx.stroke();
-      // Thruster glow
-      ctx.fillStyle = 'rgba(79,195,247,0.3)';
-      ctx.beginPath(); ctx.arc(0, 8, 4 + Math.sin(this.time * 6) * 2, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      this.drawRobotSprite(ctx, this.time);
       ctx.restore();
     }
 
@@ -2365,6 +2337,99 @@ Game.scenes.SPACE_FREE = {
       ctx.fillRect(dsx - 3, dsy - 6, 6, 12);
       ctx.restore();
     }
+  },
+
+  // Robot sprite baseado no desenho do usuario
+  drawRobotSprite: function(ctx, time) {
+    var t = time || 0;
+
+    // Antenna (top)
+    ctx.strokeStyle = '#78909c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(2, -16);
+    ctx.lineTo(5, -22);
+    ctx.stroke();
+    // Antenna tip (blinks)
+    ctx.fillStyle = Math.sin(t * 4) > 0 ? '#f44336' : '#880000';
+    ctx.beginPath(); ctx.arc(5, -22, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Body (rounded rectangle - main shape)
+    var bw = 16, bh = 18;
+    var br = 4; // corner radius
+    ctx.fillStyle = '#546e7a';
+    ctx.beginPath();
+    ctx.moveTo(-bw/2 + br, -bh/2 - 2);
+    ctx.lineTo(bw/2 - br, -bh/2 - 2);
+    ctx.quadraticCurveTo(bw/2, -bh/2 - 2, bw/2, -bh/2 + br - 2);
+    ctx.lineTo(bw/2, bh/2 - br - 2);
+    ctx.quadraticCurveTo(bw/2, bh/2 - 2, bw/2 - br, bh/2 - 2);
+    ctx.lineTo(-bw/2 + br, bh/2 - 2);
+    ctx.quadraticCurveTo(-bw/2, bh/2 - 2, -bw/2, bh/2 - br - 2);
+    ctx.lineTo(-bw/2, -bh/2 + br - 2);
+    ctx.quadraticCurveTo(-bw/2, -bh/2 - 2, -bw/2 + br, -bh/2 - 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Body gradient (metallic shine)
+    var bodyGrad = ctx.createLinearGradient(-bw/2, 0, bw/2, 0);
+    bodyGrad.addColorStop(0, 'rgba(255,255,255,0.05)');
+    bodyGrad.addColorStop(0.3, 'rgba(255,255,255,0.15)');
+    bodyGrad.addColorStop(0.7, 'rgba(255,255,255,0.05)');
+    bodyGrad.addColorStop(1, 'rgba(0,0,0,0.1)');
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+
+    // Body outline
+    ctx.strokeStyle = '#37474f';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Left eye (square, bigger)
+    ctx.fillStyle = '#4fc3f7';
+    ctx.shadowColor = '#4fc3f7';
+    ctx.shadowBlur = 4;
+    ctx.fillRect(-6, -8, 5, 4);
+    // Right eye (square, smaller)
+    ctx.fillRect(2, -8, 4, 3);
+    ctx.shadowBlur = 0;
+
+    // Eye pupils (dark)
+    ctx.fillStyle = '#0d47a1';
+    ctx.fillRect(-5, -7, 2, 2);
+    ctx.fillRect(3, -7, 2, 2);
+
+    // Mouth (rectangle)
+    ctx.fillStyle = '#37474f';
+    ctx.fillRect(-4, 0, 8, 4);
+    // Mouth inner (darker)
+    ctx.fillStyle = '#263238';
+    ctx.fillRect(-3, 1, 6, 2);
+
+    // Wheels (2 circles at bottom)
+    var wheelSpin = t * 3;
+    ctx.fillStyle = '#37474f';
+    // Left wheel
+    ctx.beginPath(); ctx.arc(-5, bh/2 + 1, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#455a64'; ctx.lineWidth = 1;
+    ctx.stroke();
+    // Wheel spoke
+    ctx.beginPath();
+    ctx.moveTo(-5 + Math.cos(wheelSpin) * 2.5, bh/2 + 1 + Math.sin(wheelSpin) * 2.5);
+    ctx.lineTo(-5 - Math.cos(wheelSpin) * 2.5, bh/2 + 1 - Math.sin(wheelSpin) * 2.5);
+    ctx.stroke();
+    // Right wheel
+    ctx.fillStyle = '#37474f';
+    ctx.beginPath(); ctx.arc(5, bh/2 + 1, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#455a64';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(5 + Math.cos(wheelSpin) * 2.5, bh/2 + 1 + Math.sin(wheelSpin) * 2.5);
+    ctx.lineTo(5 - Math.cos(wheelSpin) * 2.5, bh/2 + 1 - Math.sin(wheelSpin) * 2.5);
+    ctx.stroke();
+    // Wheel axle
+    ctx.fillStyle = '#455a64';
+    ctx.fillRect(-5, bh/2 - 1, 10, 3);
   },
 
   renderMinimap: function(ctx) {
@@ -5395,28 +5460,10 @@ Game.scenes.PLANET_EXPLORE = {
       var pr = this.planetRobot;
       var prsx = pr.x - camX;
       var prsy = pr.y;
-      var prBob = Math.sin(pr.bobTimer * 3) * 2;
+      var prBob = Math.sin(pr.bobTimer * 3) * 1.5;
       ctx.save();
       ctx.translate(prsx, prsy + prBob);
-      // Body
-      ctx.fillStyle = '#546e7a';
-      ctx.fillRect(-5, -8, 10, 10);
-      // Head
-      ctx.fillStyle = '#78909c';
-      ctx.fillRect(-4, -12, 8, 5);
-      // Eye (faces direction)
-      ctx.fillStyle = '#4fc3f7';
-      ctx.beginPath(); ctx.arc(pr.facing * 2, -10, 2, 0, Math.PI * 2); ctx.fill();
-      // Antenna
-      ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, -16); ctx.stroke();
-      ctx.fillStyle = '#f44336';
-      ctx.beginPath(); ctx.arc(0, -16, 1.5, 0, Math.PI * 2); ctx.fill();
-      // Legs (walking animation)
-      var legAnim = Math.sin(pr.animTimer * 6) * 3;
-      ctx.strokeStyle = '#455a64'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(-3, 2); ctx.lineTo(-4, 8 + legAnim); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(3, 2); ctx.lineTo(4, 8 - legAnim); ctx.stroke();
+      Game.scenes.SPACE_FREE.drawRobotSprite(ctx, pr.animTimer);
       ctx.restore();
     }
 
