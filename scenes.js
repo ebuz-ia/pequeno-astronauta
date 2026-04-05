@@ -2410,7 +2410,7 @@ Game.scenes.SPACE_FREE = {
     var wheelSpin = t * 3;
     ctx.fillStyle = '#37474f';
     // Left wheel
-    ctx.beginPath(); ctx.arc(-5, bh/2 + 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-5, bh/2 + 1, 1.8, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#455a64'; ctx.lineWidth = 1;
     ctx.stroke();
     // Wheel spoke
@@ -2420,7 +2420,7 @@ Game.scenes.SPACE_FREE = {
     ctx.stroke();
     // Right wheel
     ctx.fillStyle = '#37474f';
-    ctx.beginPath(); ctx.arc(5, bh/2 + 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, bh/2 + 1, 1.8, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#455a64';
     ctx.stroke();
     ctx.beginPath();
