@@ -624,7 +624,7 @@ Game.ShopUI = {
       var cost = 200;
       var canBuy = saveData.coins >= cost;
       Game.UI.textBold(ctx, 'Robo Companheiro', Game.CANVAS_W / 2, py + 70, 16, '#ff9800', 'center');
-      Game.UI.text(ctx, 'Atira, coleta moedas e repara o foguete!', Game.CANVAS_W / 2, py + 92, 11, '#aaa', 'center');
+      Game.UI.text(ctx, 'Acompanha voce e coleta moedas!', Game.CANVAS_W / 2, py + 92, 11, '#aaa', 'center');
 
       var btnW = 180, btnH = 40;
       var btnX = Game.CANVAS_W / 2 - btnW / 2;
@@ -645,24 +645,23 @@ Game.ShopUI = {
         saveData.robotLevel = 1;
         Game.Save.save(saveData);
         Game.spawnParticles(Game.CANVAS_W / 2, py + 40, 15, '#ff9800', 1.5);
-        Game.showMessage('Robo adquirido! Use R para trocar modo.', 3);
+        Game.showMessage('Robo adquirido! Ele vai te acompanhar.', 3);
       }
     } else {
       // Robot info and upgrades
       Game.UI.textBold(ctx, 'Robo Nivel ' + robotLevel, Game.CANVAS_W / 2, py + 70, 16, '#ff9800', 'center');
 
-      // Modes info
-      var modes = [
-        { name: 'Seguir', desc: 'Segue o foguete', color: '#4fc3f7' },
-        { name: 'Atirar', desc: 'Atira nos inimigos', color: '#f44336' },
-        { name: 'Coletar', desc: 'Coleta moedas automaticamente', color: '#ffd700' }
+      // Info
+      var features = [
+        { name: 'Companheiro', desc: 'Segue voce no espaco e planetas', color: '#4fc3f7' },
+        { name: 'Coletor', desc: 'Coleta moedas automaticamente', color: '#ffd700' }
       ];
 
-      for (var i = 0; i < modes.length; i++) {
+      for (var i = 0; i < features.length; i++) {
         var my = py + 95 + i * 28;
-        ctx.fillStyle = modes[i].color;
+        ctx.fillStyle = features[i].color;
         ctx.fillRect(px + 100, my, 8, 8);
-        Game.UI.text(ctx, modes[i].name + ': ' + modes[i].desc, px + 115, my - 2, 11, '#ccc');
+        Game.UI.text(ctx, features[i].name + ': ' + features[i].desc, px + 115, my - 2, 11, '#ccc');
       }
 
       // Upgrade button
@@ -683,7 +682,7 @@ Game.ShopUI = {
         var upgText = 'Upgrade Nv' + (robotLevel + 1) + ': ' + upgCost + '$';
         Game.UI.textBold(ctx, upgText, upgBtnX + upgBtnW / 2, upgBtnY + upgBtnH / 2, 12, canUpg ? '#ffd700' : '#555', 'center', 'middle');
 
-        Game.UI.text(ctx, 'Tiros mais rapidos e coleta maior', Game.CANVAS_W / 2, upgBtnY + upgBtnH + 8, 10, '#666', 'center');
+        Game.UI.text(ctx, 'Coleta mais rapida e maior alcance', Game.CANVAS_W / 2, upgBtnY + upgBtnH + 8, 10, '#666', 'center');
 
         if (upgHovered && canUpg && Game.Input.mouse.clicked) {
           saveData.coins -= upgCost;
@@ -695,7 +694,7 @@ Game.ShopUI = {
         Game.UI.textBold(ctx, 'NIVEL MAXIMO!', Game.CANVAS_W / 2, py + 200, 14, '#ffd700', 'center');
       }
 
-      Game.UI.text(ctx, 'Pressione R durante o voo para trocar modo', Game.CANVAS_W / 2, py + ph - 15, 10, '#555', 'center');
+      Game.UI.text(ctx, 'Seu companheiro fiel de viagem!', Game.CANVAS_W / 2, py + ph - 15, 10, '#555', 'center');
     }
   }
 };
