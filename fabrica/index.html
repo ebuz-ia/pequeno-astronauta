@@ -46,6 +46,15 @@
     background:var(--gold);color:#241d00}
   .collect:disabled{background:#2a303b;border-color:var(--line);color:#5d6877;cursor:default}
   .collect:active:not(:disabled){transform:translateY(2px)}
+  .turbo{font:inherit;font-size:14px;font-weight:bold;letter-spacing:1px;cursor:pointer;
+    border:2px solid #0891b2;border-radius:6px;background:var(--cyan);color:#082f49;
+    padding:14px;white-space:nowrap;transition:all .15s}
+  .turbo:hover:not(:disabled){filter:brightness(1.15)}
+  .turbo:active:not(:disabled){transform:translateY(2px)}
+  .turbo.active{background:#f97316;border-color:#c2410c;color:#fff;
+    animation:pulseTurbo 1s infinite alternate}
+  .turbo:disabled:not(.active){background:#2a303b;border-color:var(--line);color:#5d6877;cursor:default}
+  @keyframes pulseTurbo{from{box-shadow:0 0 4px #f97316}to{box-shadow:0 0 16px #f97316}}
   .tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
   .tabs button{font:inherit;padding:8px 12px;cursor:pointer;border:2px solid var(--line);
     border-radius:6px;background:var(--panel);color:var(--dim)}
@@ -79,6 +88,11 @@
     80%{opacity:1}100%{opacity:0}}
   .note{color:var(--dim);font-size:11px;line-height:1.6;margin-top:8px}
   input[type=file]{display:none}
+  .modal-bg{position:fixed;inset:0;background:rgba(8,10,14,0.85);display:flex;align-items:center;
+    justify-content:center;z-index:99;padding:16px;animation:fadeIn .2s ease-out}
+  .modal-box{background:var(--panel);border:2px solid var(--line);border-radius:8px;
+    max-width:420px;width:100%;padding:18px;box-shadow:0 12px 36px rgba(0,0,0,0.6);line-height:1.4}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 </style>
 </head>
 <body>
@@ -103,12 +117,14 @@
   <div class="tabs">
     <button data-t="maq" class="on">MAQUINAS</button>
     <button data-t="arm">ARMAZENADOR</button>
+    <button data-t="ger">GERENTES</button>
     <button data-t="mis">MISSOES</button>
     <button data-t="art">MINHAS ARTES</button>
   </div>
 
   <div id="maq" class="list"></div>
   <div id="arm" class="list hide"></div>
+  <div id="ger" class="list hide"></div>
   <div id="mis" class="list hide"></div>
   <div id="art" class="hide">
     <div class="note">Aqui voce troca o desenho de cada maquina pelo seu proprio PNG.
@@ -135,9 +151,9 @@
 
 /* ---------------- DADOS OFICIAIS ---------------- */
 const MACHINES = [
-  {id:"m1265xv", nome:"1265xv", custo:0,    ps:2 },
+  {id:"m1265xv", nome:"1265xv", custo:25,   ps:2 },
   {id:"m4555tr", nome:"4555tr", custo:100,  ps:4 },
-  {id:"m900",    nome:"900",    custo:450,  ps:6 },
+  {id:"m900",    nome:"900",    custo:450,  ps:7 },
   {id:"m6000",   nome:"6000",   custo:800,  ps:8 },
   {id:"m9000",   nome:"9000",   custo:1000, ps:11},
   {id:"m700",    nome:"700",    custo:1500, ps:15},
@@ -149,6 +165,11 @@ const STORAGE = [
   {nivel:3, cap:500,   custo:600 },
   {nivel:4, cap:2000,  custo:2500},
   {nivel:5, cap:10000, custo:8000}
+];
+const MANAGERS = [
+  {nivel:1, nome:"Gerente Júnior", taxa:0.10, desc:"Recolhe sozinho ao encher e fica com 10%", custo:1000},
+  {nivel:2, nome:"Gerente Pleno",  taxa:0.05, desc:"Recolhe sozinho ao encher e fica com 5%",  custo:5000},
+  {nivel:3, nome:"Gerente Sênior", taxa:0.02, desc:"Recolhe sozinho ao encher e fica com 2%",  custo:20000}
 ];
 const MAIN_MISSIONS = [
   {id:"q1", t:"Primeiros Passos",   d:"Recolher dinheiro no armazenador pela primeira vez",
@@ -177,10 +198,11 @@ const hoje = () => new Date().toISOString().slice(0,10);
 
 function novoJogo(){
   return {
-    wallet:0, stored:0, storageLevel:1,
-    machines:{ m1265xv:true },
+    wallet:0, stored:0, storageLevel:1, managerLevel:0,
+    machines:{ m1265xv:1 },
     stats:{collects:0, dailyCollects:0, dailyEarned:0, dailySeconds:0, dia:hoje()},
-    done:{}, dailyDone:{}, art:{}
+    done:{}, dailyDone:{}, art:{},
+    lastSave:Date.now()
   };
 }
 let S = novoJogo();
@@ -192,8 +214,13 @@ function carregar(){
     const o = JSON.parse(raw);
     S = Object.assign(novoJogo(), o);
     S.stats = Object.assign(novoJogo().stats, o.stats||{});
-    S.machines = Object.assign({m1265xv:true}, o.machines||{});
+    S.machines = Object.assign({m1265xv:1}, o.machines||{});
+    for(const k in S.machines){
+      if(S.machines[k] === true) S.machines[k] = 1;
+    }
     S.art = o.art||{}; S.done = o.done||{}; S.dailyDone = o.dailyDone||{};
+    if(o.lastSave) S.lastSave = o.lastSave;
+    S.managerLevel = o.managerLevel || 0;
   }catch(e){ console.warn("save invalido", e); }
 }
 let podeSalvar = true;
@@ -211,6 +238,7 @@ function testarArmazenamento(){
 }
 function salvar(){
   if(!podeSalvar) return;
+  S.lastSave = Date.now();
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }
   catch(e){ podeSalvar = false; }
 }
@@ -223,8 +251,10 @@ function checarDia(){
 }
 
 /* ---------------- REGRAS ---------------- */
+const nivelMaq = id => S.machines[id] === true ? 1 : (Number(S.machines[id]) || 0);
+const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)));
 const cap  = () => STORAGE[S.storageLevel-1].cap;
-const taxa = () => MACHINES.reduce((a,m)=> a + (S.machines[m.id] ? m.ps : 0), 0);
+const taxa = () => MACHINES.reduce((a,m)=> a + m.ps * nivelMaq(m.id), 0);
 const cheio = () => S.stored >= cap() - 1e-9;
 
 function ganhar(v){ S.wallet += v; S.stats.dailyEarned += v; }
@@ -240,9 +270,12 @@ function recolher(){
   render();
 }
 function comprarMaquina(m){
-  if(S.machines[m.id] || S.wallet < m.custo) return;
-  S.wallet -= m.custo; S.machines[m.id] = true;
-  toast("Maquina " + m.nome + " instalada");
+  const custo = precoMaq(m);
+  if(S.wallet < custo) return;
+  const lvl = nivelMaq(m.id);
+  S.wallet -= custo;
+  S.machines[m.id] = lvl + 1;
+  toast("Maquina " + m.nome + " nivel " + (lvl + 1));
   render(); salvar();
 }
 function subirArmazenador(){
@@ -250,6 +283,30 @@ function subirArmazenador(){
   if(!prox || S.wallet < prox.custo) return;
   S.wallet -= prox.custo; S.storageLevel = prox.nivel;
   toast("Armazenador nivel " + prox.nivel + " (R$ " + fmt(prox.cap) + ")");
+  render(); salvar();
+}
+function contratarGerente(g){
+  if(S.managerLevel >= g.nivel) return;
+  if(S.managerLevel + 1 !== g.nivel) return;
+  if(S.wallet < g.custo) return;
+  S.wallet -= g.custo;
+  S.managerLevel = g.nivel;
+  toast("👔 " + g.nome + " contratado!");
+  render(); salvar();
+}
+function checarGerente(){
+  if(modalAberto || !S.managerLevel || S.managerLevel <= 0) return;
+  if(!cheio() || S.stored <= 0) return;
+  const mgr = MANAGERS[S.managerLevel - 1];
+  if(!mgr) return;
+  const bruto = S.stored;
+  S.stored = 0;
+  const taxaGer = bruto * mgr.taxa;
+  const liquido = bruto - taxaGer;
+  ganhar(liquido);
+  S.stats.collects++; S.stats.dailyCollects++;
+  toast("👔 " + mgr.nome + " recolheu: + " + moeda(liquido) + " (-" + Math.round(mgr.taxa*100) + "%)");
+  for(let i=0;i<8;i++) faisca();
   render(); salvar();
 }
 function resgatar(q, diaria){
@@ -432,11 +489,34 @@ function loopDesenho(){
   for(let x=0;x<640;x+=32) R(x, 0, 1, BASE, "#141922");
   R(0, BASE, 640, 4, "#2f3947");
   let x = 8;
-  MACHINES.forEach(m=>{ if(S.machines[m.id]){ desenhaMaquina(m.id, x); x += 70; } });
+  MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); x += 70; } });
   desenhaSilo(556);
   passoMoedas();
   desenhaEsteira();
   requestAnimationFrame(loopDesenho);
+}
+
+function desenhaGerente(c, nivel){
+  const cx0 = 28, cy0 = 22;
+  c.fillStyle = "#ffd8a8"; c.fillRect(cx0-7, cy0-14, 14, 13);
+  c.fillStyle = nivel===3 ? "#f59e0b" : (nivel===2 ? "#4a3b32" : "#8b5a2b");
+  c.fillRect(cx0-8, cy0-17, 16, 5);
+  c.fillRect(cx0-8, cy0-14, 2, 5);
+  c.fillStyle = "#1e293b";
+  c.fillRect(cx0-4, cy0-9, 2, 2);
+  c.fillRect(cx0+2, cy0-9, 2, 2);
+  if(nivel >= 2){
+    c.fillStyle = nivel===3 ? "#ffd24a" : "#94a3b8";
+    c.fillRect(cx0-6, cy0-10, 4, 3);
+    c.fillRect(cx0+2, cy0-10, 4, 3);
+    c.fillRect(cx0-2, cy0-9, 4, 1);
+  }
+  const corTerno = nivel===3 ? "#0f172a" : (nivel===2 ? "#1e293b" : "#334155");
+  c.fillStyle = corTerno; c.fillRect(cx0-13, cy0-1, 26, 19);
+  c.fillStyle = "#ffffff"; c.fillRect(cx0-4, cy0-1, 8, 9);
+  c.fillStyle = nivel===3 ? "#ffd24a" : (nivel===2 ? "#ef4444" : "#38bdf8");
+  c.fillRect(cx0-2, cy0+1, 4, 9);
+  c.fillRect(cx0-3, cy0+10, 6, 2);
 }
 
 /* thumbnail das maquinas nas listas */
@@ -446,6 +526,10 @@ function thumb(canvasEl, id){
   c.clearRect(0,0,canvasEl.width,canvasEl.height);
   c.fillStyle = "#0c0f14"; c.fillRect(0,0,canvasEl.width,canvasEl.height);
   c.fillStyle = "#141922"; c.fillRect(0,40,canvasEl.width,4);
+  if(id.startsWith("ger_")){
+    desenhaGerente(c, parseInt(id.replace("ger_","")));
+    return;
+  }
   const anterior = cx;
   cx = c;
   c.save();
@@ -459,10 +543,11 @@ function thumb(canvasEl, id){
 const $ = s => document.querySelector(s);
 const el = (h)=>{ const d=document.createElement("div"); d.innerHTML=h.trim(); return d.firstChild; };
 
-let refsMaq = [], refsArm = [], refsMis = [], assinatura = "";
+let refsMaq = [], refsArm = [], refsGer = [], refsMis = [], assinatura = "";
 
 function assinaturaAtual(){
-  return MACHINES.map(m=>S.machines[m.id]?1:0).join("") + "|" + S.storageLevel + "|" +
+  return MACHINES.map(m=>nivelMaq(m.id)).join(",") + "|" + S.storageLevel + "|" +
+    (S.managerLevel||0) + "|" +
     Object.keys(S.done).sort().join(",") + "|" + Object.keys(S.dailyDone).sort().join(",") +
     "|" + Object.keys(S.art).sort().join(",");
 }
@@ -481,8 +566,9 @@ function renderHUD(){
   bar.classList.toggle("full", cheio());
   bar.firstElementChild.style.width = (p*100) + "%";
   $("#rate").textContent = "R$ " + taxa() + " / s";
+  const statusGer = (S.managerLevel > 0) ? (" • " + MANAGERS[S.managerLevel-1].nome) : "";
   $("#status").textContent = cheio()
-    ? "PARADA - armazenador cheio" : (taxa()>0 ? "produzindo" : "sem maquina");
+    ? "PARADA - armazenador cheio" : (taxa()>0 ? ("produzindo" + statusGer) : "sem maquina");
   $("#status").style.color = cheio() ? "var(--no)" : "var(--dim)";
   const b = $("#collect");
   b.disabled = S.stored <= 0;
@@ -490,10 +576,14 @@ function renderHUD(){
 }
 
 function atualizarEstados(){
-  refsMaq.forEach(r=>{ if(r.btn) r.btn.disabled = S.wallet < r.m.custo; });
+  refsMaq.forEach(r=>{ if(r.btn) r.btn.disabled = S.wallet < precoMaq(r.m); });
   refsArm.forEach(r=>{
     if(!r.btn) return;
     r.btn.disabled = (S.storageLevel + 1 !== r.s.nivel) || S.wallet < r.s.custo;
+  });
+  refsGer.forEach(r=>{
+    if(!r.btn) return;
+    r.btn.disabled = (S.managerLevel + 1 !== r.g.nivel) || S.wallet < r.g.custo;
   });
   refsMis.forEach(r=>{
     const pr = Math.min(r.q.alvo, r.q.prog(S));
@@ -504,22 +594,25 @@ function atualizarEstados(){
 }
 
 function construirListas(){
-  refsMaq = []; refsArm = []; refsMis = [];
-  listaMaquinas(); listaArmazenador(); listaMissoes(); listaArtes();
+  refsMaq = []; refsArm = []; refsGer = []; refsMis = [];
+  listaMaquinas(); listaArmazenador(); listaGerentes(); listaMissoes(); listaArtes();
 }
 
 function listaMaquinas(){
   const box = $("#maq"); box.innerHTML = "";
   MACHINES.forEach(m=>{
-    const tem = !!S.machines[m.id];
+    const lvl = nivelMaq(m.id);
+    const preco = precoMaq(m);
+    const subTxt = lvl > 0
+      ? ("R$ " + fmt(m.ps * lvl) + " por segundo")
+      : ("R$ " + m.ps + " por segundo");
     const row = el(
-      '<div class="row ' + (tem?"owned":"") + '">' +
+      '<div class="row ' + (lvl > 0 ? "owned" : "") + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
         '<div><div class="nm">' + m.nome + '</div>' +
-        '<div class="sub">R$ ' + m.ps + ' por segundo</div></div>' +
+        '<div class="sub">' + subTxt + '</div></div>' +
         '<div class="sp"></div>' +
-        (tem ? '<span class="tag">INSTALADA</span>'
-             : '<button class="buy">R$ ' + fmt(m.custo) + '</button>') +
+        '<button class="buy">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>' +
       '</div>');
     box.appendChild(row);
     thumb(row.querySelector("canvas"), m.id);
@@ -547,6 +640,28 @@ function listaArmazenador(){
     const btn = row.querySelector("button");
     if(btn) btn.onclick = subirArmazenador;
     refsArm.push({s, btn});
+  });
+}
+
+function listaGerentes(){
+  const box = $("#ger"); box.innerHTML = "";
+  MANAGERS.forEach(g=>{
+    const contratado = S.managerLevel >= g.nivel;
+    const atual = S.managerLevel === g.nivel;
+    const row = el(
+      '<div class="row ' + (contratado ? "owned" : "") + '">' +
+        '<canvas class="mini" width="56" height="44"></canvas>' +
+        '<div><div class="nm">' + g.nome + ' (Nivel ' + g.nivel + ')</div>' +
+        '<div class="sub">' + g.desc + '</div></div>' +
+        '<div class="sp"></div>' +
+        (contratado ? '<span class="tag">' + (atual ? "ATIVO" : "OK") + '</span>'
+                    : '<button class="buy">R$ ' + fmt(g.custo) + '</button>') +
+      '</div>');
+    box.appendChild(row);
+    thumb(row.querySelector("canvas"), "ger_" + g.nivel);
+    const btn = row.querySelector("button");
+    if(btn) btn.onclick = ()=>contratarGerente(g);
+    refsGer.push({g, btn});
   });
 }
 
@@ -617,7 +732,7 @@ document.querySelectorAll(".tabs button").forEach(b=>{
   b.onclick = ()=>{
     document.querySelectorAll(".tabs button").forEach(o=>o.classList.remove("on"));
     b.classList.add("on");
-    ["maq","arm","mis","art"].forEach(id=>
+    ["maq","arm","ger","mis","art"].forEach(id=>
       $("#"+id).classList.toggle("hide", id !== b.dataset.t));
   };
 });
@@ -647,8 +762,13 @@ $("#imp").onchange = e=>{
       const o = JSON.parse(rd.result);
       S = Object.assign(novoJogo(), o);
       S.stats = Object.assign(novoJogo().stats, o.stats||{});
-      S.machines = Object.assign({m1265xv:true}, o.machines||{});
+      S.machines = Object.assign({m1265xv:1}, o.machines||{});
+      for(const k in S.machines){
+        if(S.machines[k] === true) S.machines[k] = 1;
+      }
       for(const k in imgs) delete imgs[k];
+      if(o.lastSave) S.lastSave = o.lastSave;
+      S.managerLevel = o.managerLevel || 0;
       assinatura = ""; salvar(); render(); toast("Save importado");
     }catch(err){ toast("Arquivo invalido"); } };
   rd.readAsText(f); e.target.value = "";
@@ -658,6 +778,73 @@ $("#reset").onclick = ()=>{
   S = novoJogo(); for(const k in imgs) delete imgs[k];
   assinatura = ""; salvar(); render(); toast("Jogo reiniciado");
 };
+
+/* ---------------- GANHO OFFLINE ---------------- */
+function tempoFormatado(seg){
+  if(seg < 60) return seg + (seg === 1 ? " segundo" : " segundos");
+  const m = Math.floor(seg / 60), s = seg % 60;
+  if(seg < 3600) return m + (m === 1 ? " minuto" : " minutos") + (s > 0 ? " e " + s + " s" : "");
+  const h = Math.floor(seg / 3600), rm = Math.floor((seg % 3600) / 60);
+  if(seg < 86400) return h + (h === 1 ? " hora" : " horas") + (rm > 0 ? " e " + rm + " min" : "");
+  const d = Math.floor(seg / 86400), rh = Math.floor((seg % 86400) / 3600);
+  return d + (d === 1 ? " dia" : " dias") + (rh > 0 ? " e " + rh + " h" : "");
+}
+
+let modalAberto = false;
+function mostrarModalOffline(seg, ganho, encheu, capacidade){
+  modalAberto = true;
+  const m = document.createElement("div");
+  m.className = "modal-bg";
+  m.innerHTML = 
+    '<div class="modal-box">' +
+      '<div class="lab" style="color:var(--gold);margin-bottom:4px;font-size:11px;letter-spacing:1px">BEM-VINDO DE VOLTA!</div>' +
+      '<div style="font-size:16px;font-weight:bold;margin-bottom:8px">Sua fabrica continuou produzindo</div>' +
+      '<div style="color:var(--dim);font-size:12px;margin-bottom:12px">Tempo ausente: <strong style="color:var(--txt)">' + tempoFormatado(seg) + '</strong></div>' +
+      '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px;text-align:center">' +
+        '<div class="lab">Rendimento guardado</div>' +
+        '<div class="val gold" style="font-size:22px;margin-top:4px">+ ' + moeda(ganho) + '</div>' +
+      '</div>' +
+      (encheu ? 
+        '<div style="background:#3a1414;border:2px solid #ef5350;color:#ffb4b4;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px;line-height:1.5">' +
+          '⚠️ <strong>Armazenador cheio!</strong> A capacidade maxima (R$ ' + fmt(capacidade) + ') foi atingida e parte da producao foi perdida antes do tempo acabar. Subir o nivel do armazenador resolve isso!' +
+        '</div>' : '') +
+      '<div style="display:flex;gap:8px">' +
+        '<button class="collect" id="btn-offline-rec" style="margin:0;flex:1">RECOLHER ' + moeda(S.stored) + '</button>' +
+        '<button id="btn-offline-ok" style="font:inherit;padding:10px 14px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--dim)">DEIXAR</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(m);
+  
+  const fechar = () => { modalAberto = false; m.remove(); };
+  m.querySelector("#btn-offline-rec").onclick = () => {
+    recolher();
+    fechar();
+  };
+  m.querySelector("#btn-offline-ok").onclick = fechar;
+  m.onclick = e => { if(e.target === m) fechar(); };
+}
+
+function checarGanhoOffline(){
+  const agora = Date.now();
+  if(!S.lastSave){ S.lastSave = agora; salvar(); return; }
+  const seg = Math.floor((agora - S.lastSave) / 1000);
+  if(seg < 2 || taxa() <= 0){ S.lastSave = agora; return; }
+  
+  const capacidade = cap();
+  const antes = S.stored;
+  const espaco = Math.max(0, capacidade - antes);
+  const potencial = taxa() * seg;
+  const ganho = Math.min(espaco, potencial);
+  const encheu = potencial > espaco;
+  
+  S.stored = Math.min(capacidade, antes + ganho);
+  S.lastSave = agora;
+  salvar();
+  
+  if(ganho > 0 || encheu){
+    mostrarModalOffline(seg, ganho, encheu, capacidade);
+  }
+}
 
 /* ---------------- LOOP ---------------- */
 const TICK = 100;
@@ -670,12 +857,13 @@ setInterval(()=>{
   if(!document.hidden) S.stats.dailySeconds += dt;
   const espaco = cap() - S.stored;
   if(espaco > 0) S.stored = Math.min(cap(), S.stored + taxa()*dt);
+  checarGerente();
   render();
 }, TICK);
 setInterval(salvar, 5000);
 window.addEventListener("beforeunload", salvar);
 
-testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho();
+testarArmazenamento(); carregar(); checarDia(); checarGanhoOffline(); render(); loopDesenho();
 </script>
 </body>
 </html>
