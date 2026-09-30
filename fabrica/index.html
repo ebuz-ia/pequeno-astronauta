@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fábrica de Pixel</title>
+<style>
+  :root{
+    --bg:#11141b; --panel:#1b2029; --panel2:#232a36; --line:#2f3947;
+    --txt:#e6ecf5; --dim:#8b97a8; --gold:#ffd24a; --ok:#4ade80; --no:#ef5350;
+    --cyan:#35e0d8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+  .wrap{max-width:980px;margin:0 auto;padding:12px}
+  h1{font-size:16px;letter-spacing:2px;margin:0 0 10px;color:var(--gold)}
+  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+  .card{background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:10px}
+  .lab{color:var(--dim);font-size:10px;letter-spacing:1px;text-transform:uppercase}
+  .val{font-size:18px;font-weight:bold;margin-top:2px}
+  .gold{color:var(--gold)} .cy{color:var(--cyan)} .ok{color:var(--ok)}
+  .bar{height:12px;background:#0c0f14;border:2px solid var(--line);border-radius:3px;
+    overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s linear}
+  .bar.full>i{background:var(--no)}
+  #stage{width:100%;image-rendering:pixelated;background:#0c0f14;
+    border:2px solid var(--line);border-radius:6px;display:block}
+  .collect{width:100%;margin:10px 0;padding:14px;font:inherit;font-size:15px;font-weight:bold;
+    letter-spacing:1px;cursor:pointer;border:2px solid #6b5a12;border-radius:6px;
+    background:var(--gold);color:#241d00}
+  .collect:disabled{background:#2a303b;border-color:var(--line);color:#5d6877;cursor:default}
+  .collect:active:not(:disabled){transform:translateY(2px)}
+  .tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .tabs button{font:inherit;padding:8px 12px;cursor:pointer;border:2px solid var(--line);
+    border-radius:6px;background:var(--panel);color:var(--dim)}
+  .tabs button.on{background:var(--panel2);color:var(--txt);border-color:#4b5a70}
+  .list{display:grid;gap:8px}
+  .row{display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:2px solid var(--line);border-radius:6px;padding:10px}
+  .row.owned{border-color:#2f5a3a;background:#16211a}
+  .row .nm{font-weight:bold}
+  .row .sub{color:var(--dim);font-size:11px;margin-top:2px}
+  .row .sp{flex:1}
+  .buy{font:inherit;padding:9px 12px;cursor:pointer;border:2px solid #14532d;border-radius:5px;
+    background:var(--ok);color:#06240f;font-weight:bold;white-space:nowrap}
+  .buy:disabled{background:#2a303b;border-color:var(--line);color:#5d6877;cursor:default}
+  .tag{font-size:10px;padding:3px 7px;border-radius:4px;background:#1f3a27;color:var(--ok);
+    border:1px solid #2f5a3a}
+  .mini{width:56px;height:44px;image-rendering:pixelated;background:#0c0f14;
+    border:1px solid var(--line);border-radius:4px;flex:none}
+  .prog{height:8px;background:#0c0f14;border:1px solid var(--line);border-radius:3px;
+    overflow:hidden;margin-top:5px;width:150px}
+  .prog>i{display:block;height:100%;background:var(--cyan)}
+  .tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .tools button{font:inherit;padding:8px 10px;cursor:pointer;border:2px solid var(--line);
+    border-radius:5px;background:var(--panel);color:var(--dim)}
+  .hide{display:none}
+  #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;display:grid;gap:6px;
+    justify-items:center;pointer-events:none;z-index:9}
+  #toast div{background:#0c0f14;border:2px solid var(--gold);color:var(--gold);
+    padding:8px 14px;border-radius:6px;animation:up 2.6s forwards}
+  @keyframes up{0%{opacity:0;transform:translateY(8px)}12%{opacity:1;transform:none}
+    80%{opacity:1}100%{opacity:0}}
+  .note{color:var(--dim);font-size:11px;line-height:1.6;margin-top:8px}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FABRICA DE PIXEL</h1>
+
+  <div class="hud">
+    <div class="card"><div class="lab">Carteira</div>
+      <div class="val gold" id="wallet">R$ 0,00</div></div>
+    <div class="card"><div class="lab">Armazenado <span id="slvl" class="dim"></span></div>
+      <div class="val" id="stored">R$ 0,0 / R$ 25</div>
+      <div class="bar" id="bar"><i></i></div></div>
+    <div class="card"><div class="lab">Producao</div>
+      <div class="val cy" id="rate">R$ 2 / s</div>
+      <div class="sub dim" id="status" style="font-size:11px;color:var(--dim);margin-top:4px">
+        produzindo</div></div>
+  </div>
+
+  <canvas id="stage" width="640" height="200"></canvas>
+  <button class="collect" id="collect">RECOLHER DINHEIRO</button>
+
+  <div class="tabs">
+    <button data-t="maq" class="on">MAQUINAS</button>
+    <button data-t="arm">ARMAZENADOR</button>
+    <button data-t="mis">MISSOES</button>
+    <button data-t="art">MINHAS ARTES</button>
+  </div>
+
+  <div id="maq" class="list"></div>
+  <div id="arm" class="list hide"></div>
+  <div id="mis" class="list hide"></div>
+  <div id="art" class="hide">
+    <div class="note">Aqui voce troca o desenho de cada maquina pelo seu proprio PNG.
+      Clique em TROCAR e escolha a imagem. Fundo transparente fica melhor.
+      As artes ficam salvas junto com o jogo.</div>
+    <div class="list" id="artlist" style="margin-top:8px"></div>
+  </div>
+
+  <div class="tools">
+    <button id="save">SALVAR AGORA</button>
+    <button id="exp">EXPORTAR SAVE</button>
+    <button id="impb">IMPORTAR SAVE</button>
+    <button id="reset">APAGAR TUDO</button>
+  </div>
+  <div class="note">O jogo salva sozinho a cada 5 segundos neste computador.
+    Use EXPORTAR SAVE de vez em quando para guardar uma copia de seguranca.</div>
+  <input type="file" id="imp" accept="application/json">
+  <input type="file" id="artfile" accept="image/*">
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------------- DADOS OFICIAIS ---------------- */
+const MACHINES = [
+  {id:"m1265xv", nome:"1265xv", custo:0,    ps:2 },
+  {id:"m4555tr", nome:"4555tr", custo:100,  ps:4 },
+  {id:"m900",    nome:"900",    custo:450,  ps:6 },
+  {id:"m6000",   nome:"6000",   custo:800,  ps:8 },
+  {id:"m9000",   nome:"9000",   custo:1000, ps:11},
+  {id:"m700",    nome:"700",    custo:1500, ps:15},
+  {id:"m500067", nome:"5000 67",custo:2200, ps:19}
+];
+const STORAGE = [
+  {nivel:1, cap:25,    custo:0   },
+  {nivel:2, cap:150,   custo:200 },
+  {nivel:3, cap:500,   custo:600 },
+  {nivel:4, cap:2000,  custo:2500},
+  {nivel:5, cap:10000, custo:8000}
+];
+const MAIN_MISSIONS = [
+  {id:"q1", t:"Primeiros Passos",   d:"Recolher dinheiro no armazenador pela primeira vez",
+   r:20,   alvo:1,    prog:s=>s.stats.collects},
+  {id:"q2", t:"Investidor",         d:"Comprar a maquina 4555tr",
+   r:50,   alvo:1,    prog:s=>s.machines.m4555tr?1:0},
+  {id:"q3", t:"Logistica Expandida",d:"Subir o armazenador para o Nivel 2",
+   r:80,   alvo:1,    prog:s=>s.storageLevel>=2?1:0},
+  {id:"q4", t:"Meio do Caminho",    d:"Comprar a maquina 6000",
+   r:300,  alvo:1,    prog:s=>s.machines.m6000?1:0},
+  {id:"q5", t:"Magnata dos Pixels", d:"Ter a maquina 5000 67 e o Armazenador Nivel 5",
+   r:5000, alvo:2,    prog:s=>(s.machines.m500067?1:0)+(s.storageLevel>=5?1:0)}
+];
+const DAILY_MISSIONS = [
+  {id:"d1", t:"Dedicacao Total", d:"Recolher dinheiro 30 vezes hoje",
+   r:150, alvo:30,   prog:s=>s.stats.dailyCollects},
+  {id:"d2", t:"Super Producao",  d:"Ganhar R$ 5.000 hoje",
+   r:400, alvo:5000, prog:s=>s.stats.dailyEarned},
+  {id:"d3", t:"Hora Extra",      d:"Ficar 30 minutos com o jogo aberto",
+   r:250, alvo:1800, prog:s=>s.stats.dailySeconds}
+];
+
+/* ---------------- ESTADO ---------------- */
+const KEY = "fabrica-pixel-save-v1";
+const hoje = () => new Date().toISOString().slice(0,10);
+
+function novoJogo(){
+  return {
+    wallet:0, stored:0, storageLevel:1,
+    machines:{ m1265xv:true },
+    stats:{collects:0, dailyCollects:0, dailyEarned:0, dailySeconds:0, dia:hoje()},
+    done:{}, dailyDone:{}, art:{}
+  };
+}
+let S = novoJogo();
+
+function carregar(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return;
+    const o = JSON.parse(raw);
+    S = Object.assign(novoJogo(), o);
+    S.stats = Object.assign(novoJogo().stats, o.stats||{});
+    S.machines = Object.assign({m1265xv:true}, o.machines||{});
+    S.art = o.art||{}; S.done = o.done||{}; S.dailyDone = o.dailyDone||{};
+  }catch(e){ console.warn("save invalido", e); }
+}
+let podeSalvar = true;
+function testarArmazenamento(){
+  try{ localStorage.setItem("teste-fp","1"); localStorage.removeItem("teste-fp"); podeSalvar = true; }
+  catch(e){ podeSalvar = false; }
+  if(!podeSalvar){
+    const av = document.createElement("div");
+    av.style.cssText = "background:#3a1414;border:2px solid #ef5350;color:#ffb4b4;" +
+      "padding:10px;border-radius:6px;margin-bottom:10px;line-height:1.5";
+    av.textContent = "ATENCAO: este navegador esta bloqueando o salvamento automatico. " +
+      "Use EXPORTAR SAVE antes de fechar, senao o progresso se perde.";
+    document.querySelector(".wrap").insertBefore(av, document.querySelector(".hud"));
+  }
+}
+function salvar(){
+  if(!podeSalvar) return;
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch(e){ podeSalvar = false; }
+}
+function checarDia(){
+  if(S.stats.dia !== hoje()){
+    S.stats.dia = hoje();
+    S.stats.dailyCollects = 0; S.stats.dailyEarned = 0; S.stats.dailySeconds = 0;
+    S.dailyDone = {};
+  }
+}
+
+/* ---------------- REGRAS ---------------- */
+const cap  = () => STORAGE[S.storageLevel-1].cap;
+const taxa = () => MACHINES.reduce((a,m)=> a + (S.machines[m.id] ? m.ps : 0), 0);
+const cheio = () => S.stored >= cap() - 1e-9;
+
+function ganhar(v){ S.wallet += v; S.stats.dailyEarned += v; }
+
+function recolher(){
+  if(S.stored <= 0) return;
+  const v = S.stored;
+  S.stored = 0;
+  ganhar(v);
+  S.stats.collects++; S.stats.dailyCollects++;
+  toast("+ " + moeda(v) + " recolhido");
+  for(let i=0;i<10;i++) faisca();
+  render();
+}
+function comprarMaquina(m){
+  if(S.machines[m.id] || S.wallet < m.custo) return;
+  S.wallet -= m.custo; S.machines[m.id] = true;
+  toast("Maquina " + m.nome + " instalada");
+  render(); salvar();
+}
+function subirArmazenador(){
+  const prox = STORAGE[S.storageLevel];
+  if(!prox || S.wallet < prox.custo) return;
+  S.wallet -= prox.custo; S.storageLevel = prox.nivel;
+  toast("Armazenador nivel " + prox.nivel + " (R$ " + fmt(prox.cap) + ")");
+  render(); salvar();
+}
+function resgatar(q, diaria){
+  const feito = diaria ? S.dailyDone : S.done;
+  if(feito[q.id]) return;
+  if(q.prog(S) < q.alvo) return;
+  feito[q.id] = true;
+  ganhar(q.r);
+  toast("Missao concluida: + " + moeda(q.r));
+  render(); salvar();
+}
+
+/* ---------------- FORMATO ---------------- */
+function fmt(n){ return n.toLocaleString("pt-BR",{maximumFractionDigits:0}); }
+function moeda(n){ return "R$ " + n.toLocaleString("pt-BR",
+  {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+/* ---------------- DESENHO PIXEL ---------------- */
+const cv = document.getElementById("stage");
+let cx = cv.getContext("2d");
+cx.imageSmoothingEnabled = false;
+let F = 0;
+const imgs = {};
+
+function getImg(id){
+  if(!S.art[id]) return null;
+  if(imgs[id] && imgs[id].src === S.art[id]) return imgs[id].complete ? imgs[id] : null;
+  const im = new Image(); im.src = S.art[id]; imgs[id] = im;
+  return im.complete ? im : null;
+}
+const R = (x,y,w,h,c)=>{ cx.fillStyle=c; cx.fillRect(x|0,y|0,w|0,h|0); };
+
+function fumaca(x, y, seed, cor){
+  cor = cor || "#8d98a8";
+  for(let i=0;i<4;i++){
+    const t = (F*0.55 + i*9 + seed*7) % 36;
+    const a = 1 - t/36;
+    if(a<=0) continue;
+    cx.globalAlpha = a*0.7;
+    const w = 3 + (t/9|0);
+    R(x - w/2 + Math.sin((t+seed*4)/6)*3, y - t, w, w, cor);
+  }
+  cx.globalAlpha = 1;
+}
+
+/* cada maquina desenhada na caixa 64x64 com base em y=BASE */
+const BASE = 150;
+function desenhaMaquina(id, x){
+  const im = getImg(id);
+  if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
+  const on = true;
+  switch(id){
+    case "m1265xv": { // caixa cinza, chamine na esquerda, visor preto
+      R(x+8, BASE-20, 48, 20, "#4a5260");
+      R(x+10,BASE-18, 44, 16, "#5c6675");
+      R(x+12,BASE-42, 36, 24, "#4a5260");
+      R(x+14,BASE-40, 32, 20, "#6b7585");
+      R(x+24,BASE-36, 12, 10, "#12151b");
+      R(x+26,BASE-34,  8,  6, on && (F>>4)%2 ? "#4ade80" : "#1b2a20");
+      R(x+6, BASE-52,  8, 34, "#3d4450"); R(x+5, BASE-54, 10, 4, "#59626f");
+      fumaca(x+10, BASE-56, 1);
+      break; }
+    case "m4555tr": { // fornalha com coroa de 3 chamines e fogo
+      R(x+6, BASE-24, 52, 24, "#4a5260"); R(x+8, BASE-22, 48, 20, "#5c6675");
+      R(x+10,BASE-44, 44, 20, "#454d5a");
+      const fl = (F>>2)%3;
+      R(x+22,BASE-40, 20, 14, "#2a1206");
+      R(x+24,BASE-38+fl, 16, 12-fl, "#e2560f");
+      R(x+27,BASE-34+fl, 10,  8-fl, "#ffb020");
+      R(x+30,BASE-30,  4,  4, "#ffe680");
+      for(let i=0;i<3;i++){
+        const bx = x+12 + i*18;
+        R(bx, BASE-58, 10, 14, "#3d4450"); R(bx-1, BASE-60, 12, 4, "#59626f");
+        fumaca(bx+5, BASE-62, i+1);
+      }
+      break; }
+    case "m900": { // console largo com 3 leds vermelhos
+      R(x+2, BASE-16, 60, 16, "#3d4450");
+      R(x+4, BASE-40, 56, 24, "#4a5260"); R(x+7, BASE-37, 50, 18, "#5c6675");
+      for(let i=0;i<3;i++){
+        const b = (F>>3 ) % 3 === i;
+        R(x+13 + i*16, BASE-32, 10, 8, "#1a1013");
+        R(x+15 + i*16, BASE-30,  6, 4, b ? "#ff6b6b" : "#8f2b2b");
+      }
+      R(x+4, BASE-44, 56, 4, "#6b7585");
+      break; }
+    case "m6000": { // rack de servidor, 5 barras de led
+      R(x+6, BASE-8, 52, 8, "#3d4450");
+      R(x+4, BASE-56, 56, 48, "#39404c");
+      R(x+8, BASE-52, 48, 40, "#5c6675");
+      for(let i=0;i<5;i++){
+        R(x+11, BASE-49 + i*8, 42, 6, "#1a1a20");
+        const w = 8 + ((F>>2) + i*5) % 30;
+        R(x+12, BASE-48 + i*8, w, 4, i%2 ? "#ff8c1a" : "#ff5252");
+      }
+      break; }
+    case "m9000": { // base com duas chamines gemeas
+      R(x+4, BASE-22, 56, 22, "#4a5260"); R(x+6, BASE-20, 52, 18, "#5c6675");
+      R(x+22,BASE-16, 20, 10, "#12151b");
+      R(x+24,BASE-14, 16,  6, (F>>3)%2 ? "#35e0d8" : "#15403f");
+      for(const dx of [10, 40]){
+        R(x+dx, BASE-58, 14, 36, "#3d4450");
+        R(x+dx+2, BASE-56, 10, 32, "#59626f");
+        R(x+dx-1, BASE-61, 16, 5, "#6b7585");
+        fumaca(x+dx+7, BASE-63, dx);
+      }
+      break; }
+    case "m700": { // capsula abaulada, 3 pontos embaixo, visor vermelho direita
+      for(let i=0;i<7;i++){
+        const w = 56 - i*6, h = 6;
+        R(x + 32 - w/2, BASE-8 - i*h, w, h, i%2 ? "#4a5260" : "#5c6675");
+      }
+      R(x+6, BASE-8, 52, 8, "#39404c");
+      for(let i=0;i<3;i++) R(x+16 + i*12, BASE-6, 6, 4, "#12151b");
+      R(x+40, BASE-26, 10, 8, "#1a1013");
+      R(x+42, BASE-24,  6, 4, (F>>2)%2 ? "#ff4040" : "#7a1f1f");
+      fumaca(x+32, BASE-56, 3, "#6ed6ff");
+      break; }
+    case "m500067": { // final: nucleo dourado
+      R(x+4, BASE-14, 56, 14, "#4a5260");
+      R(x+8, BASE-52, 48, 38, "#39404c");
+      R(x+11,BASE-49, 42, 32, "#5c6675");
+      const p = 4 + ((F>>1)%6);
+      R(x+32-p, BASE-36-p/2, p*2, p, "#ffd24a");
+      R(x+32-p/2, BASE-34-p/4, p, p/2, "#fff3c4");
+      for(const dx of [6, 52]) R(x+dx, BASE-58, 6, 46, "#6b7585");
+      R(x+4, BASE-60, 56, 5, "#8a95a6");
+      fumaca(x+16, BASE-62, 5, "#ffd24a");
+      fumaca(x+48, BASE-62, 9, "#ffd24a");
+      break; }
+  }
+}
+
+function desenhaSilo(x){
+  const im = getImg("silo");
+  if(im){ cx.drawImage(im, x, BASE-84, 76, 84); return; }
+  const p = cap()>0 ? Math.min(1, S.stored/cap()) : 0;
+  R(x+6,  BASE-6,  64, 6,  "#12151b");
+  R(x+4,  BASE-70, 68, 64, "#12151b");
+  R(x+7,  BASE-67, 62, 58, "#4a5260");
+  R(x+10, BASE-64, 56, 52, "#0e1116");
+  const h = Math.round(50*p);
+  if(h>0) R(x+11, BASE-15-h+1, 54, h, cheio() ? "#ff6b6b" : "#ffd24a");
+  for(let i=1;i<4;i++) R(x+7, BASE-67 + i*14, 62, 3, "#39404c");
+  R(x+18, BASE-80, 40, 12, "#12151b"); R(x+21, BASE-78, 34, 8, "#59626f");
+  R(x+70, BASE-46, 8, 16, "#39404c"); R(x+71, BASE-44, 6, 6, "#8d98a8");
+  if(!cheio()) fumaca(x+38, BASE-84, 2);
+  cx.fillStyle = cheio() ? "#ff6b6b" : "#e6ecf5";
+  cx.font = "10px monospace"; cx.textAlign = "center";
+  cx.fillText(Math.round(p*100) + "%", x+38, BASE-38);
+  cx.textAlign = "left";
+}
+
+/* moedas na esteira */
+let coins = [];
+function faisca(){
+  coins.push({x: 30 + Math.random()*60, y: BASE+24, v: 1.6 + Math.random()});
+}
+function passoMoedas(){
+  const tx = 560;
+  if(taxa()>0 && !cheio() && F % 14 === 0) coins.push({x:20, y:BASE+24, v:1.3});
+  coins.forEach(c => c.x += c.v);
+  coins = coins.filter(c => c.x < tx);
+}
+function desenhaEsteira(){
+  R(0, BASE+18, 640, 14, "#232a36");
+  R(0, BASE+18, 640, 2,  "#39404c");
+  const off = cheio() ? 0 : (F*2) % 12;
+  for(let x=-12; x<650; x+=12) R(x+off, BASE+22, 6, 6, "#2f3947");
+  coins.forEach(c=>{
+    R(c.x-3, c.y-3, 6, 6, "#ffd24a");
+    R(c.x-1, c.y-2, 2, 4, "#fff3c4");
+  });
+}
+
+function loopDesenho(){
+  F++;
+  cx.clearRect(0,0,640,200);
+  R(0,0,640,200,"#0e1116");
+  for(let x=0;x<640;x+=32) R(x, 0, 1, BASE, "#141922");
+  R(0, BASE, 640, 4, "#2f3947");
+  let x = 8;
+  MACHINES.forEach(m=>{ if(S.machines[m.id]){ desenhaMaquina(m.id, x); x += 70; } });
+  desenhaSilo(556);
+  passoMoedas();
+  desenhaEsteira();
+  requestAnimationFrame(loopDesenho);
+}
+
+/* thumbnail das maquinas nas listas */
+function thumb(canvasEl, id){
+  const c = canvasEl.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0,0,canvasEl.width,canvasEl.height);
+  c.fillStyle = "#0c0f14"; c.fillRect(0,0,canvasEl.width,canvasEl.height);
+  c.fillStyle = "#141922"; c.fillRect(0,40,canvasEl.width,4);
+  const anterior = cx;
+  cx = c;
+  c.save();
+  if(id === "silo"){ c.scale(0.5,0.5); c.translate(14, -(BASE-86)); desenhaSilo(0); }
+  else { c.scale(0.66,0.66); c.translate(10, -(BASE-65)); desenhaMaquina(id, 0); }
+  c.restore();
+  cx = anterior;
+}
+
+/* ---------------- INTERFACE ---------------- */
+const $ = s => document.querySelector(s);
+const el = (h)=>{ const d=document.createElement("div"); d.innerHTML=h.trim(); return d.firstChild; };
+
+let refsMaq = [], refsArm = [], refsMis = [], assinatura = "";
+
+function assinaturaAtual(){
+  return MACHINES.map(m=>S.machines[m.id]?1:0).join("") + "|" + S.storageLevel + "|" +
+    Object.keys(S.done).sort().join(",") + "|" + Object.keys(S.dailyDone).sort().join(",") +
+    "|" + Object.keys(S.art).sort().join(",");
+}
+
+function render(){
+  if(assinaturaAtual() !== assinatura){ assinatura = assinaturaAtual(); construirListas(); }
+  renderHUD();
+  atualizarEstados();
+}
+
+function renderHUD(){
+  $("#wallet").textContent = moeda(S.wallet);
+  $("#stored").textContent = "R$ " + S.stored.toFixed(1) + " / R$ " + fmt(cap());
+  $("#slvl").textContent = "(nivel " + S.storageLevel + ")";
+  const bar = $("#bar"), p = Math.min(1, S.stored/cap());
+  bar.classList.toggle("full", cheio());
+  bar.firstElementChild.style.width = (p*100) + "%";
+  $("#rate").textContent = "R$ " + taxa() + " / s";
+  $("#status").textContent = cheio()
+    ? "PARADA - armazenador cheio" : (taxa()>0 ? "produzindo" : "sem maquina");
+  $("#status").style.color = cheio() ? "var(--no)" : "var(--dim)";
+  const b = $("#collect");
+  b.disabled = S.stored <= 0;
+  b.textContent = S.stored > 0 ? ("RECOLHER " + moeda(S.stored)) : "RECOLHER DINHEIRO";
+}
+
+function atualizarEstados(){
+  refsMaq.forEach(r=>{ if(r.btn) r.btn.disabled = S.wallet < r.m.custo; });
+  refsArm.forEach(r=>{
+    if(!r.btn) return;
+    r.btn.disabled = (S.storageLevel + 1 !== r.s.nivel) || S.wallet < r.s.custo;
+  });
+  refsMis.forEach(r=>{
+    const pr = Math.min(r.q.alvo, r.q.prog(S));
+    r.bar.style.width = (pr / r.q.alvo * 100) + "%";
+    if(r.txt) r.txt.textContent = Math.floor(pr).toLocaleString("pt-BR") + " / " + fmt(r.q.alvo);
+    if(r.btn) r.btn.disabled = pr < r.q.alvo;
+  });
+}
+
+function construirListas(){
+  refsMaq = []; refsArm = []; refsMis = [];
+  listaMaquinas(); listaArmazenador(); listaMissoes(); listaArtes();
+}
+
+function listaMaquinas(){
+  const box = $("#maq"); box.innerHTML = "";
+  MACHINES.forEach(m=>{
+    const tem = !!S.machines[m.id];
+    const row = el(
+      '<div class="row ' + (tem?"owned":"") + '">' +
+        '<canvas class="mini" width="56" height="44"></canvas>' +
+        '<div><div class="nm">' + m.nome + '</div>' +
+        '<div class="sub">R$ ' + m.ps + ' por segundo</div></div>' +
+        '<div class="sp"></div>' +
+        (tem ? '<span class="tag">INSTALADA</span>'
+             : '<button class="buy">R$ ' + fmt(m.custo) + '</button>') +
+      '</div>');
+    box.appendChild(row);
+    thumb(row.querySelector("canvas"), m.id);
+    const btn = row.querySelector("button");
+    if(btn) btn.onclick = ()=>comprarMaquina(m);
+    refsMaq.push({m, btn});
+  });
+}
+
+function listaArmazenador(){
+  const box = $("#arm"); box.innerHTML = "";
+  STORAGE.forEach(s=>{
+    const tem = S.storageLevel >= s.nivel;
+    const row = el(
+      '<div class="row ' + (tem?"owned":"") + '">' +
+        '<canvas class="mini" width="56" height="44"></canvas>' +
+        '<div><div class="nm">Nivel ' + s.nivel + '</div>' +
+        '<div class="sub">Guarda ate R$ ' + fmt(s.cap) + '</div></div>' +
+        '<div class="sp"></div>' +
+        (tem ? '<span class="tag">' + (S.storageLevel===s.nivel?"ATUAL":"OK") + '</span>'
+             : '<button class="buy">R$ ' + fmt(s.custo) + '</button>') +
+      '</div>');
+    box.appendChild(row);
+    thumb(row.querySelector("canvas"), "silo");
+    const btn = row.querySelector("button");
+    if(btn) btn.onclick = subirArmazenador;
+    refsArm.push({s, btn});
+  });
+}
+
+function missaoRow(q, diaria){
+  const feito = (diaria ? S.dailyDone : S.done)[q.id];
+  const row = el(
+    '<div class="row ' + (feito?"owned":"") + '">' +
+      '<div style="min-width:0"><div class="nm">' + q.t + '</div>' +
+      '<div class="sub">' + q.d + '</div>' +
+      '<div class="prog"><i></i></div>' +
+      '<div class="sub prg"></div></div>' +
+      '<div class="sp"></div>' +
+      '<div style="text-align:right"><div class="sub">recompensa</div>' +
+      '<div class="gold" style="font-weight:bold">R$ ' + fmt(q.r) + '</div></div>' +
+      (feito ? '<span class="tag">PAGO</span>'
+             : '<button class="buy">RESGATAR</button>') +
+    '</div>');
+  const btn = row.querySelector("button");
+  if(btn) btn.onclick = ()=>resgatar(q, diaria);
+  refsMis.push({q, btn, bar: row.querySelector(".prog > i"),
+    txt: q.alvo > 1 ? row.querySelector(".prg") : null});
+  return row;
+}
+function listaMissoes(){
+  const box = $("#mis"); box.innerHTML = "";
+  box.appendChild(el('<div class="lab" style="margin-top:4px">Missoes principais</div>'));
+  MAIN_MISSIONS.forEach(q=> box.appendChild(missaoRow(q,false)));
+  box.appendChild(el('<div class="lab" style="margin-top:10px">Missoes diarias</div>'));
+  DAILY_MISSIONS.forEach(q=> box.appendChild(missaoRow(q,true)));
+}
+
+let alvoArte = null;
+function listaArtes(){
+  const box = $("#artlist"); box.innerHTML = "";
+  const itens = MACHINES.map(m=>({id:m.id, nome:"Maquina " + m.nome}))
+    .concat([{id:"silo", nome:"Armazenador"}]);
+  itens.forEach(it=>{
+    const row = el(
+      '<div class="row">' +
+        '<canvas class="mini" width="56" height="44"></canvas>' +
+        '<div><div class="nm">' + it.nome + '</div>' +
+        '<div class="sub">' + (S.art[it.id] ? "arte propria" : "desenho padrao") + '</div></div>' +
+        '<div class="sp"></div>' +
+        '<button class="buy">TROCAR</button>' +
+        (S.art[it.id] ? '<button class="buy" style="background:#3a2020;border-color:#5a2f2f;color:#ffb4b4">TIRAR</button>' : '') +
+      '</div>');
+    box.appendChild(row);
+    thumb(row.querySelector("canvas"), it.id);
+    const bs = row.querySelectorAll("button");
+    bs[0].onclick = ()=>{ alvoArte = it.id; $("#artfile").click(); };
+    if(bs[1]) bs[1].onclick = ()=>{
+      delete S.art[it.id]; delete imgs[it.id]; assinatura = ""; render(); salvar(); };
+  });
+}
+
+function toast(msg){
+  const t = document.createElement("div"); t.textContent = msg;
+  $("#toast").appendChild(t);
+  setTimeout(()=>t.remove(), 2600);
+}
+
+/* ---------------- EVENTOS ---------------- */
+$("#collect").onclick = recolher;
+document.addEventListener("keydown", e=>{
+  if(e.code === "Space" && e.target.tagName !== "BUTTON"){ e.preventDefault(); recolher(); }
+});
+document.querySelectorAll(".tabs button").forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll(".tabs button").forEach(o=>o.classList.remove("on"));
+    b.classList.add("on");
+    ["maq","arm","mis","art"].forEach(id=>
+      $("#"+id).classList.toggle("hide", id !== b.dataset.t));
+  };
+});
+$("#artfile").onchange = e=>{
+  const f = e.target.files[0]; if(!f || !alvoArte) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{ S.art[alvoArte] = rd.result; delete imgs[alvoArte];
+    const im = new Image(); im.onload = ()=>{ render(); }; im.src = rd.result; imgs[alvoArte]=im;
+    assinatura = ""; toast("Arte aplicada"); salvar(); render(); };
+  rd.readAsDataURL(f);
+  e.target.value = "";
+};
+$("#save").onclick = ()=>{ salvar(); toast("Jogo salvo"); };
+$("#exp").onclick = ()=>{
+  const blob = new Blob([JSON.stringify(S)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "fabrica-pixel-save-" + hoje() + ".json";
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("Save exportado");
+};
+$("#impb").onclick = ()=> $("#imp").click();
+$("#imp").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{ try{
+      const o = JSON.parse(rd.result);
+      S = Object.assign(novoJogo(), o);
+      S.stats = Object.assign(novoJogo().stats, o.stats||{});
+      S.machines = Object.assign({m1265xv:true}, o.machines||{});
+      for(const k in imgs) delete imgs[k];
+      assinatura = ""; salvar(); render(); toast("Save importado");
+    }catch(err){ toast("Arquivo invalido"); } };
+  rd.readAsText(f); e.target.value = "";
+};
+$("#reset").onclick = ()=>{
+  if(!confirm("Apagar todo o progresso e comecar do zero?")) return;
+  S = novoJogo(); for(const k in imgs) delete imgs[k];
+  assinatura = ""; salvar(); render(); toast("Jogo reiniciado");
+};
+
+/* ---------------- LOOP ---------------- */
+const TICK = 100;
+let ultimo = Date.now();
+setInterval(()=>{
+  const agora = Date.now();
+  const dt = Math.min(1, (agora - ultimo)/1000);
+  ultimo = agora;
+  checarDia();
+  if(!document.hidden) S.stats.dailySeconds += dt;
+  const espaco = cap() - S.stored;
+  if(espaco > 0) S.stored = Math.min(cap(), S.stored + taxa()*dt);
+  render();
+}, TICK);
+setInterval(salvar, 5000);
+window.addEventListener("beforeunload", salvar);
+
+testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho();
+</script>
+</body>
+</html>
