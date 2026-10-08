@@ -39,8 +39,9 @@
     overflow:hidden;margin-top:6px}
   .bar>i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s linear}
   .bar.full>i{background:var(--no)}
-  #stage{width:100%;image-rendering:pixelated;background:#0c0f14;
-    border:2px solid var(--line);border-radius:6px;display:block}
+  .stage-wrap{overflow-x:auto;overflow-y:hidden;border:2px solid var(--line);border-radius:6px;
+    background:#0c0f14;margin-bottom:0;-webkit-overflow-scrolling:touch}
+  #stage{display:block;image-rendering:pixelated;background:#0c0f14}
   .collect{width:100%;margin:10px 0;padding:14px;font:inherit;font-size:15px;font-weight:bold;
     letter-spacing:1px;cursor:pointer;border:2px solid #6b5a12;border-radius:6px;
     background:var(--gold);color:#241d00}
@@ -93,6 +94,14 @@
   .modal-box{background:var(--panel);border:2px solid var(--line);border-radius:8px;
     max-width:420px;width:100%;padding:18px;box-shadow:0 12px 36px rgba(0,0,0,0.6);line-height:1.4}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;
+    font-size:12px;border:2px solid var(--line)}
+  .banner.warn{background:#2a2012;border-color:#f59e0b;color:#fde68a}
+  .banner.danger{background:#2e1315;border-color:#ef5350;color:#fca5a5;
+    animation:pulseDanger 1.2s infinite alternate}
+  @keyframes pulseDanger{from{box-shadow:0 0 2px #ef5350}to{box-shadow:0 0 10px #ef5350}}
+  .row.broken{border-color:#ef5350;background:#201215}
+  .row.locked{border-color:#343f50;background:#131720;opacity:0.65}
 </style>
 </head>
 <body>
@@ -111,13 +120,18 @@
         produzindo</div></div>
   </div>
 
-  <canvas id="stage" width="640" height="200"></canvas>
+  <div class="stage-wrap">
+    <canvas id="stage" width="640" height="200"></canvas>
+  </div>
   <button class="collect" id="collect">RECOLHER DINHEIRO</button>
+
+  <div id="banners" style="display:grid;gap:8px;margin-bottom:10px"></div>
 
   <div class="tabs">
     <button data-t="maq" class="on">MAQUINAS</button>
     <button data-t="arm">ARMAZENADOR</button>
     <button data-t="ger">GERENTES</button>
+    <button data-t="reb">REBIRTH</button>
     <button data-t="mis">MISSOES</button>
     <button data-t="art">MINHAS ARTES</button>
   </div>
@@ -125,6 +139,7 @@
   <div id="maq" class="list"></div>
   <div id="arm" class="list hide"></div>
   <div id="ger" class="list hide"></div>
+  <div id="reb" class="list hide"></div>
   <div id="mis" class="list hide"></div>
   <div id="art" class="hide">
     <div class="note">Aqui voce troca o desenho de cada maquina pelo seu proprio PNG.
@@ -151,20 +166,55 @@
 
 /* ---------------- DADOS OFICIAIS ---------------- */
 const MACHINES = [
-  {id:"m1265xv", nome:"1265xv", custo:25,   ps:2 },
-  {id:"m4555tr", nome:"4555tr", custo:100,  ps:4 },
-  {id:"m900",    nome:"900",    custo:450,  ps:7 },
-  {id:"m6000",   nome:"6000",   custo:800,  ps:8 },
-  {id:"m9000",   nome:"9000",   custo:1000, ps:11},
-  {id:"m700",    nome:"700",    custo:1500, ps:15},
-  {id:"m500067", nome:"5000 67",custo:2200, ps:19}
+  // Máquinas Iniciais
+  {id:"m1265xv", nome:"1265xv", custo:25,   ps:2,  rebirthReq:0},
+  {id:"m4555tr", nome:"4555tr", custo:100,  ps:4,  rebirthReq:0},
+  {id:"m900",    nome:"900",    custo:450,  ps:7,  rebirthReq:0},
+  {id:"m6000",   nome:"6000",   custo:800,  ps:8,  rebirthReq:0},
+  {id:"m9000",   nome:"9000",   custo:1000, ps:11, rebirthReq:0},
+  {id:"m700",    nome:"700",    custo:1500, ps:15, rebirthReq:0},
+  {id:"m500067", nome:"5000 67",custo:2200, ps:19, rebirthReq:0},
+
+  // Rebirth 1 (+2 máquinas)
+  {id:"m8800",   nome:"8800 Quantum", custo:3500,  ps:26, rebirthReq:1},
+  {id:"mcyber",  nome:"Cyber 3000",   custo:5500,  ps:36, rebirthReq:1},
+
+  // Rebirth 2 (+2 máquinas)
+  {id:"mplasma", nome:"Plasma Core",  custo:9000,  ps:52, rebirthReq:2},
+  {id:"mtitan",  nome:"Titan 777",    custo:15000, ps:75, rebirthReq:2},
+
+  // Rebirth 3 (+2 máquinas)
+  {id:"mfusion", nome:"Fusão Atômica",custo:25000, ps:110,rebirthReq:3},
+  {id:"mlaser",  nome:"Laser Hiper",  custo:42000, ps:160,rebirthReq:3},
+
+  // Rebirth 4 (+2 máquinas)
+  {id:"mneutron",nome:"Nêutron X",    custo:70000, ps:240,rebirthReq:4},
+  {id:"mdark",   nome:"Matéria Escura",custo:120000,ps:350,rebirthReq:4},
+
+  // Rebirth 5 (+2 máquinas)
+  {id:"msingularity",nome:"Singularidade",custo:200000,ps:520,rebirthReq:5},
+  {id:"minfinity",   nome:"Pixel Infinito",custo:350000,ps:800,rebirthReq:5}
 ];
+
+const REBIRTH_REQS = [
+  {rebirth:1, nivelReq:15, novas:["8800 Quantum", "Cyber 3000"]},
+  {rebirth:2, nivelReq:23, novas:["Plasma Core", "Titan 777"]},
+  {rebirth:3, nivelReq:35, novas:["Fusão Atômica", "Laser Hiper"]},
+  {rebirth:4, nivelReq:48, novas:["Nêutron X", "Matéria Escura"]},
+  {rebirth:5, nivelReq:55, novas:["Singularidade", "Pixel Infinito"]}
+];
+
 const STORAGE = [
-  {nivel:1, cap:25,    custo:0   },
-  {nivel:2, cap:150,   custo:200 },
-  {nivel:3, cap:500,   custo:600 },
-  {nivel:4, cap:2000,  custo:2500},
-  {nivel:5, cap:10000, custo:8000}
+  {nivel:1, cap:25,       custo:0      },
+  {nivel:2, cap:150,      custo:200    },
+  {nivel:3, cap:500,      custo:600    },
+  {nivel:4, cap:2000,     custo:2500   },
+  {nivel:5, cap:10000,    custo:8000   },
+  {nivel:6, cap:50000,    custo:25000  },
+  {nivel:7, cap:250000,   custo:80000  },
+  {nivel:8, cap:1000000,  custo:250000 },
+  {nivel:9, cap:5000000,  custo:800000 },
+  {nivel:10,cap:25000000, custo:2500000}
 ];
 const MANAGERS = [
   {nivel:1, nome:"Gerente Júnior", taxa:0.10, desc:"Recolhe sozinho ao encher e fica com 10%", custo:1000},
@@ -181,7 +231,11 @@ const MAIN_MISSIONS = [
   {id:"q4", t:"Meio do Caminho",    d:"Comprar a maquina 6000",
    r:300,  alvo:1,    prog:s=>s.machines.m6000?1:0},
   {id:"q5", t:"Magnata dos Pixels", d:"Ter a maquina 5000 67 e o Armazenador Nivel 5",
-   r:5000, alvo:2,    prog:s=>(s.machines.m500067?1:0)+(s.storageLevel>=5?1:0)}
+   r:5000, alvo:2,    prog:s=>(s.machines.m500067?1:0)+(s.storageLevel>=5?1:0)},
+  {id:"q6", t:"Primeiro Rebirth",   d:"Completar o Rebirth 1 na fábrica",
+   r:2500, alvo:1,    prog:s=>(s.rebirth||0)>=1?1:0},
+  {id:"q7", t:"Administrador",      d:"Pagar 3 contas da fábrica",
+   r:600,  alvo:3,    prog:s=>s.stats.billsPaid||0}
 ];
 const DAILY_MISSIONS = [
   {id:"d1", t:"Dedicacao Total", d:"Recolher dinheiro 30 vezes hoje",
@@ -199,8 +253,13 @@ const hoje = () => new Date().toISOString().slice(0,10);
 function novoJogo(){
   return {
     wallet:0, stored:0, storageLevel:1, managerLevel:0,
+    hasMechanic: false,
+    rebirth: 0,
+    broken: {},
+    breakdownTimer: 300,
+    bill: { ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 },
     machines:{ m1265xv:1 },
-    stats:{collects:0, dailyCollects:0, dailyEarned:0, dailySeconds:0, dia:hoje()},
+    stats:{collects:0, dailyCollects:0, dailyEarned:0, dailySeconds:0, billsPaid:0, dia:hoje()},
     done:{}, dailyDone:{}, art:{},
     lastSave:Date.now()
   };
@@ -221,6 +280,11 @@ function carregar(){
     S.art = o.art||{}; S.done = o.done||{}; S.dailyDone = o.dailyDone||{};
     if(o.lastSave) S.lastSave = o.lastSave;
     S.managerLevel = o.managerLevel || 0;
+    S.hasMechanic = Boolean(o.hasMechanic);
+    S.rebirth = Number(o.rebirth) || 0;
+    S.broken = o.broken || {};
+    S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
+    S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
   }catch(e){ console.warn("save invalido", e); }
 }
 let podeSalvar = true;
@@ -253,9 +317,136 @@ function checarDia(){
 /* ---------------- REGRAS ---------------- */
 const nivelMaq = id => S.machines[id] === true ? 1 : (Number(S.machines[id]) || 0);
 const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)));
-const cap  = () => STORAGE[S.storageLevel-1].cap;
-const taxa = () => MACHINES.reduce((a,m)=> a + m.ps * nivelMaq(m.id), 0);
+const cap  = () => (STORAGE[S.storageLevel-1] || STORAGE[STORAGE.length-1]).cap;
+const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
+const maquinasDoRebirthAtual = () => MACHINES.filter(m => (m.rebirthReq || 0) <= (S.rebirth || 0));
+const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].quebrada);
+const contaPendente = () => Boolean(S.bill && S.bill.ativa);
+const taxa = () => {
+  if(contaPendente()) return 0;
+  const base = MACHINES.reduce((a,m)=> {
+    if(maquinaQuebrada(m.id)) return a;
+    return a + m.ps * nivelMaq(m.id);
+  }, 0);
+  return Math.round(base * multRebirth());
+};
 const cheio = () => S.stored >= cap() - 1e-9;
+
+function quebrarMaquinaAleatoria(){
+  const possuidas = maquinasDoRebirthAtual().filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id));
+  if(possuidas.length === 0) return;
+  const sorteada = possuidas[Math.floor(Math.random() * possuidas.length)];
+  if(!S.broken) S.broken = {};
+  S.broken[sorteada.id] = {
+    quebrada: true,
+    consertando: false,
+    tempoRestante: 10,
+    peloMecanico: false
+  };
+  toast("⚠️ A máquina " + sorteada.nome + " quebrou!");
+  if(S.hasMechanic){
+    iniciarConserto(sorteada.id, true);
+  }
+  render();
+  salvar();
+}
+
+function iniciarConserto(id, peloMecanico){
+  if(!S.broken || !S.broken[id] || !S.broken[id].quebrada) return;
+  if(S.broken[id].consertando) return;
+  S.broken[id].consertando = true;
+  S.broken[id].tempoRestante = 10;
+  S.broken[id].peloMecanico = Boolean(peloMecanico);
+  const m = MACHINES.find(x => x.id === id);
+  const nome = m ? m.nome : id;
+  if(peloMecanico){
+    toast("🔧 Mecânico começou a consertar " + nome + " (10s)");
+  } else {
+    toast("🔧 Consertando " + nome + "... (10s)");
+  }
+  render();
+  salvar();
+}
+
+function contratarMecanico(){
+  if(S.hasMechanic) return;
+  const custo = 3000;
+  if(S.wallet < custo) return;
+  S.wallet -= custo;
+  S.hasMechanic = true;
+  toast("👔 Mecânico Chefe contratado!");
+  if(S.broken){
+    for(const id in S.broken){
+      if(S.broken[id] && S.broken[id].quebrada && !S.broken[id].consertando){
+        iniciarConserto(id, true);
+      }
+    }
+  }
+  render();
+  salvar();
+}
+
+function gerarConta(){
+  if(!S.bill) S.bill = {};
+  const baseRate = MACHINES.reduce((a,m)=> a + m.ps * nivelMaq(m.id), 0);
+  const v = Math.max(25, Math.round(25 + baseRate * 5));
+  S.bill.ativa = true;
+  S.bill.valor = v;
+  toast("📄 Chegou a conta da fábrica: " + moeda(v) + ". Pague para voltar a dar dinheiro!");
+  render();
+  salvar();
+}
+
+function pagarConta(){
+  if(!S.bill || !S.bill.ativa) return;
+  const valor = S.bill.valor || 25;
+  const pago = Math.min(valor, S.wallet);
+  S.wallet -= pago;
+  S.bill.ativa = false;
+  S.bill.proximaEm = 200;
+  S.stats.billsPaid = (S.stats.billsPaid || 0) + 1;
+  toast("✅ Conta da fábrica paga: - " + moeda(pago) + "! Fábrica voltou a dar dinheiro.");
+  for(let i=0;i<6;i++) faisca();
+  render();
+  salvar();
+}
+
+function realizarRebirth(req){
+  if((S.rebirth || 0) >= 5) return;
+  const maquinas = maquinasDoRebirthAtual();
+  const ok = maquinas.every(m => nivelMaq(m.id) >= req.nivelReq);
+  if(!ok) return;
+
+  S.rebirth = (S.rebirth || 0) + 1;
+  toast("🌟 REBIRTH " + S.rebirth + " REALIZADO!");
+  for(let i=0;i<25;i++) faisca();
+  mostrarModalRebirth(req);
+  assinatura = "";
+  render();
+  salvar();
+}
+
+function mostrarModalRebirth(req){
+  const m = document.createElement("div");
+  m.className = "modal-bg";
+  m.innerHTML = 
+    '<div class="modal-box" style="text-align:center">' +
+      '<div style="font-size:32px;margin-bottom:6px">🌟</div>' +
+      '<div class="lab" style="color:var(--gold);letter-spacing:2px;font-size:12px">PARABÉNS!</div>' +
+      '<div style="font-size:18px;font-weight:bold;margin-top:4px">Rebirth ' + req.rebirth + ' Realizado!</div>' +
+      '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:14px 0;text-align:left;line-height:1.6">' +
+        '<div class="lab" style="color:var(--ok);margin-bottom:4px">RECOMPENSAS CONQUISTADAS:</div>' +
+        '<div>🔓 <strong>2 Novas Máquinas Desbloqueadas:</strong></div>' +
+        '<div style="color:var(--gold);font-weight:bold;padding-left:10px">• ' + req.novas[0] + '<br>• ' + req.novas[1] + '</div>' +
+        '<div style="margin-top:6px">⚡ <strong>+50% Bônus Permanente</strong> na produção total!</div>' +
+      '</div>' +
+      '<button class="collect" id="btn-rb-close" style="margin:0;width:100%">CONTINUAR FABRICANDO</button>' +
+    '</div>';
+  document.body.appendChild(m);
+  const fechar = () => m.remove();
+  m.querySelector("#btn-rb-close").onclick = fechar;
+  m.onclick = e => { if(e.target === m) fechar(); };
+}
 
 function ganhar(v){ S.wallet += v; S.stats.dailyEarned += v; }
 
@@ -437,6 +628,127 @@ function desenhaMaquina(id, x){
       fumaca(x+16, BASE-62, 5, "#ffd24a");
       fumaca(x+48, BASE-62, 9, "#ffd24a");
       break; }
+    case "m8800": { // 8800 Quantum
+      R(x+6, BASE-20, 52, 20, "#1e293b"); R(x+8, BASE-18, 48, 16, "#334155");
+      R(x+14, BASE-46, 36, 28, "#0f172a");
+      const qp = (F>>2)%4;
+      R(x+20, BASE-40, 24, 16, "#0369a1");
+      R(x+24-qp, BASE-36, 16+qp*2, 8, "#38bdf8");
+      R(x+28, BASE-34, 8, 4, "#e0f2fe");
+      R(x+26, BASE-56, 12, 10, "#475569");
+      R(x+22, BASE-58, 20, 4, "#0284c7");
+      fumaca(x+32, BASE-60, 4, "#38bdf8");
+      break; }
+    case "mcyber": { // Cyber 3000
+      R(x+4, BASE-16, 56, 16, "#064e3b"); R(x+6, BASE-14, 52, 12, "#047857");
+      R(x+8, BASE-48, 48, 34, "#022c22");
+      for(let i=0;i<3;i++){
+        for(let j=0;j<4;j++){
+          const onL = ((F>>2)+i*2+j)%3 === 0;
+          R(x+14+j*10, BASE-42+i*8, 6, 5, onL ? "#34d399" : "#065f46");
+        }
+      }
+      R(x+44, BASE-60, 4, 14, "#10b981");
+      R(x+42, BASE-62, 8, 3, (F>>3)%2 ? "#ef4444" : "#047857");
+      fumaca(x+18, BASE-52, 2, "#34d399");
+      break; }
+    case "mplasma": { // Plasma Core
+      R(x+6, BASE-14, 52, 14, "#2e1065");
+      R(x+10, BASE-54, 44, 42, "#3b0764");
+      R(x+14, BASE-50, 36, 34, "#1e1b4b");
+      const pl = (F>>1)%5;
+      R(x+18+pl, BASE-44+pl, 28-pl*2, 22-pl, "#c026d3");
+      R(x+24, BASE-38, 16, 10, "#f0abfc");
+      R(x+8, BASE-46, 48, 4, "#581c87");
+      R(x+8, BASE-28, 48, 4, "#581c87");
+      fumaca(x+32, BASE-58, 7, "#e879f9");
+      break; }
+    case "mtitan": { // Titan 777
+      R(x+4, BASE-14, 56, 14, "#1e293b");
+      for(let i=0;i<5;i++) R(x+8+i*10, BASE-12, 5, 10, "#eab308");
+      R(x+6, BASE-56, 10, 44, "#334155"); R(x+48, BASE-56, 10, 44, "#334155");
+      R(x+4, BASE-60, 56, 6, "#475569");
+      const pst = Math.round(Math.sin(F*0.25)*6);
+      R(x+26, BASE-54, 12, 18+pst, "#94a3b8");
+      R(x+18, BASE-36+pst, 28, 12, "#cbd5e1");
+      fumaca(x+11, BASE-62, 1, "#64748b");
+      break; }
+    case "mfusion": { // Fusão Atômica
+      R(x+6, BASE-18, 52, 18, "#172554");
+      R(x+8, BASE-54, 48, 38, "#1e3a8a");
+      const fs = 6 + (F%4);
+      R(x+32-fs, BASE-37-fs/2, fs*2, fs, "#fbbf24");
+      R(x+32-fs/2, BASE-35-fs/4, fs, fs/2, "#fffbeb");
+      R(x+12, BASE-58, 6, 12, "#0284c7"); R(x+46, BASE-58, 6, 12, "#0284c7");
+      fumaca(x+49, BASE-60, 8, "#fef08a");
+      break; }
+    case "mlaser": { // Laser Hiper
+      R(x+8, BASE-16, 48, 16, "#4c0519");
+      R(x+12, BASE-48, 40, 34, "#881337");
+      R(x+16, BASE-44, 32, 26, "#be123c");
+      R(x+26, BASE-58, 12, 14, "#9f1239");
+      R(x+24, BASE-62, 16, 5, "#e11d48");
+      const lz = (F>>2)%2;
+      if(lz) R(x+31, BASE-18, 2, 20, "#ff0055");
+      fumaca(x+32, BASE-64, 3, "#f43f5e");
+      break; }
+    case "mneutron": { // Nêutron X
+      R(x+4, BASE-16, 56, 16, "#030712");
+      R(x+8, BASE-52, 48, 38, "#1e1b4b");
+      R(x+12, BASE-48, 40, 30, "#312e81");
+      for(let i=0;i<4;i++) R(x+16+i*9, BASE-44, 5, 22, "#4f46e5");
+      const arc = (F>>2)%3;
+      if(arc === 0) R(x+20, BASE-36, 24, 2, "#93c5fd");
+      if(arc === 1) R(x+24, BASE-32, 16, 2, "#e0e7ff");
+      fumaca(x+20, BASE-56, 5, "#818cf8");
+      break; }
+    case "mdark": { // Matéria Escura
+      R(x+6, BASE-14, 52, 14, "#09090b");
+      R(x+8, BASE-54, 48, 42, "#18181b");
+      R(x+16, BASE-46, 32, 28, "#3b0764");
+      R(x+22, BASE-40, 20, 16, "#000000");
+      const dorb = (F>>2)%4;
+      R(x+30-dorb, BASE-34, 4+dorb*2, 4, "#c084fc");
+      fumaca(x+32, BASE-58, 9, "#c084fc");
+      break; }
+    case "msingularity": { // Singularidade
+      R(x+4, BASE-16, 56, 16, "#0f172a");
+      R(x+8, BASE-56, 48, 42, "#020617");
+      R(x+14, BASE-46, 36, 26, "#78350f");
+      R(x+20, BASE-40, 24, 14, "#000000");
+      R(x+26, BASE-36, 12, 6, "#fbbf24");
+      R(x+29, BASE-34, 6, 2, "#ffffff");
+      fumaca(x+32, BASE-60, 6, "#ffd24a");
+      break; }
+    case "minfinity": { // Pixel Infinito
+      R(x+4, BASE-16, 56, 16, "#1e293b");
+      R(x+8, BASE-58, 48, 44, "#0f172a");
+      const corH = (F*4)%360;
+      cx.fillStyle = `hsl(${corH}, 100%, 65%)`;
+      cx.fillRect(x+18, BASE-48, 28, 26);
+      cx.fillStyle = "#ffffff";
+      cx.fillRect(x+26, BASE-42, 12, 14);
+      cx.fillStyle = "#0c0f14";
+      cx.fillRect(x+30, BASE-38, 4, 6);
+      fumaca(x+32, BASE-62, 2, `hsl(${corH}, 90%, 60%)`);
+      break; }
+  }
+
+  // Alerta e fumaça de máquina quebrada
+  if(maquinaQuebrada(id)){
+    const b = S.broken && S.broken[id];
+    fumaca(x+32, BASE-35, 77, "#ef5350");
+    fumaca(x+20, BASE-30, 88, "#262626");
+    const pisca = (F>>3)%2;
+    R(x+24, BASE-72, 16, 14, pisca ? "#ef5350" : "#f59e0b");
+    cx.fillStyle = "#0c0f14";
+    cx.font = "bold 10px monospace";
+    cx.fillText("!", x+30, BASE-61);
+    if(b && b.consertando){
+      const pct = Math.max(0, Math.min(1, 1 - (b.tempoRestante / 10)));
+      R(x+10, BASE-80, 44, 5, "#0c0f14");
+      R(x+11, BASE-79, Math.round(42*pct), 3, "#4ade80");
+    }
   }
 }
 
@@ -465,17 +777,18 @@ let coins = [];
 function faisca(){
   coins.push({x: 30 + Math.random()*60, y: BASE+24, v: 1.6 + Math.random()});
 }
-function passoMoedas(){
-  const tx = 560;
-  if(taxa()>0 && !cheio() && F % 14 === 0) coins.push({x:20, y:BASE+24, v:1.3});
+function passoMoedas(limiteX){
+  const tx = limiteX || 560;
+  if(taxa()>0 && !cheio() && !contaPendente() && F % 14 === 0) coins.push({x:20, y:BASE+24, v:1.3});
   coins.forEach(c => c.x += c.v);
   coins = coins.filter(c => c.x < tx);
 }
-function desenhaEsteira(){
-  R(0, BASE+18, 640, 14, "#232a36");
-  R(0, BASE+18, 640, 2,  "#39404c");
-  const off = cheio() ? 0 : (F*2) % 12;
-  for(let x=-12; x<650; x+=12) R(x+off, BASE+22, 6, 6, "#2f3947");
+function desenhaEsteira(largura){
+  const w = largura || 640;
+  R(0, BASE+18, w, 14, "#232a36");
+  R(0, BASE+18, w, 2,  "#39404c");
+  const off = cheio() || contaPendente() ? 0 : (F*2) % 12;
+  for(let x=-12; x<w+10; x+=12) R(x+off, BASE+22, 6, 6, "#2f3947");
   coins.forEach(c=>{
     R(c.x-3, c.y-3, 6, 6, "#ffd24a");
     R(c.x-1, c.y-2, 2, 4, "#fff3c4");
@@ -484,15 +797,21 @@ function desenhaEsteira(){
 
 function loopDesenho(){
   F++;
-  cx.clearRect(0,0,640,200);
-  R(0,0,640,200,"#0e1116");
-  for(let x=0;x<640;x+=32) R(x, 0, 1, BASE, "#141922");
-  R(0, BASE, 640, 4, "#2f3947");
+  const activeCount = MACHINES.filter(m => nivelMaq(m.id) > 0).length;
+  const neededW = Math.max(640, activeCount * 70 + 96);
+  if(cv.width !== neededW) cv.width = neededW;
+  const siloX = neededW - 84;
+
+  cx.clearRect(0,0,neededW,200);
+  R(0,0,neededW,200,"#0e1116");
+  for(let x=0;x<neededW;x+=32) R(x, 0, 1, BASE, "#141922");
+  R(0, BASE, neededW, 4, "#2f3947");
   let x = 8;
   MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); x += 70; } });
-  desenhaSilo(556);
-  passoMoedas();
-  desenhaEsteira();
+  desenhaSilo(siloX);
+  passoMoedas(siloX);
+  desenhaEsteira(neededW);
+
   requestAnimationFrame(loopDesenho);
 }
 
@@ -519,6 +838,24 @@ function desenhaGerente(c, nivel){
   c.fillRect(cx0-3, cy0+10, 6, 2);
 }
 
+function desenhaMecanico(c){
+  const cx0 = 28, cy0 = 22;
+  c.fillStyle = "#ffd8a8"; c.fillRect(cx0-7, cy0-14, 14, 13);
+  c.fillStyle = "#f97316";
+  c.fillRect(cx0-9, cy0-18, 18, 6);
+  c.fillRect(cx0-10, cy0-13, 20, 2);
+  c.fillStyle = "#1e293b";
+  c.fillRect(cx0-4, cy0-8, 2, 2);
+  c.fillRect(cx0+2, cy0-8, 2, 2);
+  c.fillStyle = "#1d4ed8"; c.fillRect(cx0-13, cy0-1, 26, 19);
+  c.fillStyle = "#ffffff"; c.fillRect(cx0-4, cy0-1, 8, 5);
+  c.fillStyle = "#94a3b8";
+  c.fillRect(cx0+9, cy0-5, 3, 12);
+  c.fillRect(cx0+8, cy0-8, 5, 4);
+  c.fillStyle = "#0c0f14";
+  c.fillRect(cx0+10, cy0-7, 1, 2);
+}
+
 /* thumbnail das maquinas nas listas */
 function thumb(canvasEl, id){
   const c = canvasEl.getContext("2d");
@@ -527,7 +864,11 @@ function thumb(canvasEl, id){
   c.fillStyle = "#0c0f14"; c.fillRect(0,0,canvasEl.width,canvasEl.height);
   c.fillStyle = "#141922"; c.fillRect(0,40,canvasEl.width,4);
   if(id.startsWith("ger_")){
-    desenhaGerente(c, parseInt(id.replace("ger_","")));
+    if(id === "ger_mec"){
+      desenhaMecanico(c);
+    } else {
+      desenhaGerente(c, parseInt(id.replace("ger_","")));
+    }
     return;
   }
   const anterior = cx;
@@ -546,8 +887,11 @@ const el = (h)=>{ const d=document.createElement("div"); d.innerHTML=h.trim(); r
 let refsMaq = [], refsArm = [], refsGer = [], refsMis = [], assinatura = "";
 
 function assinaturaAtual(){
+  const brokenKeys = Object.keys(S.broken || {}).sort().map(k => k + ":" + (S.broken[k].consertando?1:0)).join(",");
+  const billKey = S.bill ? (S.bill.ativa?1:0) + ":" + (S.bill.valor||0) : "";
   return MACHINES.map(m=>nivelMaq(m.id)).join(",") + "|" + S.storageLevel + "|" +
-    (S.managerLevel||0) + "|" +
+    (S.managerLevel||0) + "|" + (S.hasMechanic?1:0) + "|" + (S.rebirth||0) + "|" +
+    brokenKeys + "|" + billKey + "|" +
     Object.keys(S.done).sort().join(",") + "|" + Object.keys(S.dailyDone).sort().join(",") +
     "|" + Object.keys(S.art).sort().join(",");
 }
@@ -558,6 +902,60 @@ function render(){
   atualizarEstados();
 }
 
+function renderBanners(){
+  const box = $("#banners");
+  if(!box) return;
+  box.innerHTML = "";
+
+  // Banner de Conta da Fábrica
+  if(S.bill && S.bill.ativa){
+    const bDiv = el(
+      '<div class="banner danger">' +
+        '<div>' +
+          '<div style="font-weight:bold">⚡ FÁBRICA PARADA — CONTA DE LUZ E ÁGUA</div>' +
+          '<div class="sub" style="color:currentColor;opacity:0.9">' +
+            'Pague ' + moeda(S.bill.valor) + ' para a fábrica voltar a dar dinheiro.' +
+          '</div>' +
+        '</div>' +
+        '<div class="sp"></div>' +
+        '<button class="buy" style="background:#ef5350;color:#fff;border-color:#b91c1c">' +
+          'PAGAR ' + moeda(S.bill.valor) +
+        '</button>' +
+      '</div>'
+    );
+    bDiv.querySelector("button").onclick = pagarConta;
+    box.appendChild(bDiv);
+  }
+
+  // Banner de Máquinas Quebradas
+  if(S.broken){
+    for(const id in S.broken){
+      const b = S.broken[id];
+      if(!b || !b.quebrada) continue;
+      const m = MACHINES.find(x => x.id === id);
+      const nome = m ? m.nome : id;
+      const row = el(
+        '<div class="banner danger">' +
+          '<div>' +
+            '<div style="font-weight:bold">⚠️ MÁQUINA QUEBRADA: ' + nome + '</div>' +
+            '<div class="sub" style="color:currentColor;opacity:0.9">' +
+              (b.consertando ? ('🔧 Consertando... ' + Math.ceil(b.tempoRestante) + 's restantes' + (b.peloMecanico ? ' (Mecânico)' : '')) : 'Produção parada. Clique para consertar (10s)!') +
+            '</div>' +
+          '</div>' +
+          '<div class="sp"></div>' +
+          (b.consertando ?
+            '<span class="tag" style="background:#162a1c;color:var(--ok);border-color:#2f5a3a">CONSERTANDO... ' + Math.ceil(b.tempoRestante) + 's</span>' :
+            '<button class="buy" style="background:#f59e0b;color:#201402;border-color:#b45309">CONSERTAR (10s)</button>') +
+        '</div>'
+      );
+      if(!b.consertando){
+        row.querySelector("button").onclick = () => iniciarConserto(id, false);
+      }
+      box.appendChild(row);
+    }
+  }
+}
+
 function renderHUD(){
   $("#wallet").textContent = moeda(S.wallet);
   $("#stored").textContent = "R$ " + S.stored.toFixed(1) + " / R$ " + fmt(cap());
@@ -565,14 +963,40 @@ function renderHUD(){
   const bar = $("#bar"), p = Math.min(1, S.stored/cap());
   bar.classList.toggle("full", cheio());
   bar.firstElementChild.style.width = (p*100) + "%";
-  $("#rate").textContent = "R$ " + taxa() + " / s";
-  const statusGer = (S.managerLevel > 0) ? (" • " + MANAGERS[S.managerLevel-1].nome) : "";
-  $("#status").textContent = cheio()
-    ? "PARADA - armazenador cheio" : (taxa()>0 ? ("produzindo" + statusGer) : "sem maquina");
-  $("#status").style.color = cheio() ? "var(--no)" : "var(--dim)";
+  
+  const mult = multRebirth();
+  const rbTag = (S.rebirth > 0) ? (" (" + (mult > 1 ? ("+" + Math.round((mult-1)*100) + "% ") : "") + "RB " + S.rebirth + ")") : "";
+  $("#rate").textContent = "R$ " + taxa() + " / s" + rbTag;
+
+  let st = "produzindo";
+  let stCor = "var(--dim)";
+  if(contaPendente()){
+    st = "⚡ PARADA — pague a conta da fábrica!";
+    stCor = "var(--no)";
+  } else if(cheio()){
+    st = "PARADA — armazenador cheio";
+    stCor = "var(--no)";
+  } else {
+    const quebradas = Object.keys(S.broken||{}).filter(k => S.broken[k].quebrada).length;
+    if(quebradas > 0){
+      st = "⚠️ " + quebradas + " máquina" + (quebradas>1?"s":"") + " quebrada" + (quebradas>1?"s":"");
+      stCor = "#f59e0b";
+    } else if(taxa() > 0){
+      const statusGer = (S.managerLevel > 0) ? (" • " + MANAGERS[S.managerLevel-1].nome) : "";
+      const statusMec = S.hasMechanic ? " • Mecânico Chefe" : "";
+      st = "produzindo" + statusGer + statusMec;
+    } else {
+      st = "sem máquina ativa";
+    }
+  }
+  $("#status").textContent = st;
+  $("#status").style.color = stCor;
+
   const b = $("#collect");
   b.disabled = S.stored <= 0;
   b.textContent = S.stored > 0 ? ("RECOLHER " + moeda(S.stored)) : "RECOLHER DINHEIRO";
+
+  renderBanners();
 }
 
 function atualizarEstados(){
@@ -583,7 +1007,11 @@ function atualizarEstados(){
   });
   refsGer.forEach(r=>{
     if(!r.btn) return;
-    r.btn.disabled = (S.managerLevel + 1 !== r.g.nivel) || S.wallet < r.g.custo;
+    if(r.isMec){
+      r.btn.disabled = S.hasMechanic || S.wallet < 3000;
+    } else {
+      r.btn.disabled = (S.managerLevel + 1 !== r.g.nivel) || S.wallet < r.g.custo;
+    }
   });
   refsMis.forEach(r=>{
     const pr = Math.min(r.q.alvo, r.q.prog(S));
@@ -595,30 +1023,76 @@ function atualizarEstados(){
 
 function construirListas(){
   refsMaq = []; refsArm = []; refsGer = []; refsMis = [];
-  listaMaquinas(); listaArmazenador(); listaGerentes(); listaMissoes(); listaArtes();
+  listaMaquinas(); listaArmazenador(); listaGerentes(); listaRebirth(); listaMissoes(); listaArtes();
 }
 
 function listaMaquinas(){
   const box = $("#maq"); box.innerHTML = "";
   MACHINES.forEach(m=>{
+    const rbReq = m.rebirthReq || 0;
+    const bloqueada = rbReq > (S.rebirth || 0);
     const lvl = nivelMaq(m.id);
     const preco = precoMaq(m);
-    const subTxt = lvl > 0
-      ? ("R$ " + fmt(m.ps * lvl) + " por segundo")
-      : ("R$ " + m.ps + " por segundo");
+    const quebrada = maquinaQuebrada(m.id);
+    const bInfo = quebrada ? S.broken[m.id] : null;
+
+    if(bloqueada){
+      const row = el(
+        '<div class="row locked">' +
+          '<canvas class="mini" width="56" height="44"></canvas>' +
+          '<div><div class="nm" style="color:var(--dim)">🔒 ' + m.nome + '</div>' +
+          '<div class="sub">Desbloqueia no Rebirth ' + rbReq + ' • Produção base: R$ ' + m.ps + '/s</div></div>' +
+          '<div class="sp"></div>' +
+          '<span class="tag" style="background:#261d24;color:#f87171;border-color:#5a2b38">REBIRTH ' + rbReq + '</span>' +
+        '</div>');
+      box.appendChild(row);
+      thumb(row.querySelector("canvas"), m.id);
+      return;
+    }
+
+    let subTxt = "";
+    if(quebrada){
+      subTxt = '<span style="color:#ef5350">⚠️ QUEBRADA — sem produção</span>';
+    } else if(lvl > 0){
+      const mult = multRebirth();
+      const realPs = Math.round(m.ps * lvl * mult);
+      subTxt = "R$ " + fmt(realPs) + " por segundo" + (mult > 1 ? " (+" + Math.round((mult-1)*100) + "%)" : "");
+    } else {
+      subTxt = "R$ " + m.ps + " por segundo (base)";
+    }
+
+    let btnHtml = "";
+    if(quebrada){
+      if(bInfo && bInfo.consertando){
+        btnHtml = '<button class="buy" disabled style="background:#223326;color:#86efac;border-color:#14532d">🔧 ' + Math.ceil(bInfo.tempoRestante) + 's</button>';
+      } else {
+        btnHtml = '<button class="buy btn-consertar" style="background:#f59e0b;color:#201402;border-color:#b45309">🔧 CONSERTAR (10s)</button>';
+      }
+      btnHtml += '<button class="buy" style="margin-left:6px">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
+    } else {
+      btnHtml = '<button class="buy">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
+    }
+
     const row = el(
-      '<div class="row ' + (lvl > 0 ? "owned" : "") + '">' +
+      '<div class="row ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
         '<div><div class="nm">' + m.nome + '</div>' +
         '<div class="sub">' + subTxt + '</div></div>' +
         '<div class="sp"></div>' +
-        '<button class="buy">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>' +
+        btnHtml +
       '</div>');
     box.appendChild(row);
     thumb(row.querySelector("canvas"), m.id);
-    const btn = row.querySelector("button");
-    if(btn) btn.onclick = ()=>comprarMaquina(m);
-    refsMaq.push({m, btn});
+
+    if(quebrada && (!bInfo || !bInfo.consertando)){
+      const btnCons = row.querySelector(".btn-consertar");
+      if(btnCons) btnCons.onclick = () => iniciarConserto(m.id, false);
+    }
+
+    const buyBtns = row.querySelectorAll("button");
+    const btnBuy = buyBtns[buyBtns.length - 1];
+    if(btnBuy) btnBuy.onclick = ()=>comprarMaquina(m);
+    refsMaq.push({m, btn: btnBuy});
   });
 }
 
@@ -645,6 +1119,7 @@ function listaArmazenador(){
 
 function listaGerentes(){
   const box = $("#ger"); box.innerHTML = "";
+  box.appendChild(el('<div class="lab" style="margin-top:4px">Gerentes de Recolhimento</div>'));
   MANAGERS.forEach(g=>{
     const contratado = S.managerLevel >= g.nivel;
     const atual = S.managerLevel === g.nivel;
@@ -663,6 +1138,114 @@ function listaGerentes(){
     if(btn) btn.onclick = ()=>contratarGerente(g);
     refsGer.push({g, btn});
   });
+
+  box.appendChild(el('<div class="lab" style="margin-top:14px">Gerente de Manutenção</div>'));
+  const temMec = Boolean(S.hasMechanic);
+  const rowMec = el(
+    '<div class="row ' + (temMec ? "owned" : "") + '">' +
+      '<canvas class="mini" width="56" height="44"></canvas>' +
+      '<div><div class="nm">Mecânico Chefe</div>' +
+      '<div class="sub">Conserta máquinas quebradas sozinho em 10s sem precisar clicar</div></div>' +
+      '<div class="sp"></div>' +
+      (temMec ? '<span class="tag">ATIVO</span>'
+              : '<button class="buy">R$ 3.000</button>') +
+    '</div>');
+  box.appendChild(rowMec);
+  thumb(rowMec.querySelector("canvas"), "ger_mec");
+  const btnMec = rowMec.querySelector("button");
+  if(btnMec) btnMec.onclick = contratarMecanico;
+  refsGer.push({isMec: true, btn: btnMec});
+}
+
+function listaRebirth(){
+  const box = $("#reb");
+  if(!box) return;
+  box.innerHTML = "";
+  const rb = S.rebirth || 0;
+
+  const statusCard = el(
+    '<div class="card" style="border-color:var(--gold);margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<div>' +
+          '<div class="lab">Progresso de Rebirth</div>' +
+          '<div class="val gold" style="font-size:20px;margin-top:2px">Rebirth ' + rb + ' / 5</div>' +
+        '</div>' +
+        '<div style="text-align:right">' +
+          '<div class="lab">Bônus de Produção</div>' +
+          '<div class="val cy" style="font-size:20px;margin-top:2px">+' + Math.round((multRebirth() - 1)*100) + '%</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="sub" style="margin-top:8px;line-height:1.5">' +
+        'Cada Rebirth libera <strong>+2 novas máquinas exclusivas</strong> e concede <strong>+50% de bônus permanente</strong> na produção da fábrica!' +
+      '</div>' +
+    '</div>'
+  );
+  box.appendChild(statusCard);
+
+  if(rb >= 5){
+    const maxCard = el(
+      '<div class="card" style="background:#16241b;border-color:var(--ok);padding:16px;text-align:center">' +
+        '<div style="font-size:28px;margin-bottom:6px">👑</div>' +
+        '<div style="font-size:16px;font-weight:bold;color:var(--gold)">FÁBRICA SUPREMA ALCANÇADA!</div>' +
+        '<div class="sub" style="margin-top:6px;line-height:1.6">' +
+          'Parabéns! Você completou todos os 5 Rebirths possíveis.<br>' +
+          'Todas as 17 máquinas da Fábrica de Pixel estão desbloqueadas e com bônus de produção máximo (+250%)!' +
+        '</div>' +
+      '</div>'
+    );
+    box.appendChild(maxCard);
+    return;
+  }
+
+  const req = REBIRTH_REQS[rb];
+  const maquinas = maquinasDoRebirthAtual();
+  const prontas = maquinas.filter(m => nivelMaq(m.id) >= req.nivelReq).length;
+  const total = maquinas.length;
+  const pode = prontas >= total;
+
+  const metaCard = el(
+    '<div class="card" style="margin-bottom:10px">' +
+      '<div class="lab" style="color:var(--cyan)">Requisitos para Rebirth ' + req.rebirth + '</div>' +
+      '<div style="font-size:15px;font-weight:bold;margin-top:4px">' +
+        'Todas as ' + total + ' máquinas atuais devem estar no Nível ' + req.nivelReq +
+      '</div>' +
+      '<div style="margin-top:8px">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">' +
+          '<span class="sub">Progresso de máquinas preparadas</span>' +
+          '<strong>' + prontas + ' / ' + total + ' prontas</strong>' +
+        '</div>' +
+        '<div class="bar" style="height:10px"><i style="width:' + (prontas/total*100) + '%;background:var(--cyan)"></i></div>' +
+      '</div>' +
+      '<div style="margin-top:12px;display:grid;gap:6px">' +
+        maquinas.map(m => {
+          const lvl = nivelMaq(m.id);
+          const ok = lvl >= req.nivelReq;
+          return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--panel2);padding:6px 10px;border-radius:4px;border:1px solid ' + (ok ? '#2f5a3a' : 'var(--line)') + '">' +
+            '<span>' + m.nome + '</span>' +
+            '<span style="font-weight:bold;color:' + (ok ? 'var(--ok)' : '#ffb020') + '">' +
+              'Nível ' + lvl + ' / ' + req.nivelReq + (ok ? ' ✓' : '') +
+            '</span>' +
+          '</div>';
+        }).join("") +
+      '</div>' +
+      '<div style="margin-top:14px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px">' +
+        '<div class="lab" style="color:var(--gold)">Recompensas do Rebirth ' + req.rebirth + ':</div>' +
+        '<div style="margin-top:6px;font-size:12px;line-height:1.6">' +
+          '🔓 <strong>+2 Novas Máquinas:</strong> ' + req.novas.join(" e ") + '<br>' +
+          '⚡ <strong>+50% de Bônus Permanente</strong> na produção' +
+        '</div>' +
+      '</div>' +
+      '<button class="collect btn-rb-act" style="margin-top:14px;width:100%;' + (pode ? 'background:var(--gold);color:#241d00;' : 'background:#2a303b;color:#5d6877;cursor:default;') + '" ' + (pode ? '' : 'disabled') + '>' +
+        (pode ? ('🌟 REALIZAR REBIRTH ' + req.rebirth) : ('BLOQUEADO — Falta upar máquinas para o Nível ' + req.nivelReq)) +
+      '</button>' +
+    '</div>'
+  );
+  box.appendChild(metaCard);
+
+  const btnRb = metaCard.querySelector(".btn-rb-act");
+  if(btnRb && pode){
+    btnRb.onclick = () => realizarRebirth(req);
+  }
 }
 
 function missaoRow(q, diaria){
@@ -732,7 +1315,7 @@ document.querySelectorAll(".tabs button").forEach(b=>{
   b.onclick = ()=>{
     document.querySelectorAll(".tabs button").forEach(o=>o.classList.remove("on"));
     b.classList.add("on");
-    ["maq","arm","ger","mis","art"].forEach(id=>
+    ["maq","arm","ger","reb","mis","art"].forEach(id=>
       $("#"+id).classList.toggle("hide", id !== b.dataset.t));
   };
 });
@@ -769,6 +1352,11 @@ $("#imp").onchange = e=>{
       for(const k in imgs) delete imgs[k];
       if(o.lastSave) S.lastSave = o.lastSave;
       S.managerLevel = o.managerLevel || 0;
+      S.hasMechanic = Boolean(o.hasMechanic);
+      S.rebirth = Number(o.rebirth) || 0;
+      S.broken = o.broken || {};
+      S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
+      S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
       assinatura = ""; salvar(); render(); toast("Save importado");
     }catch(err){ toast("Arquivo invalido"); } };
   rd.readAsText(f); e.target.value = "";
@@ -855,6 +1443,41 @@ setInterval(()=>{
   ultimo = agora;
   checarDia();
   if(!document.hidden) S.stats.dailySeconds += dt;
+
+  // 1. Quebra de máquinas a cada 5 minutos (300s)
+  if(!S.broken) S.broken = {};
+  S.breakdownTimer = (S.breakdownTimer !== undefined ? S.breakdownTimer : 300) - dt;
+  if(S.breakdownTimer <= 0){
+    S.breakdownTimer = 300;
+    quebrarMaquinaAleatoria();
+  }
+
+  // 2. Conserto de máquinas quebradas (10s)
+  for(const id in S.broken){
+    const b = S.broken[id];
+    if(b && b.quebrada && b.consertando){
+      b.tempoRestante -= dt;
+      if(b.tempoRestante <= 0){
+        delete S.broken[id];
+        const m = MACHINES.find(x => x.id === id);
+        const nome = m ? m.nome : id;
+        toast("✅ Máquina " + nome + " consertada com sucesso!");
+        for(let i=0;i<8;i++) faisca();
+        render();
+        salvar();
+      }
+    }
+  }
+
+  // 3. Contas da fábrica
+  if(!S.bill) S.bill = { ativa:false, valor:0, tempoRestante:0, atrasada:false, proximaEm:180 };
+  if(!S.bill.ativa){
+    S.bill.proximaEm = (S.bill.proximaEm !== undefined ? S.bill.proximaEm : 180) - dt;
+    if(S.bill.proximaEm <= 0){
+      gerarConta();
+    }
+  }
+
   const espaco = cap() - S.stored;
   if(espaco > 0) S.stored = Math.min(cap(), S.stored + taxa()*dt);
   checarGerente();
