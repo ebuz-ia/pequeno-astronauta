@@ -123,7 +123,10 @@
   <div class="stage-wrap">
     <canvas id="stage" width="640" height="200"></canvas>
   </div>
-  <button class="collect" id="collect">RECOLHER DINHEIRO</button>
+  <div style="display:flex;gap:8px;margin:10px 0;align-items:stretch">
+    <button class="collect" id="collect" style="margin:0;flex:1;min-width:0">RECOLHER DINHEIRO</button>
+    <button class="turbo" id="turbo">⚡ TURBO x2</button>
+  </div>
 
   <div id="banners" style="display:grid;gap:8px;margin-bottom:10px"></div>
 
@@ -262,6 +265,7 @@ function novoJogo(){
     rebirth: 0,
     broken: {},
     breakdownTimer: 300,
+    turbo: { restante: 0, espera: 0 },
     bill: { ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 },
     machines:{ m1265xv:1 },
     stats:{collects:0, dailyCollects:0, dailyEarned:0, dailySeconds:0, billsPaid:0, dia:hoje()},
@@ -288,6 +292,7 @@ function carregar(){
     S.hasMechanic = Boolean(o.hasMechanic);
     S.rebirth = Number(o.rebirth) || 0;
     S.broken = o.broken || {};
+    S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
     S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
     S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
   }catch(e){ console.warn("save invalido", e); }
@@ -327,13 +332,27 @@ const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
 const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0));
 const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].quebrada);
 const contaPendente = () => Boolean(S.bill && S.bill.ativa);
+const TURBO_DURACAO = 30;   // segundos ligado
+const TURBO_ESPERA   = 300;  // 5 minutos ate poder de novo
+const turboAtivo = () => Boolean(S.turbo && S.turbo.restante > 0);
+const turboPronto = () => !turboAtivo() && !(S.turbo && S.turbo.espera > 0);
+
+function ligarTurbo(){
+  if(!S.turbo) S.turbo = { restante:0, espera:0 };
+  if(!turboPronto()) return;
+  S.turbo.restante = TURBO_DURACAO;
+  toast("⚡ TURBO LIGADO! Produção dobrada por " + TURBO_DURACAO + " segundos");
+  for(let i=0;i<12;i++) faisca();
+  render(); salvar();
+}
+
 const taxa = () => {
   if(contaPendente()) return 0;
   const base = MACHINES.reduce((a,m)=> {
     if(maquinaQuebrada(m.id)) return a;
     return a + m.ps * nivelMaq(m.id);
   }, 0);
-  return Math.round(base * multRebirth());
+  return Math.round(base * multRebirth() * (turboAtivo() ? 2 : 1));
 };
 const cheio = () => S.stored >= cap() - 1e-9;
 
@@ -537,8 +556,10 @@ const R = (x,y,w,h,c)=>{ cx.fillStyle=c; cx.fillRect(x|0,y|0,w|0,h|0); };
 
 function fumaca(x, y, seed, cor){
   cor = cor || "#9aa6b6";
-  for(let i=0;i<10;i++){
-    const t = (F*0.5 + i*4.2 + seed*5) % 42;
+  const tb = (typeof turboAtivo === "function") && turboAtivo();
+  const qtd = tb ? 16 : 10;
+  for(let i=0;i<qtd;i++){
+    const t = (F*(tb ? 0.9 : 0.5) + i*(42/qtd) + seed*5) % 42;
     const a = 1 - t/42;
     if(a<=0) continue;
     const w = 3 + (t/5|0);
@@ -1121,7 +1142,7 @@ function faisca(){
 }
 function passoMoedas(limiteX){
   const tx = limiteX || 560;
-  if(taxa()>0 && !cheio() && !contaPendente() && F % 14 === 0) coins.push({x:20, y:BASE+24, v:1.3});
+  if(taxa()>0 && !cheio() && !contaPendente() && F % (turboAtivo() ? 5 : 14) === 0) coins.push({x:20, y:BASE+24, v: turboAtivo() ? 3 : 1.3});
   coins.forEach(c => c.x += c.v);
   coins = coins.filter(c => c.x < tx);
 }
@@ -1129,7 +1150,7 @@ function desenhaEsteira(largura){
   const w = largura || 640;
   R(0, BASE+18, w, 14, "#232a36");
   R(0, BASE+18, w, 2,  "#39404c");
-  const off = cheio() || contaPendente() ? 0 : (F*2) % 12;
+  const off = cheio() || contaPendente() ? 0 : (F * (turboAtivo() ? 5 : 2)) % 12;
   for(let x=-12; x<w+10; x+=12) R(x+off, BASE+22, 6, 6, "#2f3947");
   coins.forEach(c=>{
     R(c.x-3, c.y-3, 6, 6, "#ffd24a");
@@ -1191,6 +1212,17 @@ function loopDesenho(){
   desenhaSilo(siloX);
   passoMoedas(siloX);
   desenhaEsteira(neededW);
+
+  if(turboAtivo()){
+    cx.globalAlpha = .05 + .03*Math.sin(F/6);
+    R(0, 0, neededW, BASE, "#f97316");
+    cx.globalAlpha = 1;
+    R(0, 0, neededW, 3, "#f97316");
+    const etq = "TURBO x2  " + Math.ceil(S.turbo.restante) + "s";
+    cx.font = "bold 11px monospace"; cx.textAlign = "left";
+    cx.fillStyle = "#7a2e05"; cx.fillRect(7, 6, cx.measureText(etq).width + 10, 15);
+    cx.fillStyle = "#ffd9a0"; cx.fillText(etq, 12, 17);
+  }
 
   requestAnimationFrame(loopDesenho);
 }
@@ -1398,6 +1430,21 @@ function renderHUD(){
   }
   $("#status").textContent = st;
   $("#status").style.color = stCor;
+
+  const bt = $("#turbo");
+  if(bt){
+    if(turboAtivo()){
+      bt.classList.add("active"); bt.disabled = true;
+      bt.textContent = "⚡ x2 — " + Math.ceil(S.turbo.restante) + "s";
+    } else if(S.turbo && S.turbo.espera > 0){
+      bt.classList.remove("active"); bt.disabled = true;
+      const t = Math.ceil(S.turbo.espera);
+      bt.textContent = "⏳ " + Math.floor(t/60) + ":" + String(t%60).padStart(2,"0");
+    } else {
+      bt.classList.remove("active"); bt.disabled = false;
+      bt.textContent = "⚡ TURBO x2";
+    }
+  }
 
   const b = $("#collect");
   b.disabled = S.stored <= 0;
@@ -1782,6 +1829,7 @@ function listaCodigos(){
   add("rebirth +1", ()=> S.rebirth = Math.min(5, (S.rebirth||0)+1));
   add("consertar tudo", ()=> S.broken = {});
   add("quitar conta", ()=>{ if(S.bill) S.bill.ativa = false; });
+  add("turbo pronto", ()=>{ if(!S.turbo) S.turbo={restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; });
   add(((S.semQuebras?"✅":"❌") + " quebras desligadas"), ()=> S.semQuebras = !S.semQuebras);
   add(((S.semContas?"✅":"❌") + " contas desligadas"),  ()=> S.semContas  = !S.semContas);
   box.appendChild(grade);
@@ -1827,6 +1875,7 @@ function toast(msg){
 
 /* ---------------- EVENTOS ---------------- */
 $("#collect").onclick = recolher;
+$("#turbo").onclick = ligarTurbo;
 document.addEventListener("keydown", e=>{
   if(e.code === "Space" && e.target.tagName !== "BUTTON"){ e.preventDefault(); recolher(); }
 });
@@ -1874,6 +1923,7 @@ $("#imp").onchange = e=>{
       S.hasMechanic = Boolean(o.hasMechanic);
       S.rebirth = Number(o.rebirth) || 0;
       S.broken = o.broken || {};
+    S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
       S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
       S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
       assinatura = ""; salvar(); render(); toast("Save importado");
@@ -1994,6 +2044,23 @@ setInterval(()=>{
     S.bill.proximaEm = (S.bill.proximaEm !== undefined ? S.bill.proximaEm : 180) - dt;
     if(S.bill.proximaEm <= 0){
       if(S.semContas) S.bill.proximaEm = 200; else gerarConta();
+    }
+  }
+
+  // 4. Turbo
+  if(!S.turbo) S.turbo = { restante:0, espera:0 };
+  if(S.turbo.restante > 0){
+    S.turbo.restante -= dt;
+    if(S.turbo.restante <= 0){
+      S.turbo.restante = 0;
+      S.turbo.espera = TURBO_ESPERA;
+      toast("Turbo acabou. Volta em 5 minutos.");
+    }
+  } else if(S.turbo.espera > 0){
+    S.turbo.espera -= dt;
+    if(S.turbo.espera <= 0){
+      S.turbo.espera = 0;
+      toast("⚡ O TURBO ESTÁ PRONTO DE NOVO!");
     }
   }
 
