@@ -132,6 +132,7 @@
     <button data-t="arm">ARMAZENADOR</button>
     <button data-t="ger">GERENTES</button>
     <button data-t="reb">REBIRTH</button>
+    <button data-t="cod">CÓDIGOS</button>
     <button data-t="mis">MISSOES</button>
     <button data-t="art">MINHAS ARTES</button>
   </div>
@@ -140,6 +141,7 @@
   <div id="arm" class="list hide"></div>
   <div id="ger" class="list hide"></div>
   <div id="reb" class="list hide"></div>
+  <div id="cod" class="hide"></div>
   <div id="mis" class="list hide"></div>
   <div id="art" class="hide">
     <div class="note">Aqui voce troca o desenho de cada maquina pelo seu proprio PNG.
@@ -193,7 +195,10 @@ const MACHINES = [
 
   // Rebirth 5 (+2 máquinas)
   {id:"msingularity",nome:"Singularidade",custo:200000,ps:520,rebirthReq:5},
-  {id:"minfinity",   nome:"Pixel Infinito",custo:350000,ps:800,rebirthReq:5}
+  {id:"minfinity",   nome:"Pixel Infinito",custo:350000,ps:800,rebirthReq:5},
+
+  // Maquina secreta: so aparece com o codigo do Calebe
+  {id:"mcalebe", nome:"Calebe ∞", custo:0, ps:1500000, rebirthReq:0, secreta:true}
 ];
 
 const REBIRTH_REQS = [
@@ -319,7 +324,7 @@ const nivelMaq = id => S.machines[id] === true ? 1 : (Number(S.machines[id]) || 
 const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)));
 const cap  = () => (STORAGE[S.storageLevel-1] || STORAGE[STORAGE.length-1]).cap;
 const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
-const maquinasDoRebirthAtual = () => MACHINES.filter(m => (m.rebirthReq || 0) <= (S.rebirth || 0));
+const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0));
 const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].quebrada);
 const contaPendente = () => Boolean(S.bill && S.bill.ativa);
 const taxa = () => {
@@ -400,7 +405,7 @@ function gerarConta(){
 function pagarConta(){
   if(!S.bill || !S.bill.ativa) return;
   const valor = S.bill.valor || 25;
-  const pago = Math.min(valor, S.wallet);
+  const pago = Math.max(0, Math.min(valor, S.wallet));
   S.wallet -= pago;
   S.bill.ativa = false;
   S.bill.proximaEm = 200;
@@ -621,9 +626,55 @@ function grelha(x,y,w,n){
   for(let i=0;i<n;i++) R(x+1+i*((w-1)/n), y+1, Math.max(1,(w-1)/n-2), 2, MP.out);
 }
 
+// A cada 4 niveis a maquina ganha um acabamento novo.
+function tierVisual(id){
+  const nv = nivelMaq(id);
+  if(nv <= 0) return 0;
+  return Math.min(5, Math.floor((nv - 1) / 4));
+}
+function camadasAtras(x, t){
+  if(t >= 5){                                  // aura
+    cx.globalAlpha = .08 + .04*Math.sin(F/12);
+    R(x-3, BASE-70, 70, 70, "#a855f7");
+    cx.globalAlpha = 1;
+  }
+  if(t >= 1){                                  // reforco lateral
+    chapa(x+1, BASE-30, 5, 30); chapa(x+58, BASE-30, 5, 30);
+    rebites(x+1, BASE-30, 5, 30); rebites(x+58, BASE-30, 5, 30);
+  }
+  if(t >= 4){                                  // capacetes dourados nas laterais
+    for(const dx of [1, 58]){
+      R(dx+x-1, BASE-36, 7, 7, "#c79a21");
+      R(dx+x,   BASE-35, 5, 5, "#ffd24a");
+      R(dx+x,   BASE-35, 5, 1, "#fff3c4");
+      R(dx+x-2, BASE-37, 9, 1, MP.out);
+    }
+  }
+}
+function camadasFrente(x, t){
+  if(t >= 2){                                  // friso luminoso na base
+    R(x+3, BASE-5, 58, 2, "#35e0d8");
+    cx.globalAlpha = .25; R(x+3, BASE-8, 58, 6, "#35e0d8"); cx.globalAlpha = 1;
+  }
+  if(t >= 3){                                  // faixa dourada rente a base e luzes de canto
+    R(x+3, BASE-19, 58, 2, "#ffd24a");
+    R(x+2, BASE-20, 60, 1, MP.out);
+    lamp(x+3, BASE-27, 4, 5, "#ffd24a", (F>>3)%2===0);
+    lamp(x+57, BASE-27, 4, 5, "#ffd24a", (F>>3)%2===1);
+  }
+  if(t >= 5){                                  // orbes girando em volta
+    for(let i=0;i<3;i++){
+      const a = (F/16) + i*2.094;
+      R(x+32 + Math.cos(a)*34, BASE-30 + Math.sin(a)*16, 3, 3, "#ffd24a");
+    }
+  }
+}
+
 function desenhaMaquina(id, x){
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
+  const tv = tierVisual(id);
+  camadasAtras(x, tv);
   switch(id){
 
     case "m1265xv": {                       // caixa com chamine e visor
@@ -927,7 +978,59 @@ function desenhaMaquina(id, x){
       R(x+12, BASE-62, 40, 5, MP.lit); R(x+11, BASE-63, 42, 1, MP.out);
       fumaca(x+32, BASE-66, 2, "#e9d5ff");
       break; }
+
+    case "mcalebe": {                       // maquina secreta: Calebe infinito
+      sombraChao(x+1, 62);
+      // base ornamentada
+      chapa(x+2, BASE-16, 60, 16); rebites(x+2, BASE-16, 60, 16, "#ffd24a");
+      R(x+2, BASE-18, 60, 3, "#ffd24a"); R(x+1, BASE-19, 62, 1, MP.out);
+      for(let i=0;i<7;i++) R(x+6+i*8, BASE-14, 4, 10, "#c79a21");
+      // colunas douradas
+      for(const dx of [3, 55]){
+        chapa(x+dx, BASE-58, 6, 42);
+        R(x+dx, BASE-58, 6, 2, "#ffd24a");
+        R(x+dx-1, BASE-61, 8, 4, "#ffd24a"); R(x+dx-2, BASE-62, 10, 1, MP.out);
+        lamp(x+dx+1, BASE-52, 4, 4, "#fff3c4", (F>>3)%2);
+      }
+      // camara central
+      R(x+11, BASE-60, 42, 44, MP.out);
+      R(x+12, BASE-59, 40, 42, "#0a0714");
+      cx.globalAlpha=.12;
+      for(let i=0;i<42;i+=3) R(x+12, BASE-59+i, 40, 1, "#a855f7");
+      cx.globalAlpha=1;
+      // simbolo do infinito percorrido por particulas
+      const CXi = x+32, CYi = BASE-38, A = 17;
+      for(let i=0;i<30;i++){
+        const t = (F/22) + i*0.209;
+        const d = 1 + Math.sin(t)*Math.sin(t);
+        const px = CXi + (A*Math.cos(t))/d;
+        const py = CYi + (A*Math.sin(t)*Math.cos(t))/d;
+        const fase = (i/30);
+        cx.fillStyle = fase<.33 ? "#fff3c4" : (fase<.66 ? "#ffd24a" : "#c084fc");
+        cx.globalAlpha = .55 + .45*Math.sin(t*2);
+        cx.fillRect(px|0, py|0, 3, 3);
+      }
+      cx.globalAlpha = 1;
+      brilho(CXi, CYi, 20, "#ffd24a", .55);
+      // nucleo prismatico pulsando
+      const pz = 4 + ((F>>2)%3);
+      cx.fillStyle = "hsl(" + ((F*3)%360) + ", 95%, 68%)";
+      cx.fillRect(CXi-pz, CYi-pz, pz*2, pz*2);
+      R(CXi-2, CYi-2, 4, 4, "#ffffff");
+      // orbes em orbita
+      anelOrbita(CXi, CYi, 24, 10, 4, "#fff3c4", 13);
+      anelOrbita(CXi, CYi, 11, 23, 3, "#c084fc", 17);
+      // coroa de luz
+      R(x+10, BASE-66, 44, 4, "#ffd24a"); R(x+9, BASE-67, 46, 1, MP.out);
+      for(let i=0;i<5;i++){
+        const h = 5 + ((F>>2)+i)%5;
+        R(x+14+i*9, BASE-66-h, 3, h, "#fff3c4");
+      }
+      fumaca(x+32, BASE-74, 7, "#ffd24a");
+      break; }
   }
+
+  camadasFrente(x, tv);
 
   // Alerta e fumaça de máquina quebrada
   if(maquinaQuebrada(id)){
@@ -1179,12 +1282,28 @@ function render(){
   atualizarEstados();
 }
 
+let bannerKey = null, refsBanner = [];
+
+function chaveBanners(){
+  let k = (S.bill && S.bill.ativa) ? ("conta:" + S.bill.valor) : "conta:0";
+  if(S.broken) for(const id in S.broken){
+    const b = S.broken[id];
+    if(b && b.quebrada) k += "|" + id + ":" + (b.consertando?1:0) + (b.peloMecanico?"m":"");
+  }
+  return k;
+}
+
+// So reconstroi quando o conteudo muda de verdade. Reconstruir a cada quadro
+// fazia o botao sumir entre o apertar e o soltar, e o clique se perdia.
 function renderBanners(){
   const box = $("#banners");
   if(!box) return;
+  const k = chaveBanners();
+  if(k === bannerKey){ atualizarBanners(); return; }
+  bannerKey = k;
+  refsBanner = [];
   box.innerHTML = "";
 
-  // Banner de Conta da Fábrica
   if(S.bill && S.bill.ativa){
     const bDiv = el(
       '<div class="banner danger">' +
@@ -1204,7 +1323,6 @@ function renderBanners(){
     box.appendChild(bDiv);
   }
 
-  // Banner de Máquinas Quebradas
   if(S.broken){
     for(const id in S.broken){
       const b = S.broken[id];
@@ -1215,22 +1333,34 @@ function renderBanners(){
         '<div class="banner danger">' +
           '<div>' +
             '<div style="font-weight:bold">⚠️ MÁQUINA QUEBRADA: ' + nome + '</div>' +
-            '<div class="sub" style="color:currentColor;opacity:0.9">' +
+            '<div class="sub bsub" style="color:currentColor;opacity:0.9">' +
               (b.consertando ? ('🔧 Consertando... ' + Math.ceil(b.tempoRestante) + 's restantes' + (b.peloMecanico ? ' (Mecânico)' : '')) : 'Produção parada. Clique para consertar (10s)!') +
             '</div>' +
           '</div>' +
           '<div class="sp"></div>' +
           (b.consertando ?
-            '<span class="tag" style="background:#162a1c;color:var(--ok);border-color:#2f5a3a">CONSERTANDO... ' + Math.ceil(b.tempoRestante) + 's</span>' :
+            '<span class="tag btag" style="background:#162a1c;color:var(--ok);border-color:#2f5a3a">CONSERTANDO... ' + Math.ceil(b.tempoRestante) + 's</span>' :
             '<button class="buy" style="background:#f59e0b;color:#201402;border-color:#b45309">CONSERTAR (10s)</button>') +
         '</div>'
       );
       if(!b.consertando){
         row.querySelector("button").onclick = () => iniciarConserto(id, false);
       }
+      refsBanner.push({ id, sub: row.querySelector(".bsub"), tag: row.querySelector(".btag") });
       box.appendChild(row);
     }
   }
+}
+
+// o contador corre sem refazer o banner
+function atualizarBanners(){
+  refsBanner.forEach(r=>{
+    const b = S.broken && S.broken[r.id];
+    if(!b || !b.consertando) return;
+    const seg = Math.ceil(b.tempoRestante);
+    if(r.sub) r.sub.textContent = '🔧 Consertando... ' + seg + 's restantes' + (b.peloMecanico ? ' (Mecânico)' : '');
+    if(r.tag) r.tag.textContent = 'CONSERTANDO... ' + seg + 's';
+  });
 }
 
 function renderHUD(){
@@ -1300,12 +1430,13 @@ function atualizarEstados(){
 
 function construirListas(){
   refsMaq = []; refsArm = []; refsGer = []; refsMis = [];
-  listaMaquinas(); listaArmazenador(); listaGerentes(); listaRebirth(); listaMissoes(); listaArtes();
+  listaMaquinas(); listaArmazenador(); listaGerentes(); listaRebirth(); listaCodigos(); listaMissoes(); listaArtes();
 }
 
 function listaMaquinas(){
   const box = $("#maq"); box.innerHTML = "";
   MACHINES.forEach(m=>{
+    if(m.secreta && !(S.codes && S.codes["calebe.."])) return;
     const rbReq = m.rebirthReq || 0;
     const bloqueada = rbReq > (S.rebirth || 0);
     const lvl = nivelMaq(m.id);
@@ -1545,6 +1676,117 @@ function missaoRow(q, diaria){
     txt: q.alvo > 1 ? row.querySelector(".prg") : null});
   return row;
 }
+/* ---------------- CODIGOS ---------------- */
+const CODIGOS = [
+  { chave:"daniel",   titulo:"Daniel",   efeito:"Todas as máquinas sobem 5 níveis",
+    aplicar(){ maquinasDoRebirthAtual().forEach(m => S.machines[m.id] = nivelMaq(m.id) + 5); } },
+  { chave:"9213",     titulo:"9213",     efeito:"Libera o Painel de Administrador",
+    aplicar(){ S.admin = true; } },
+  { chave:"vitor",    titulo:"VITOR",    efeito:"Você fica devendo R$ 70.000",
+    aplicar(){ S.wallet -= 70000; } },
+  { chave:"dinhero",  titulo:"Dinhero",  efeito:"Ganha R$ 30.000 na hora",
+    aplicar(){ S.wallet += 30000; } },
+  { chave:"calebe..", titulo:"Calebe..", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
+    aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } }
+];
+
+let codTexto = "";
+
+function resgatarCodigo(txt){
+  let k = String(txt||"").trim().toLowerCase().replace(/\s+/g,"");
+  if(k === "calebe" || k === "calebe.") k = "calebe..";
+  const c = CODIGOS.find(o => o.chave === k);
+  if(!c){ toast("❌ Esse código não existe"); return false; }
+  if(!S.codes) S.codes = {};
+  if(S.codes[c.chave]){ toast("⚠️ O código " + c.titulo + " já foi usado"); return false; }
+  S.codes[c.chave] = true;
+  c.aplicar();
+  toast("✅ " + c.titulo + ": " + c.efeito);
+  for(let i=0;i<10;i++) faisca();
+  codTexto = "";
+  assinatura = ""; bannerKey = null;
+  render(); salvar();
+  return true;
+}
+
+function botaoAdm(rotulo, fn, cor){
+  const b = el('<button class="buy" style="background:' + (cor||"#2a303b") +
+    ';color:#e6ecf5;border-color:#4b5a70;font-size:11px;padding:8px 10px">' + rotulo + '</button>');
+  b.onclick = ()=>{ fn(); assinatura=""; bannerKey=null; render(); salvar(); };
+  return b;
+}
+
+function listaCodigos(){
+  const box = $("#cod"); if(!box) return;
+  box.innerHTML = "";
+  const usados = CODIGOS.filter(c => S.codes && S.codes[c.chave]);
+
+  const topo = el(
+    '<div class="card" style="border-color:var(--gold);margin-bottom:10px">' +
+      '<div class="lab">Resgatar código</div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
+        '<input placeholder="digite o código aqui" spellcheck="false" ' +
+          'style="flex:1;min-width:0;font:inherit;padding:10px;border-radius:6px;' +
+          'border:2px solid var(--line);background:#0c0f14;color:var(--txt)">' +
+        '<button class="buy">RESGATAR</button>' +
+      '</div>' +
+      '<div class="sub" style="margin-top:8px">' +
+        usados.length + ' de ' + CODIGOS.length + ' códigos encontrados' +
+      '</div>' +
+    '</div>'
+  );
+  box.appendChild(topo);
+  const inp = topo.querySelector("input"), bt = topo.querySelector("button");
+  inp.value = codTexto;
+  inp.oninput = ()=>{ codTexto = inp.value; };
+  const tentar = ()=>{ if(!resgatarCodigo(inp.value)) inp.select(); };
+  bt.onclick = tentar;
+  inp.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); tentar(); } };
+
+  if(usados.length){
+    box.appendChild(el('<div class="lab" style="margin:10px 0 6px">Já resgatados</div>'));
+    usados.forEach(c=>{
+      box.appendChild(el(
+        '<div class="row owned" style="margin-bottom:8px">' +
+          '<div><div class="nm">' + c.titulo + '</div>' +
+          '<div class="sub">' + c.efeito + '</div></div>' +
+          '<div class="sp"></div><span class="tag">USADO</span>' +
+        '</div>'));
+    });
+  }
+  const faltam = CODIGOS.length - usados.length;
+  if(faltam > 0){
+    box.appendChild(el(
+      '<div class="row" style="margin-top:8px">' +
+        '<div><div class="nm">' + faltam + ' código' + (faltam>1?'s':'') + ' escondido' + (faltam>1?'s':'') + '</div>' +
+        '<div class="sub">Peça para quem fez o jogo</div></div>' +
+        '<div class="sp"></div><span class="tag" style="background:#2a303b;color:#8b97a8;border-color:#3b4556">???</span>' +
+      '</div>'));
+  }
+
+  if(!S.admin) return;
+
+  box.appendChild(el('<div class="lab" style="margin:14px 0 6px;color:var(--gold)">Painel de Administrador</div>'));
+  const grade = el('<div class="card" style="border-color:#6b5a12;display:flex;flex-wrap:wrap;gap:6px"></div>');
+  const add = (r,f,c)=> grade.appendChild(botaoAdm(r,f,c));
+
+  add("+ R$ 1 mil",    ()=> S.wallet += 1000);
+  add("+ R$ 100 mil",  ()=> S.wallet += 100000);
+  add("+ R$ 1 milhão", ()=> S.wallet += 1000000);
+  add("+ R$ 1 bilhão", ()=> S.wallet += 1000000000);
+  add("zerar carteira",()=> S.wallet = 0, "#3a2020");
+  add("todas +1 nível",  ()=> maquinasDoRebirthAtual().forEach(m=> S.machines[m.id] = nivelMaq(m.id)+1));
+  add("todas +10 níveis",()=> maquinasDoRebirthAtual().forEach(m=> S.machines[m.id] = nivelMaq(m.id)+10));
+  add("armazenador máximo", ()=> S.storageLevel = STORAGE.length);
+  add("gerente máximo", ()=>{ S.managerLevel = MANAGERS.length; S.hasMechanic = true; });
+  add("rebirth +1", ()=> S.rebirth = Math.min(5, (S.rebirth||0)+1));
+  add("consertar tudo", ()=> S.broken = {});
+  add("quitar conta", ()=>{ if(S.bill) S.bill.ativa = false; });
+  add(((S.semQuebras?"✅":"❌") + " quebras desligadas"), ()=> S.semQuebras = !S.semQuebras);
+  add(((S.semContas?"✅":"❌") + " contas desligadas"),  ()=> S.semContas  = !S.semContas);
+  box.appendChild(grade);
+}
+
 function listaMissoes(){
   const box = $("#mis"); box.innerHTML = "";
   box.appendChild(el('<div class="lab" style="margin-top:4px">Missoes principais</div>'));
@@ -1592,7 +1834,7 @@ document.querySelectorAll(".tabs button").forEach(b=>{
   b.onclick = ()=>{
     document.querySelectorAll(".tabs button").forEach(o=>o.classList.remove("on"));
     b.classList.add("on");
-    ["maq","arm","ger","reb","mis","art"].forEach(id=>
+    ["maq","arm","ger","reb","cod","mis","art"].forEach(id=>
       $("#"+id).classList.toggle("hide", id !== b.dataset.t));
   };
 });
@@ -1726,7 +1968,7 @@ setInterval(()=>{
   S.breakdownTimer = (S.breakdownTimer !== undefined ? S.breakdownTimer : 300) - dt;
   if(S.breakdownTimer <= 0){
     S.breakdownTimer = 300;
-    quebrarMaquinaAleatoria();
+    if(!S.semQuebras) quebrarMaquinaAleatoria();
   }
 
   // 2. Conserto de máquinas quebradas (10s)
@@ -1751,7 +1993,7 @@ setInterval(()=>{
   if(!S.bill.ativa){
     S.bill.proximaEm = (S.bill.proximaEm !== undefined ? S.bill.proximaEm : 180) - dt;
     if(S.bill.proximaEm <= 0){
-      gerarConta();
+      if(S.semContas) S.bill.proximaEm = 200; else gerarConta();
     }
   }
 
