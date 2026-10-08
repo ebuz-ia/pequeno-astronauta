@@ -41,7 +41,7 @@
   .bar.full>i{background:var(--no)}
   .stage-wrap{overflow-x:auto;overflow-y:hidden;border:2px solid var(--line);border-radius:6px;
     background:#0c0f14;margin-bottom:0;-webkit-overflow-scrolling:touch}
-  #stage{display:block;image-rendering:pixelated;background:#0c0f14}
+  #stage{display:block;image-rendering:pixelated;background:#0c0f14;min-width:100%}
   .collect{width:100%;margin:10px 0;padding:14px;font:inherit;font-size:15px;font-weight:bold;
     letter-spacing:1px;cursor:pointer;border:2px solid #6b5a12;border-radius:6px;
     background:var(--gold);color:#241d00}
@@ -531,206 +531,401 @@ function getImg(id){
 const R = (x,y,w,h,c)=>{ cx.fillStyle=c; cx.fillRect(x|0,y|0,w|0,h|0); };
 
 function fumaca(x, y, seed, cor){
-  cor = cor || "#8d98a8";
-  for(let i=0;i<4;i++){
-    const t = (F*0.55 + i*9 + seed*7) % 36;
-    const a = 1 - t/36;
+  cor = cor || "#9aa6b6";
+  for(let i=0;i<10;i++){
+    const t = (F*0.5 + i*4.2 + seed*5) % 42;
+    const a = 1 - t/42;
     if(a<=0) continue;
-    cx.globalAlpha = a*0.7;
-    const w = 3 + (t/9|0);
-    R(x - w/2 + Math.sin((t+seed*4)/6)*3, y - t, w, w, cor);
+    const w = 3 + (t/5|0);
+    const dx = Math.sin((t+seed*3)/11) * (1 + t/18);
+    cx.globalAlpha = a*0.55;
+    R(x - w/2 + dx, y - t, w, w, cor);
+    cx.globalAlpha = a*0.22;
+    R(x - w/2 + dx - 1, y - t - 1, w+2, w+2, cor);
   }
   cx.globalAlpha = 1;
 }
 
-/* cada maquina desenhada na caixa 64x64 com base em y=BASE */
+/* ---------------- SISTEMA DE DESENHO DAS MAQUINAS ----------------
+   Luz vem de cima a esquerda. Toda chapa tem contorno escuro,
+   brilho no topo e sombra embaixo. Caixa de 64x64 apoiada em y=BASE. */
 const BASE = 150;
+
+const MP = { out:"#080a0f", dark:"#283040", mid:"#434c5d", lit:"#5e697b",
+             hi:"#8d99ab", spec:"#c6d0dd", glass:"#0a0e15" };
+
+function sombraChao(x, w){
+  cx.globalAlpha = .5;  R(x, BASE-2, w, 3, "#04060a");
+  cx.globalAlpha = .22; R(x-3, BASE+1, w+6, 2, "#04060a");
+  cx.globalAlpha = 1;
+}
+function chapa(x,y,w,h, mid, lit, dark){
+  R(x-1, y-1, w+2, h+2, MP.out);
+  R(x, y, w, h, mid || MP.mid);
+  R(x, y, w, 1, MP.hi);
+  R(x, y, 1, h, lit || MP.lit);
+  R(x, y+h-1, w, 1, dark || MP.dark);
+  R(x+w-1, y, 1, h, dark || MP.dark);
+}
+function rebites(x,y,w,h,c){
+  c = c || MP.spec;
+  [[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2]].forEach(q=>R(q[0],q[1],1,1,c));
+}
+function brilho(px, py, r, cor, forca){
+  forca = (forca===undefined) ? .5 : forca;
+  for(let i=r;i>0;i--){
+    cx.globalAlpha = forca * (1 - i/(r+1)) * .45;
+    R(px-i, py-i, i*2, i*2, cor);
+  }
+  cx.globalAlpha = 1;
+}
+function lamp(x,y,w,h,cor,aceso){
+  R(x-1,y-1,w+2,h+2, MP.out);
+  R(x,y,w,h, aceso ? cor : "#171c24");
+  if(aceso){ R(x,y,w,1,"#ffffff");
+    cx.globalAlpha=.3; R(x-2,y-2,w+4,h+4,cor); cx.globalAlpha=1; }
+}
+function tela(x,y,w,h,cor){
+  R(x-1,y-1,w+2,h+2, MP.out);
+  R(x,y,w,h, MP.glass);
+  cx.globalAlpha=.18;
+  for(let i=0;i<h;i+=2) R(x,y+i,w,1, cor||"#2de0ff");
+  cx.globalAlpha=1;
+}
+function cano(x,y,w,h){
+  R(x-1,y-1,w+2,h+2, MP.out);
+  R(x,y,w,h, MP.mid);
+  R(x+1,y,1,h, MP.hi);
+  R(x+w-2,y,1,h, MP.dark);
+}
+function chamine(x,y,w,h,seed,cor){
+  cano(x,y,w,h);
+  R(x-2,y-2,w+4,3, MP.lit);
+  R(x-3,y-3,w+6,1, MP.out);
+  fumaca(x+w/2, y-5, seed, cor);
+}
+function circulo(px,py,r,cor){
+  for(let dy=-r; dy<=r; dy++){
+    const w = Math.round(Math.sqrt(Math.max(0, r*r - dy*dy)));
+    if(w>0) R(px-w, py+dy, w*2, 1, cor);
+  }
+}
+function anelOrbita(px,py,rx,ry,qtd,cor,vel){
+  for(let i=0;i<qtd;i++){
+    const a = (F/(vel||14)) + i*(6.283/qtd);
+    R(px + Math.cos(a)*rx, py + Math.sin(a)*ry, 2, 2, cor);
+  }
+}
+function grelha(x,y,w,n){
+  R(x,y,w,4, MP.dark);
+  for(let i=0;i<n;i++) R(x+1+i*((w-1)/n), y+1, Math.max(1,(w-1)/n-2), 2, MP.out);
+}
+
 function desenhaMaquina(id, x){
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
-  const on = true;
   switch(id){
-    case "m1265xv": { // caixa cinza, chamine na esquerda, visor preto
-      R(x+8, BASE-20, 48, 20, "#4a5260");
-      R(x+10,BASE-18, 44, 16, "#5c6675");
-      R(x+12,BASE-42, 36, 24, "#4a5260");
-      R(x+14,BASE-40, 32, 20, "#6b7585");
-      R(x+24,BASE-36, 12, 10, "#12151b");
-      R(x+26,BASE-34,  8,  6, on && (F>>4)%2 ? "#4ade80" : "#1b2a20");
-      R(x+6, BASE-52,  8, 34, "#3d4450"); R(x+5, BASE-54, 10, 4, "#59626f");
-      fumaca(x+10, BASE-56, 1);
+
+    case "m1265xv": {                       // caixa com chamine e visor
+      sombraChao(x+6, 52);
+      chapa(x+8, BASE-20, 48, 20); rebites(x+8, BASE-20, 48, 20);
+      grelha(x+16, BASE-16, 32, 5);
+      chapa(x+13, BASE-42, 34, 22); rebites(x+13, BASE-42, 34, 22);
+      tela(x+23, BASE-37, 16, 12);
+      lamp(x+26, BASE-34, 10, 6, "#4ade80", (F>>4)%2);
+      chamine(x+6, BASE-54, 8, 34, 1);
       break; }
-    case "m4555tr": { // fornalha com coroa de 3 chamines e fogo
-      R(x+6, BASE-24, 52, 24, "#4a5260"); R(x+8, BASE-22, 48, 20, "#5c6675");
-      R(x+10,BASE-44, 44, 20, "#454d5a");
+
+    case "m4555tr": {                       // fornalha de tres chamines
+      sombraChao(x+4, 56);
+      chapa(x+6, BASE-24, 52, 24); rebites(x+6, BASE-24, 52, 24);
+      chapa(x+10, BASE-46, 44, 22);
       const fl = (F>>2)%3;
-      R(x+22,BASE-40, 20, 14, "#2a1206");
-      R(x+24,BASE-38+fl, 16, 12-fl, "#e2560f");
-      R(x+27,BASE-34+fl, 10,  8-fl, "#ffb020");
-      R(x+30,BASE-30,  4,  4, "#ffe680");
-      for(let i=0;i<3;i++){
-        const bx = x+12 + i*18;
-        R(bx, BASE-58, 10, 14, "#3d4450"); R(bx-1, BASE-60, 12, 4, "#59626f");
-        fumaca(bx+5, BASE-62, i+1);
-      }
+      R(x+19, BASE-43, 26, 20, MP.out);
+      R(x+21, BASE-41+fl, 22, 17-fl, "#7a1a00");
+      R(x+22, BASE-39+fl, 20, 15-fl, "#e2560f");
+      R(x+25, BASE-35+fl, 14, 11-fl, "#ffb020");
+      R(x+29, BASE-30, 6, 5, "#ffe680");
+      brilho(x+32, BASE-33, 10, "#ff7a1a", .55);
+      for(let i=0;i<3;i++) chamine(x+12+i*18, BASE-62, 10, 16, i+1);
       break; }
-    case "m900": { // console largo com 3 leds vermelhos
-      R(x+2, BASE-16, 60, 16, "#3d4450");
-      R(x+4, BASE-40, 56, 24, "#4a5260"); R(x+7, BASE-37, 50, 18, "#5c6675");
+
+    case "m900": {                          // console largo de leds
+      sombraChao(x+2, 60);
+      chapa(x+2, BASE-16, 60, 16); grelha(x+8, BASE-12, 48, 8);
+      chapa(x+5, BASE-42, 54, 26); rebites(x+5, BASE-42, 54, 26);
+      R(x+5, BASE-46, 54, 4, MP.lit); R(x+4, BASE-47, 56, 1, MP.out);
       for(let i=0;i<3;i++){
-        const b = (F>>3 ) % 3 === i;
-        R(x+13 + i*16, BASE-32, 10, 8, "#1a1013");
-        R(x+15 + i*16, BASE-30,  6, 4, b ? "#ff6b6b" : "#8f2b2b");
+        const aceso = (F>>3)%3===i;
+        R(x+12+i*16, BASE-36, 12, 10, MP.out);
+        R(x+13+i*16, BASE-35, 10, 8, aceso ? "#ff5252" : "#4a1416");
+        if(aceso) R(x+13+i*16, BASE-35, 10, 1, "#ffd0d0");
+        if(aceso) brilho(x+18+i*16, BASE-31, 8, "#ff5252", .5);
       }
-      R(x+4, BASE-44, 56, 4, "#6b7585");
+      R(x+9, BASE-24, 46, 2, MP.dark);
       break; }
-    case "m6000": { // rack de servidor, 5 barras de led
-      R(x+6, BASE-8, 52, 8, "#3d4450");
-      R(x+4, BASE-56, 56, 48, "#39404c");
-      R(x+8, BASE-52, 48, 40, "#5c6675");
+
+    case "m6000": {                         // rack de servidor
+      sombraChao(x+4, 56);
+      chapa(x+6, BASE-8, 52, 8);
+      chapa(x+4, BASE-56, 56, 48); rebites(x+4, BASE-56, 56, 48);
+      R(x+7, BASE-53, 50, 42, MP.glass);
       for(let i=0;i<5;i++){
-        R(x+11, BASE-49 + i*8, 42, 6, "#1a1a20");
         const w = 8 + ((F>>2) + i*5) % 30;
-        R(x+12, BASE-48 + i*8, w, 4, i%2 ? "#ff8c1a" : "#ff5252");
+        R(x+10, BASE-50+i*8, 44, 6, "#111620");
+        R(x+11, BASE-49+i*8, w, 4, i%2 ? "#ff8c1a" : "#ff5252");
+        R(x+11, BASE-49+i*8, w, 1, "#ffd9a0");
       }
+      R(x+4, BASE-60, 56, 4, MP.lit); R(x+3, BASE-61, 58, 1, MP.out);
       break; }
-    case "m9000": { // base com duas chamines gemeas
-      R(x+4, BASE-22, 56, 22, "#4a5260"); R(x+6, BASE-20, 52, 18, "#5c6675");
-      R(x+22,BASE-16, 20, 10, "#12151b");
-      R(x+24,BASE-14, 16,  6, (F>>3)%2 ? "#35e0d8" : "#15403f");
-      for(const dx of [10, 40]){
-        R(x+dx, BASE-58, 14, 36, "#3d4450");
-        R(x+dx+2, BASE-56, 10, 32, "#59626f");
-        R(x+dx-1, BASE-61, 16, 5, "#6b7585");
-        fumaca(x+dx+7, BASE-63, dx);
+
+    case "m9000": {                         // chamines gemeas
+      sombraChao(x+2, 60);
+      chapa(x+4, BASE-22, 56, 22); rebites(x+4, BASE-22, 56, 22);
+      tela(x+22, BASE-18, 20, 12);
+      lamp(x+25, BASE-15, 14, 6, "#35e0d8", (F>>3)%2);
+      for(const dx of [8, 42]){
+        chamine(x+dx, BASE-60, 14, 38, dx);
+        R(x+dx+9, BASE-56, 1, 32, MP.dark);
       }
+      R(x+18, BASE-26, 28, 4, MP.dark);
+      for(let i=0;i<4;i++) R(x+8+i*13, BASE-30, 9, 3, MP.dark);
+      lamp(x+6, BASE-19, 4, 4, "#ffd24a", (F>>4)%2);
+      lamp(x+54, BASE-19, 4, 4, "#ffd24a", (F>>4)%2===0);
       break; }
-    case "m700": { // capsula abaulada, 3 pontos embaixo, visor vermelho direita
+
+    case "m700": {                          // capsula abaulada
+      sombraChao(x+4, 56);
       for(let i=0;i<7;i++){
-        const w = 56 - i*6, h = 6;
-        R(x + 32 - w/2, BASE-8 - i*h, w, h, i%2 ? "#4a5260" : "#5c6675");
+        const w = 54 - i*6, yy = BASE-12 - i*6;
+        R(x+32-w/2-1, yy-1, w+2, 8, MP.out);
+        R(x+32-w/2, yy, w, 6, i%2 ? MP.mid : MP.lit);
+        R(x+32-w/2, yy, w, 1, MP.hi);
       }
-      R(x+6, BASE-8, 52, 8, "#39404c");
-      for(let i=0;i<3;i++) R(x+16 + i*12, BASE-6, 6, 4, "#12151b");
-      R(x+40, BASE-26, 10, 8, "#1a1013");
-      R(x+42, BASE-24,  6, 4, (F>>2)%2 ? "#ff4040" : "#7a1f1f");
-      fumaca(x+32, BASE-56, 3, "#6ed6ff");
-      break; }
-    case "m500067": { // final: nucleo dourado
-      R(x+4, BASE-14, 56, 14, "#4a5260");
-      R(x+8, BASE-52, 48, 38, "#39404c");
-      R(x+11,BASE-49, 42, 32, "#5c6675");
-      const p = 4 + ((F>>1)%6);
-      R(x+32-p, BASE-36-p/2, p*2, p, "#ffd24a");
-      R(x+32-p/2, BASE-34-p/4, p, p/2, "#fff3c4");
-      for(const dx of [6, 52]) R(x+dx, BASE-58, 6, 46, "#6b7585");
-      R(x+4, BASE-60, 56, 5, "#8a95a6");
-      fumaca(x+16, BASE-62, 5, "#ffd24a");
-      fumaca(x+48, BASE-62, 9, "#ffd24a");
-      break; }
-    case "m8800": { // 8800 Quantum
-      R(x+6, BASE-20, 52, 20, "#1e293b"); R(x+8, BASE-18, 48, 16, "#334155");
-      R(x+14, BASE-46, 36, 28, "#0f172a");
-      const qp = (F>>2)%4;
-      R(x+20, BASE-40, 24, 16, "#0369a1");
-      R(x+24-qp, BASE-36, 16+qp*2, 8, "#38bdf8");
-      R(x+28, BASE-34, 8, 4, "#e0f2fe");
-      R(x+26, BASE-56, 12, 10, "#475569");
-      R(x+22, BASE-58, 20, 4, "#0284c7");
-      fumaca(x+32, BASE-60, 4, "#38bdf8");
-      break; }
-    case "mcyber": { // Cyber 3000
-      R(x+4, BASE-16, 56, 16, "#064e3b"); R(x+6, BASE-14, 52, 12, "#047857");
-      R(x+8, BASE-48, 48, 34, "#022c22");
+      chapa(x+6, BASE-12, 52, 12);
       for(let i=0;i<3;i++){
-        for(let j=0;j<4;j++){
-          const onL = ((F>>2)+i*2+j)%3 === 0;
-          R(x+14+j*10, BASE-42+i*8, 6, 5, onL ? "#34d399" : "#065f46");
+        R(x+15+i*13, BASE-9, 8, 6, MP.out);
+        R(x+16+i*13, BASE-8, 6, 4, "#121820");
+      }
+      lamp(x+40, BASE-30, 10, 8, "#ff4040", (F>>2)%2);
+      brilho(x+45, BASE-26, 8, "#ff4040", .45);
+      fumaca(x+32, BASE-58, 3, "#6ed6ff");
+      break; }
+
+    case "m500067": {                       // nucleo dourado
+      sombraChao(x+2, 60);
+      chapa(x+4, BASE-14, 56, 14); grelha(x+12, BASE-10, 40, 7);
+      for(const dx of [4, 54]) cano(x+dx, BASE-58, 6, 44);
+      chapa(x+11, BASE-54, 42, 40);
+      R(x+14, BASE-51, 36, 34, MP.glass);
+      const p = 5 + ((F>>1)%7);
+      brilho(x+32, BASE-34, p+9, "#ffd24a", .75);
+      R(x+32-p, BASE-34-p/2, p*2, p, "#ffd24a");
+      R(x+32-p/2, BASE-33-p/4, p, p/2, "#fff3c4");
+      R(x+3, BASE-62, 58, 5, MP.lit); R(x+2, BASE-63, 60, 1, MP.out);
+      fumaca(x+12, BASE-66, 5, "#ffd24a");
+      fumaca(x+52, BASE-66, 9, "#ffd24a");
+      break; }
+
+    case "m8800": {                         // bobinas quanticas
+      sombraChao(x+4, 56);
+      chapa(x+6, BASE-14, 52, 14); rebites(x+6, BASE-14, 52, 14);
+      for(const dx of [12, 38]){
+        cano(x+dx, BASE-52, 14, 38);
+        for(let i=0;i<6;i++){
+          const on = ((F>>2)+i)%6 < 3;
+          R(x+dx-2, BASE-49+i*6, 18, 3, on ? "#35e0d8" : "#1b4a4e");
+          if(on) brilho(x+dx+7, BASE-48+i*6, 6, "#35e0d8", .35);
         }
       }
-      R(x+44, BASE-60, 4, 14, "#10b981");
-      R(x+42, BASE-62, 8, 3, (F>>3)%2 ? "#ef4444" : "#047857");
-      fumaca(x+18, BASE-52, 2, "#34d399");
+      R(x+10, BASE-58, 44, 6, MP.lit); R(x+9, BASE-59, 46, 1, MP.out);
+      const arc = (F>>1)%12;
+      if(arc<4) R(x+26, BASE-56+arc, 12, 1, "#aef7ff");
       break; }
-    case "mplasma": { // Plasma Core
-      R(x+6, BASE-14, 52, 14, "#2e1065");
-      R(x+10, BASE-54, 44, 42, "#3b0764");
-      R(x+14, BASE-50, 36, 34, "#1e1b4b");
-      const pl = (F>>1)%5;
-      R(x+18+pl, BASE-44+pl, 28-pl*2, 22-pl, "#c026d3");
-      R(x+24, BASE-38, 16, 10, "#f0abfc");
-      R(x+8, BASE-46, 48, 4, "#581c87");
-      R(x+8, BASE-28, 48, 4, "#581c87");
-      fumaca(x+32, BASE-58, 7, "#e879f9");
+
+    case "mcyber": {                        // monolito cyber
+      sombraChao(x+8, 48);
+      chapa(x+10, BASE-10, 44, 10);
+      chapa(x+12, BASE-60, 40, 50); rebites(x+12, BASE-60, 40, 50);
+      tela(x+16, BASE-56, 32, 42, "#a855f7");
+      for(let i=0;i<9;i++){
+        const yy = BASE-54 + ((i*7 + (F>>1)) % 40);
+        const w = 4 + ((i*5 + F/3)|0) % 20;
+        cx.globalAlpha = .9 - (i%3)*.2;
+        R(x+18, yy, w, 2, "#c084fc");
+        cx.globalAlpha = 1;
+      }
+      brilho(x+32, BASE-36, 14, "#a855f7", .3);
+      R(x+26, BASE-64, 12, 5, MP.lit); R(x+25, BASE-65, 14, 1, MP.out);
       break; }
-    case "mtitan": { // Titan 777
-      R(x+4, BASE-14, 56, 14, "#1e293b");
-      for(let i=0;i<5;i++) R(x+8+i*10, BASE-12, 5, 10, "#eab308");
-      R(x+6, BASE-56, 10, 44, "#334155"); R(x+48, BASE-56, 10, 44, "#334155");
-      R(x+4, BASE-60, 56, 6, "#475569");
-      const pst = Math.round(Math.sin(F*0.25)*6);
-      R(x+26, BASE-54, 12, 18+pst, "#94a3b8");
-      R(x+18, BASE-36+pst, 28, 12, "#cbd5e1");
-      fumaca(x+11, BASE-62, 1, "#64748b");
+
+    case "mplasma": {                       // camara de plasma
+      sombraChao(x+4, 56);
+      chapa(x+6, BASE-12, 52, 12); rebites(x+6, BASE-12, 52, 12);
+      chapa(x+6, BASE-58, 11, 46); rebites(x+6, BASE-58, 11, 46);
+      chapa(x+47, BASE-58, 11, 46); rebites(x+47, BASE-58, 11, 46);
+      R(x+18, BASE-56, 28, 44, MP.out);
+      R(x+19, BASE-55, 26, 42, "#190a26");
+      cx.globalAlpha=.25; R(x+19, BASE-55, 8, 42, "#f472b6"); cx.globalAlpha=1;
+      let py = BASE-53, pxx = x+32;
+      for(let i=0;i<9;i++){
+        const nx = x+32 + Math.sin((F/5) + i*1.1) * 7;
+        R(Math.min(pxx,nx), py, Math.abs(nx-pxx)+2, 2, "#f472b6");
+        R(nx, py, 2, 5, "#ffd9f0");
+        pxx = nx; py += 4;
+      }
+      brilho(x+32, BASE-34, 17, "#f472b6", .5);
+      R(x+16, BASE-60, 32, 4, MP.lit); R(x+15, BASE-61, 34, 1, MP.out);
+      R(x+16, BASE-14, 32, 3, MP.dark);
       break; }
-    case "mfusion": { // Fusão Atômica
-      R(x+6, BASE-18, 52, 18, "#172554");
-      R(x+8, BASE-54, 48, 38, "#1e3a8a");
-      const fs = 6 + (F%4);
-      R(x+32-fs, BASE-37-fs/2, fs*2, fs, "#fbbf24");
-      R(x+32-fs/2, BASE-35-fs/4, fs, fs/2, "#fffbeb");
-      R(x+12, BASE-58, 6, 12, "#0284c7"); R(x+46, BASE-58, 6, 12, "#0284c7");
-      fumaca(x+49, BASE-60, 8, "#fef08a");
+
+    case "mtitan": {                        // pistoes de titanio
+      sombraChao(x+2, 60);
+      chapa(x+2, BASE-16, 60, 16); rebites(x+2, BASE-16, 60, 16);
+      chapa(x+2, BASE-60, 60, 10); rebites(x+2, BASE-60, 60, 10);
+      for(let i=0;i<3;i++){
+        const bx = x+8 + i*18;
+        const golpe = Math.abs(((F>>1) + i*7) % 22 - 11);
+        chapa(bx, BASE-50, 12, 12);
+        R(bx+4, BASE-38, 4, 14 + (11-golpe), MP.hi);
+        R(bx+5, BASE-38, 2, 14 + (11-golpe), MP.spec);
+        const sy = BASE-24 + (11-golpe);
+        R(bx-2, sy, 16, 6, MP.out);
+        R(bx-1, sy+1, 14, 4, "#ff8c1a");
+        R(bx-1, sy+1, 14, 1, "#ffe0b0");
+        if(golpe < 2){
+          brilho(bx+6, sy+3, 8, "#ffb020", .6);
+          R(bx-4, sy+5, 3, 1, "#ffe680"); R(bx+14, sy+5, 3, 1, "#ffe680");
+        }
+      }
+      fumaca(x+32, BASE-64, 4, "#c9b9a0");
       break; }
-    case "mlaser": { // Laser Hiper
-      R(x+8, BASE-16, 48, 16, "#4c0519");
-      R(x+12, BASE-48, 40, 34, "#881337");
-      R(x+16, BASE-44, 32, 26, "#be123c");
-      R(x+26, BASE-58, 12, 14, "#9f1239");
-      R(x+24, BASE-62, 16, 5, "#e11d48");
-      const lz = (F>>2)%2;
-      if(lz) R(x+31, BASE-18, 2, 20, "#ff0055");
-      fumaca(x+32, BASE-64, 3, "#f43f5e");
+
+    case "mfusion": {                       // reator de fusao
+      sombraChao(x+6, 52);
+      chapa(x+8, BASE-12, 48, 12); rebites(x+8, BASE-12, 48, 12);
+      for(const dx of [6, 54]) cano(x+dx, BASE-44, 4, 32);
+      const cxx = x+32, cyy = BASE-36;
+      circulo(cxx, cyy, 19, MP.out);
+      circulo(cxx, cyy, 18, "#0b1a12");
+      const pul = 9 + ((F>>2)%4);
+      brilho(cxx, cyy, pul+13, "#4ade80", .6);
+      circulo(cxx, cyy, pul, "#15803d");
+      circulo(cxx, cyy, pul-3, "#4ade80");
+      circulo(cxx, cyy, Math.max(1,pul-6), "#dcfce7");
+      anelOrbita(cxx, cyy, 16, 7, 3, "#aef7c4", 11);
+      anelOrbita(cxx, cyy, 8, 16, 2, "#86efac", 9);
+      for(let i=0;i<2;i++){
+        const yy = cyy - 19 + i*36;
+        R(cxx-20, yy, 40, 3, MP.lit); R(cxx-21, yy-1, 42, 1, MP.out);
+      }
       break; }
-    case "mneutron": { // Nêutron X
-      R(x+4, BASE-16, 56, 16, "#030712");
-      R(x+8, BASE-52, 48, 38, "#1e1b4b");
-      R(x+12, BASE-48, 40, 30, "#312e81");
-      for(let i=0;i<4;i++) R(x+16+i*9, BASE-44, 5, 22, "#4f46e5");
-      const arc = (F>>2)%3;
-      if(arc === 0) R(x+20, BASE-36, 24, 2, "#93c5fd");
-      if(arc === 1) R(x+24, BASE-32, 16, 2, "#e0e7ff");
-      fumaca(x+20, BASE-56, 5, "#818cf8");
+
+    case "mlaser": {                        // emissor hiper
+      sombraChao(x+2, 60);
+      chapa(x+2, BASE-16, 60, 16); rebites(x+2, BASE-16, 60, 16);
+      grelha(x+8, BASE-12, 48, 8);
+      chapa(x+7, BASE-44, 50, 28); rebites(x+7, BASE-44, 50, 28);
+      R(x+11, BASE-40, 42, 20, MP.glass);
+      const carga = (F>>1)%30;
+      for(let i=0;i<4;i++){
+        const on = carga/7 > i;
+        R(x+13+i*10, BASE-37, 8, 14, MP.out);
+        R(x+14+i*10, BASE-36, 6, 12, on ? "#ff5252" : "#2a1216");
+        if(on) R(x+14+i*10, BASE-36, 6, 1, "#ffd0d0");
+      }
+      chapa(x+25, BASE-56, 14, 12);
+      for(let i=0;i<3;i++) R(x+22, BASE-54+i*4, 20, 2, MP.dark);
+      R(x+29, BASE-58, 6, 3, MP.out);
+      R(x+30, BASE-57, 4, 2, carga>26 ? "#ffffff" : "#5c1b1b");
+      if(carga > 26){
+        R(x+30, BASE-80, 4, 23, "#ff5252");
+        R(x+31, BASE-80, 2, 23, "#ffffff");
+        brilho(x+32, BASE-58, 14, "#ff5252", .85);
+      }
       break; }
-    case "mdark": { // Matéria Escura
-      R(x+6, BASE-14, 52, 14, "#09090b");
-      R(x+8, BASE-54, 48, 42, "#18181b");
-      R(x+16, BASE-46, 32, 28, "#3b0764");
-      R(x+22, BASE-40, 20, 16, "#000000");
-      const dorb = (F>>2)%4;
-      R(x+30-dorb, BASE-34, 4+dorb*2, 4, "#c084fc");
-      fumaca(x+32, BASE-58, 9, "#c084fc");
+
+    case "mneutron": {                      // arco de neutrons
+      sombraChao(x+4, 56);
+      chapa(x+6, BASE-14, 52, 14); rebites(x+6, BASE-14, 52, 14);
+      for(const dx of [8, 48]){
+        chapa(x+dx, BASE-56, 10, 42);
+        R(x+dx-2, BASE-59, 14, 4, MP.lit); R(x+dx-3, BASE-60, 16, 1, MP.out);
+        R(x+dx+1, BASE-38, 8, 8, MP.out);
+        R(x+dx+2, BASE-37, 6, 6, "#7dd3fc");
+      }
+      let ax = x+18;
+      for(let i=0;i<8;i++){
+        const yy = BASE-34 + Math.sin((F/3) + i*1.5)*5;
+        R(ax, yy, 4, 2, "#eaf8ff");
+        cx.globalAlpha=.45; R(ax-1, yy-2, 6, 6, "#7dd3fc"); cx.globalAlpha=1;
+        ax += 4;
+      }
+      brilho(x+32, BASE-34, 18, "#38bdf8", .4);
+      R(x+24, BASE-18, 16, 4, MP.dark);
       break; }
-    case "msingularity": { // Singularidade
-      R(x+4, BASE-16, 56, 16, "#0f172a");
-      R(x+8, BASE-56, 48, 42, "#020617");
-      R(x+14, BASE-46, 36, 26, "#78350f");
-      R(x+20, BASE-40, 24, 14, "#000000");
-      R(x+26, BASE-36, 12, 6, "#fbbf24");
-      R(x+29, BASE-34, 6, 2, "#ffffff");
-      fumaca(x+32, BASE-60, 6, "#ffd24a");
+
+    case "mdark": {                         // materia escura
+      sombraChao(x+6, 52);
+      chapa(x+8, BASE-12, 48, 12); rebites(x+8, BASE-12, 48, 12);
+      for(const dx of [8, 52]){
+        cano(x+dx, BASE-48, 4, 36);
+        R(x+dx-2, BASE-40, 8, 6, MP.lit); R(x+dx-3, BASE-41, 10, 1, MP.out);
+      }
+      const dx0 = x+32, dy0 = BASE-36;
+      brilho(dx0, dy0, 26, "#7c3aed", .45);
+      circulo(dx0, dy0, 18, "#3b0f6b");
+      circulo(dx0, dy0, 16, "#1a0730");
+      circulo(dx0, dy0, 13, "#05030a");
+      cx.globalAlpha=.5; circulo(dx0-4, dy0-5, 6, "#6d28d9"); cx.globalAlpha=1;
+      anelOrbita(dx0, dy0, 23, 9, 5, "#c084fc", 15);
+      anelOrbita(dx0, dy0, 11, 22, 3, "#a855f7", 19);
       break; }
-    case "minfinity": { // Pixel Infinito
-      R(x+4, BASE-16, 56, 16, "#1e293b");
-      R(x+8, BASE-58, 48, 44, "#0f172a");
-      const corH = (F*4)%360;
-      cx.fillStyle = `hsl(${corH}, 100%, 65%)`;
-      cx.fillRect(x+18, BASE-48, 28, 26);
-      cx.fillStyle = "#ffffff";
-      cx.fillRect(x+26, BASE-42, 12, 14);
-      cx.fillStyle = "#0c0f14";
-      cx.fillRect(x+30, BASE-38, 4, 6);
-      fumaca(x+32, BASE-62, 2, `hsl(${corH}, 90%, 60%)`);
+
+    case "msingularity": {                  // singularidade
+      sombraChao(x+2, 60);
+      chapa(x+4, BASE-12, 56, 12); rebites(x+4, BASE-12, 56, 12);
+      for(const dx of [4, 56]){
+        cano(x+dx, BASE-52, 4, 40);
+        R(x+dx-2, BASE-54, 8, 3, MP.lit); R(x+dx-3, BASE-55, 10, 1, MP.out);
+      }
+      const sx = x+32, sy = BASE-34;
+      for(let i=0;i<34;i++){
+        const a = (F/9) + i*0.185;
+        const t = i/34;
+        const rx = 27 - t*9, ry = (27 - t*9)*0.3;
+        cx.globalAlpha = .9 - t*.5;
+        cx.fillStyle = t<.3 ? "#fff3c4" : (t<.6 ? "#ffb020" : "#c2410c");
+        cx.fillRect((sx + Math.cos(a)*rx)|0, (sy + Math.sin(a)*ry)|0, 3, 2);
+      }
+      cx.globalAlpha = 1;
+      brilho(sx, sy, 20, "#ffb020", .5);
+      circulo(sx, sy, 10, "#1a0a02");
+      circulo(sx, sy, 8, "#05030a");
+      cx.globalAlpha=.8;
+      for(let i=0;i<16;i++){
+        const a = (F/9) + i*0.39;
+        R(sx + Math.cos(a)*26, sy + Math.sin(a)*7.8, 3, 2, "#ffd98a");
+      }
+      cx.globalAlpha=1;
+      break; }
+
+    case "minfinity": {                     // prisma infinito
+      sombraChao(x+4, 56);
+      chapa(x+6, BASE-12, 52, 12); rebites(x+6, BASE-12, 52, 12);
+      R(x+13, BASE-58, 38, 46, MP.out);
+      R(x+14, BASE-57, 36, 44, "#07121c");
+      for(let i=0;i<11;i++){
+        const h = (F>>1) * 3 + i*33;
+        cx.fillStyle = "hsl(" + (h%360) + ", 95%, 62%)";
+        cx.fillRect(x+16, BASE-55 + i*4, 32, 3);
+      }
+      cx.globalAlpha=.35; R(x+14, BASE-57, 36, 44, "#ffffff"); cx.globalAlpha=1;
+      R(x+26, BASE-40, 12, 14, "#ffffff");
+      R(x+29, BASE-36, 6, 7, "#07121c");
+      brilho(x+32, BASE-34, 18, "#ffffff", .3);
+      R(x+12, BASE-62, 40, 5, MP.lit); R(x+11, BASE-63, 42, 1, MP.out);
+      fumaca(x+32, BASE-66, 2, "#e9d5ff");
       break; }
   }
 
@@ -756,21 +951,65 @@ function desenhaSilo(x){
   const im = getImg("silo");
   if(im){ cx.drawImage(im, x, BASE-84, 76, 84); return; }
   const p = cap()>0 ? Math.min(1, S.stored/cap()) : 0;
-  R(x+6,  BASE-6,  64, 6,  "#12151b");
-  R(x+4,  BASE-70, 68, 64, "#12151b");
-  R(x+7,  BASE-67, 62, 58, "#4a5260");
-  R(x+10, BASE-64, 56, 52, "#0e1116");
-  const h = Math.round(50*p);
-  if(h>0) R(x+11, BASE-15-h+1, 54, h, cheio() ? "#ff6b6b" : "#ffd24a");
-  for(let i=1;i<4;i++) R(x+7, BASE-67 + i*14, 62, 3, "#39404c");
-  R(x+18, BASE-80, 40, 12, "#12151b"); R(x+21, BASE-78, 34, 8, "#59626f");
-  R(x+70, BASE-46, 8, 16, "#39404c"); R(x+71, BASE-44, 6, 6, "#8d98a8");
-  if(!cheio()) fumaca(x+38, BASE-84, 2);
-  cx.fillStyle = cheio() ? "#ff6b6b" : "#e6ecf5";
-  cx.font = "10px monospace"; cx.textAlign = "center";
+  const full = cheio();
+  const corNivel = full ? "#ff6b6b" : "#ffd24a";
+
+  sombraChao(x+2, 72);
+
+  // pes de sustentacao
+  for(const dx of [8, 58]) chapa(x+dx, BASE-10, 10, 10);
+
+  // tanque
+  chapa(x+5, BASE-70, 66, 60);
+  rebites(x+5, BASE-70, 66, 60);
+
+  // visor de vidro com o nivel
+  R(x+11, BASE-65, 54, 50, MP.out);
+  R(x+12, BASE-64, 52, 48, "#090d13");
+  const h = Math.round(46*p);
+  if(h>0){
+    R(x+13, BASE-17-h, 50, h, corNivel);
+    R(x+13, BASE-17-h, 50, 1, full ? "#ffc9c9" : "#fff3c4");
+    cx.globalAlpha=.18;
+    for(let i=0;i<h;i+=4) R(x+13, BASE-17-h+i, 50, 1, "#ffffff");
+    cx.globalAlpha=1;
+    // bolhas subindo
+    if(!full) for(let i=0;i<4;i++){
+      const t = (F*0.8 + i*13) % Math.max(8,h);
+      R(x+20 + ((i*13)%42), BASE-17-t, 2, 2, "#fff3c4");
+    }
+  }
+  cx.globalAlpha=.1; R(x+14, BASE-64, 8, 48, "#ffffff"); cx.globalAlpha=1;
+
+  // aneis de reforco
+  for(let i=1;i<4;i++){
+    R(x+4, BASE-70 + i*15, 68, 4, MP.lit);
+    R(x+3, BASE-71 + i*15, 70, 1, MP.out);
+    R(x+4, BASE-67 + i*15, 68, 1, MP.dark);
+  }
+
+  // tampa e cano de entrada
+  chapa(x+20, BASE-80, 36, 12); rebites(x+20, BASE-80, 36, 12);
+  cano(x+32, BASE-92, 12, 13);
+  if(!full) fumaca(x+38, BASE-94, 2);
+
+  // manometro lateral
+  R(x+70, BASE-50, 10, 14, MP.out);
+  R(x+71, BASE-49, 8, 12, MP.mid);
+  R(x+72, BASE-48, 6, 6, "#0a0e15");
+  R(x+74, BASE-46, 2, 2, full ? "#ff6b6b" : "#4ade80");
+  lamp(x+72, BASE-40, 6, 3, full ? "#ff6b6b" : "#4ade80", (F>>3)%2 || full);
+
+  // porcentagem
+  cx.fillStyle = "#05070a";
+  cx.font = "bold 11px monospace"; cx.textAlign = "center";
+  cx.fillText(Math.round(p*100) + "%", x+39, BASE-37);
+  cx.fillStyle = full ? "#ff9a9a" : "#fff3c4";
   cx.fillText(Math.round(p*100) + "%", x+38, BASE-38);
   cx.textAlign = "left";
+  if(full) brilho(x+38, BASE-40, 16, "#ff6b6b", .3);
 }
+
 
 /* moedas na esteira */
 let coins = [];
@@ -795,6 +1034,46 @@ function desenhaEsteira(largura){
   });
 }
 
+function desenhaFundo(w){
+  // parede
+  R(0, 0, w, 200, "#0d1016");
+  R(0, 0, w, BASE, "#11151d");
+  // tijolos
+  for(let y=0; y<BASE; y+=10){
+    for(let x=((y/10)%2)*14; x<w; x+=28){
+      R(x, y, 26, 8, "#141924");
+      R(x, y, 26, 1, "#171d29");
+    }
+  }
+  // vigas verticais
+  for(let x=24; x<w; x+=112){
+    R(x, 0, 7, BASE, "#171d28");
+    R(x, 0, 1, BASE, "#1e2634");
+    R(x+6, 0, 1, BASE, "#0c0f15");
+    for(let y=14; y<BASE; y+=26) R(x+1, y, 5, 2, "#0e1219");
+  }
+  // tubulacao no alto
+  R(0, 12, w, 7, "#1b2230");
+  R(0, 12, w, 1, "#2b3547");
+  R(0, 18, w, 1, "#0b0e14");
+  for(let x=18; x<w; x+=64){ R(x, 10, 6, 11, "#222b3a"); R(x, 10, 6, 1, "#33405466"); }
+  // luminarias: so o ponto de luz e uma poca suave no chao
+  for(let x=56; x<w; x+=224){
+    R(x-10, 20, 20, 5, "#232c3b");
+    R(x-10, 20, 20, 1, "#38435a");
+    R(x-7, 25, 14, 2, "#ffe3b0");
+    cx.globalAlpha = .10; R(x-9, 27, 18, 3, "#ffcf87");
+    cx.globalAlpha = .05; R(x-14, 30, 28, 4, "#ffcf87");
+    cx.globalAlpha = .045;
+    for(let i=1;i<=4;i++) R(x-10-i*7, BASE-3-i, 20+i*14, 3, "#ffcf87");
+    cx.globalAlpha = 1;
+  }
+  // chao
+  R(0, BASE, w, 4, "#39404c");
+  R(0, BASE, w, 1, "#4c5667");
+  R(0, BASE+4, w, 200-BASE-4, "#0b0e13");
+}
+
 function loopDesenho(){
   F++;
   const activeCount = MACHINES.filter(m => nivelMaq(m.id) > 0).length;
@@ -803,9 +1082,7 @@ function loopDesenho(){
   const siloX = neededW - 84;
 
   cx.clearRect(0,0,neededW,200);
-  R(0,0,neededW,200,"#0e1116");
-  for(let x=0;x<neededW;x+=32) R(x, 0, 1, BASE, "#141922");
-  R(0, BASE, neededW, 4, "#2f3947");
+  desenhaFundo(neededW);
   let x = 8;
   MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); x += 70; } });
   desenhaSilo(siloX);
