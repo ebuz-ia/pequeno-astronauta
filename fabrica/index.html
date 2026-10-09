@@ -125,6 +125,7 @@
   <div style="display:flex;gap:8px;margin:10px 0;align-items:stretch">
     <button class="collect" id="collect" style="margin:0;flex:1;min-width:0">RECOLHER DINHEIRO</button>
     <button class="turbo" id="turbo">⚡ TURBO x2</button>
+    <button class="turbo" id="som" title="ligar ou desligar o som" style="background:#2a303b;border-color:#4b5a70;color:#e6ecf5;padding:14px 12px">🔊</button>
   </div>
 
   <div id="banners" style="display:grid;gap:8px;margin-bottom:10px"></div>
@@ -305,6 +306,7 @@ function novoJogo(){
     broken: {},
     breakdownTimer: 300,
     turbo: { restante: 0, espera: 0 },
+    som: true,
     bill: { ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 },
     machines:{ m1265xv:1 },
     stats:{collects:0, dailyCollects:0, dailyEarned:0, dailySeconds:0, billsPaid:0, dia:hoje()},
@@ -519,6 +521,7 @@ function recolher(){
   const v = S.stored;
   S.stored = 0;
   ganhar(v);
+  tocar("moeda");
   S.stats.collects++; S.stats.dailyCollects++;
   toast("+ " + moeda(v) + " recolhido");
   for(let i=0;i<10;i++) faisca();
@@ -530,6 +533,7 @@ function comprarMaquina(m){
   const lvl = nivelMaq(m.id);
   S.wallet -= custo;
   S.machines[m.id] = lvl + 1;
+  tocar("compra");
   S.stats.niveisComprados = (S.stats.niveisComprados||0) + 1;
   toast("Maquina " + m.nome + " nivel " + (lvl + 1));
   render(); salvar();
@@ -571,6 +575,59 @@ function checarGerente(){
 function fmt(n){ return n.toLocaleString("pt-BR",{maximumFractionDigits:0}); }
 function moeda(n){ return "R$ " + n.toLocaleString("pt-BR",
   {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+/* ---------------- SOM ----------------
+   Tudo gerado na hora pela Web Audio API. Nenhum arquivo e baixado. */
+let actx = null;
+let estavaCheio = false;
+
+function audioPronto(){
+  if(!S.som) return null;
+  if(!actx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    try { actx = new AC(); } catch(e){ return null; }
+  }
+  if(actx.state === "suspended") actx.resume();
+  return actx;
+}
+
+// um bip simples: forma de onda, frequencia inicial, final, duracao e volume
+function bip(ac, saida, tipo, f0, f1, inicio, dur, vol){
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = tipo;
+  o.frequency.setValueAtTime(f0, inicio);
+  if(f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(1,f1), inicio + dur);
+  g.gain.setValueAtTime(0.0001, inicio);
+  g.gain.exponentialRampToValueAtTime(vol, inicio + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, inicio + dur);
+  o.connect(g); g.connect(saida);
+  o.start(inicio); o.stop(inicio + dur + 0.02);
+}
+
+function tocar(qual){
+  const ac = audioPronto(); if(!ac) return;
+  const t = ac.currentTime;
+  const mestre = ac.createGain();
+  mestre.gain.value = 0.55;
+  mestre.connect(ac.destination);
+
+  if(qual === "moeda"){                 // dois toques curtos subindo
+    bip(ac, mestre, "triangle",  900,  900, t,        0.07, 0.30);
+    bip(ac, mestre, "triangle", 1340, 1340, t + 0.05, 0.11, 0.26);
+  }
+  else if(qual === "compra"){           // grave que desce, com peso
+    const lp = ac.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = 900;
+    lp.connect(mestre);
+    bip(ac, lp, "sawtooth", 170, 48, t, 0.34, 0.34);
+    bip(ac, lp, "square",    85, 40, t, 0.20, 0.18);
+  }
+  else if(qual === "alerta"){           // dois bipes de atencao
+    bip(ac, mestre, "square", 760, 760, t,        0.13, 0.22);
+    bip(ac, mestre, "square", 560, 560, t + 0.17, 0.20, 0.22);
+  }
+}
 
 /* ---------------- DESENHO PIXEL ---------------- */
 const cv = document.getElementById("stage");
@@ -1464,6 +1521,9 @@ function renderHUD(){
   $("#status").textContent = st;
   $("#status").style.color = stCor;
 
+  const bs = $("#som");
+  if(bs) bs.textContent = S.som ? "🔊" : "🔇";
+
   const bt = $("#turbo");
   if(bt){
     if(turboAtivo()){
@@ -1928,6 +1988,12 @@ function toast(msg){
 /* ---------------- EVENTOS ---------------- */
 $("#collect").onclick = recolher;
 $("#turbo").onclick = ligarTurbo;
+$("#som").onclick = ()=>{
+  S.som = !S.som;
+  if(S.som){ tocar("moeda"); toast("🔊 Som ligado"); }
+  else { toast("🔇 Som desligado"); }
+  render(); salvar();
+};
 document.addEventListener("keydown", e=>{
   if(e.code === "Space" && e.target.tagName !== "BUTTON"){ e.preventDefault(); recolher(); }
 });
@@ -2116,6 +2182,11 @@ setInterval(()=>{
       toast("⚡ O TURBO ESTÁ PRONTO DE NOVO!");
     }
   }
+
+  // alerta de armazenador cheio, so no momento em que enche
+  const agoraCheio = cheio();
+  if(agoraCheio && !estavaCheio && !(S.managerLevel > 0)) tocar("alerta");
+  estavaCheio = agoraCheio;
 
   const espaco = cap() - S.stored;
   if(espaco > 0) S.stored = Math.min(cap(), S.stored + taxa()*dt);
