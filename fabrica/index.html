@@ -121,6 +121,21 @@
     border-top:1px dashed var(--line);padding-top:6px}
   .row.open .det{display:block}
   .mact{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+  .row.fusao{border-color:#c79a21;background:linear-gradient(90deg,#1c1a10,#16211a)}
+  .fus-slots{display:flex;gap:8px;align-items:stretch}
+  .fus-slot{flex:1;min-height:66px;border:2px dashed var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;
+    justify-content:center;align-items:center;cursor:pointer;color:var(--dim);font-size:12px;text-align:center;gap:2px}
+  .fus-slot.cheio{border-style:solid;background:var(--panel2);color:var(--txt)}
+  .fus-slot b{display:block;font-size:14px}
+  .fus-mais{align-self:center;font-size:24px;font-weight:bold;color:var(--gold)}
+  .fus-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .fus-chip{font:inherit;font-size:12px;padding:8px 12px;min-height:40px;border:2px solid var(--line);border-radius:18px;
+    background:var(--panel);color:var(--txt);cursor:pointer}
+  .fus-chip small{color:var(--dim)}
+  .fus-chip.on{border-color:var(--gold);background:#2b2410}
+  .fus-prev{display:block;width:100%;max-width:420px;margin:12px auto 0;image-rendering:pixelated;border:2px solid var(--line);border-radius:8px}
+  .fus-info{margin-top:10px;line-height:1.6}
+  .fus-prod{font-size:15px;margin:4px 0;color:var(--cyan)} .fus-prod span{color:var(--ok)}
   .vender{font:inherit;font-size:12px;font-weight:bold;margin-top:6px;min-height:40px;padding:8px 12px;cursor:pointer;
     border:2px solid #7f1d1d;border-radius:5px;background:#3a1414;color:#ffb4b4}
   .vender:hover{background:#4a1a1a}
@@ -270,6 +285,7 @@
 
   <div id="maq" class="list"></div>
   <div id="arm" class="list hide"></div>
+  <div id="fus" class="hide"></div>
   <div id="ger" class="list hide"></div>
   <div id="reb" class="list hide"></div>
   <div id="conq" class="hide"></div>
@@ -406,6 +422,7 @@ function reiniciarFabrica(){
 
   // perde so o que foi avisado: maquinas, dinheiro e armazenador
   S.machines = { m1265xv: 1 };
+  S.fusoes = [];                       // fundidas sao maquinas: somem no reinicio, como as outras
   S.wallet = 0;
   S.stored = 0;
   S.storageLevel = 1;
@@ -583,6 +600,7 @@ function novoJogo(){
     som: true,
     modo: "normal",
     qtd: "1",
+    fusoes: [], fusaoSeq: 0,        // maquinas fundidas (entram em MACHINES por sincronizarFusoes)
     gasto: {}, gastoN: {},          // quanto se pagou (e em quantos niveis) por maquina, base do valor de venda
     fuel: {},
     selos: 0,
@@ -615,6 +633,8 @@ function carregar(){
     S.modo = MODOS[o.modo] ? o.modo : "normal";
     S.fuel = o.fuel || {};
     S.gasto = o.gasto || {}; S.gastoN = o.gastoN || {};
+    S.fusoes = Array.isArray(o.fusoes) ? o.fusoes : []; S.fusaoSeq = Number(o.fusaoSeq) || 0;
+    sincronizarFusoes();
     S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
     S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
     S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
@@ -676,7 +696,7 @@ const custoMecanico = () => custoModo(MECANICO_CUSTO);
 const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)) * modoAtual().custo);
 const cap  = () => (STORAGE[S.storageLevel-1] || STORAGE[STORAGE.length-1]).cap;
 const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
-const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0));
+const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && !m.fusao && (m.rebirthReq || 0) <= (S.rebirth || 0));
 const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].quebrada);
 const contaPendente = () => Boolean(S.bill && S.bill.ativa);
 const TURBO_DURACAO = 30;   // segundos ligado
@@ -887,8 +907,13 @@ function venderMaquina(m){
   if(S.broken) delete S.broken[m.id];
   if(S.fuel) delete S.fuel[m.id];
   ABERTAS.delete(m.id);
+  if(m.fusao){                      // fundida vendida some de vez; as originais nao voltam
+    S.fusoes = (S.fusoes || []).filter(f => f.id !== m.id);
+    delete S.machines[m.id];
+    sincronizarFusoes();
+  }
   tocar("moeda");
-  toast("💸 " + m.nome + " vendida por " + moeda(v) + ". Pode comprar de novo no nível 0.");
+  toast("💸 " + m.nome + " vendida por " + moeda(v) + "." + (m.fusao ? "" : " Pode comprar de novo no nível 0."));
   render(); salvar();
   flutuar("+" + moeda(v), $("#wallet"), "#ffd24a"); vibrar(20);
 }
@@ -904,8 +929,9 @@ function confirmarVenda(m){
     '<div style="font-size:18px;font-weight:bold;margin:8px 0">' + esc(m.nome) + ' <span style="color:var(--dim);font-size:13px">nível ' + lvl + '</span></div>' +
     '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:10px 0;text-align:left;line-height:1.7;font-size:12px">' +
       '<div>Você recebe: <strong style="color:var(--gold)">' + moedaExata(v) + '</strong> <span style="color:var(--dim)">(50% do que gastou nela)</span></div>' +
-      '<div>A máquina volta ao <strong>nível 0</strong>.</div>' +
-      '<div>Para ter de novo: <strong>' + moedaExata(nova) + '</strong>, começando do nível 1. Cada nível seguinte custa 15% a mais que o anterior.</div>' +
+      (m.fusao ? '<div>A máquina fundida <strong>some</strong>. As duas originais <strong>não voltam</strong>.</div>' :
+        '<div>A máquina volta ao <strong>nível 0</strong>.</div>' +
+        '<div>Para ter de novo: <strong>' + moedaExata(nova) + '</strong>, começando do nível 1. Cada nível seguinte custa 15% a mais que o anterior.</div>') +
     '</div>' +
     '<div style="display:flex;gap:8px"><button class="buy" id="vd-sim" style="flex:1;min-height:44px;background:#ef5350;border-color:#7f1d1d;color:#fff">VENDER</button>' +
     '<button id="vd-nao" style="flex:1;font:inherit;min-height:44px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--txt)">CANCELAR</button></div></div>';
@@ -1239,6 +1265,7 @@ function camadasFrente(x, t){
 }
 
 function desenhaMaquina(id, x){
+  if(id.startsWith("fu_")) return desenhaFusao(id, x);
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
   const tv = tierVisual(id);
@@ -1747,15 +1774,15 @@ function desenhaFundo(w){
 
 function loopDesenho(){
   F++;
-  const activeCount = MACHINES.filter(m => nivelMaq(m.id) > 0).length;
-  const neededW = Math.max(640, activeCount * 70 + 96);
+  const larguraMaq = MACHINES.reduce((a, m) => a + (nivelMaq(m.id) > 0 ? (m.fusao ? 140 : 70) : 0), 0);
+  const neededW = Math.max(640, larguraMaq + 96);
   if(cv.width !== neededW) cv.width = neededW;
   const siloX = neededW - 84;
 
   cx.clearRect(0,0,neededW,200);
   desenhaFundo(neededW);
   let x = 8;
-  MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); x += 70; } });
+  MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); x += m.fusao ? 140 : 70; } });
   desenhaSilo(siloX);
   passoMoedas(siloX);
   desenhaEsteira(neededW);
@@ -1834,6 +1861,7 @@ function thumb(canvasEl, id){
   cx = c;
   c.save();
   if(id === "silo"){ c.scale(0.5,0.5); c.translate(14, -(BASE-86)); desenhaSilo(0); }
+  else if(id.startsWith("fu_")){ c.scale(0.38,0.38); c.translate(2, -(BASE-100)); desenhaMaquina(id, 0); }
   else { c.scale(0.66,0.66); c.translate(10, -(BASE-65)); desenhaMaquina(id, 0); }
   c.restore();
   cx = anterior;
@@ -1856,6 +1884,7 @@ function assinaturaAtual(){
 }
 
 function render(){
+  if(chaveFusoes() !== fusKey) sincronizarFusoes();
   if(assinaturaAtual() !== assinatura){ assinatura = assinaturaAtual(); construirListas(); }
   renderHUD();
   atualizarEstados();
@@ -1944,7 +1973,7 @@ function atualizarBanners(){
 
 // Proxima meta: sempre um alvo a vista. Ordem: maquina que ainda nao tenho, armazenador, rebirth, selos.
 function proximaMeta(){
-  const nova = MACHINES.filter(m => !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0) && nivelMaq(m.id) === 0)
+  const nova = MACHINES.filter(m => !m.secreta && !m.fusao && (m.rebirthReq || 0) <= (S.rebirth || 0) && nivelMaq(m.id) === 0)
     .sort((a,b)=> precoMaq(a) - precoMaq(b))[0];
   if(nova) return { txt:"Próxima máquina: " + nova.nome, custo:precoMaq(nova) };
   const arm = STORAGE[S.storageLevel];
@@ -2077,6 +2106,7 @@ function renderHUD(){
 
 function atualizarEstados(){
   document.querySelectorAll(".qtdbar button").forEach(b=> b.classList.toggle("on", b.dataset.q === qtdSel()));
+  atualizarFusao();
   refsMaq.forEach(r=>{
     if(r.btn){
       const pl = planoCompra(r.m);
@@ -2129,7 +2159,319 @@ function atualizarEstados(){
 
 function construirListas(){
   refsMaq = []; refsArm = []; refsGer = []; refsMis = [];
-  listaMaquinas(); listaArmazenador(); listaGerentes(); listaRebirth(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes();
+  listaMaquinas(); listaArmazenador(); listaFusao(); listaGerentes(); listaRebirth(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes();
+}
+
+/* ---------------- FUSAO DE MAQUINAS ----------------
+   Duas maquinas (nivel 10 ou mais, quaisquer duas) viram UMA maquina fundida. As originais voltam ao
+   nivel 0 e podem ser compradas de novo. Fusao com fusao NAO existe.
+   Numeros:
+   - producao: (ps de uma + ps da outra) x 1,4 por nivel; o nivel inicial e a media dos niveis ponderada
+     pela producao, entao a fusao nasce rendendo exatamente 40% a mais que as duas somadas, sem brecha
+     para ganhar mais misturando nivel alto com baixo.
+   - preco de cada nivel novo: (custo de uma + custo da outra) x 2,5, com a mesma curva de 15% por nivel.
+     Fundida e investimento: evoluir ela custa bem mais que evoluir as originais.
+   - taxa: 25% do que foi gasto nas duas. Vender a fundida devolve 50% do gasto total (inclui a taxa),
+     entao fundir e vender nunca da lucro.
+   - fundida nao quebra e, no hardcore, gasta combustivel como as outras. Nao conta para o rebirth. */
+const FUSAO_NIVEL_MIN = 10, FUSAO_BONUS = 1.4, FUSAO_TAXA = 0.25, FUSAO_MAX = 8, FUSAO_PRECO = 2.5;
+const CURTO = { m1265xv:"1265xv", m4555tr:"4555tr", m900:"900", m6000:"6000", m9000:"9000", m700:"700", m500067:"5000",
+  m8800:"Quantum", mcyber:"Cyber", mplasma:"Plasma", mtitan:"Titan", mfusion:"Atômica", mlaser:"Laser",
+  mneutron:"Nêutron", mdark:"Escura", msingularity:"Singular", minfinity:"Infinito" };
+// cor de destaque de cada maquina (o nucleo da fusao mistura as duas)
+const COR_MAQ = { m1265xv:"#4ade80", m4555tr:"#fb923c", m900:"#ef4444", m6000:"#f97316", m9000:"#35e0d8", m700:"#f59e0b",
+  m500067:"#ffd24a", m8800:"#a78bfa", mcyber:"#e879f9", mplasma:"#f472b6", mtitan:"#93c5fd", mfusion:"#fde047",
+  mlaser:"#f87171", mneutron:"#22d3ee", mdark:"#8b5cf6", msingularity:"#fb923c", minfinity:"#fff3c4" };
+function misturaCor(a, b){
+  const p = h => [1,3,5].map(i => parseInt(h.slice(i, i+2), 16));
+  const x = p(a), y = p(b);
+  return "#" + x.map((v,i)=> Math.round((v + y[i]) / 2).toString(16).padStart(2, "0")).join("");
+}
+let fusKey = "";
+const chaveFusoes = () => (S.fusoes || []).map(f => f.id).join(",");
+// as fundidas viram entradas de MACHINES: producao, preco, combustivel, venda e lista funcionam sem codigo extra
+function sincronizarFusoes(){
+  for(let i = MACHINES.length - 1; i >= 0; i--) if(MACHINES[i].fusao) MACHINES.splice(i, 1);
+  (S.fusoes || []).forEach(f => MACHINES.push(Object.assign({ rebirthReq:0, fusao:true }, f)));
+  fusKey = chaveFusoes();
+}
+const elegiveisFusao = () => MACHINES.filter(m => !m.fusao && !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0) &&
+  nivelMaq(m.id) >= FUSAO_NIVEL_MIN);
+function planoFusao(a, b){
+  const la = nivelMaq(a.id), lb = nivelMaq(b.id), soma = a.ps + b.ps;
+  const nivel = Math.max(1, Math.floor((a.ps * la + b.ps * lb) / soma));
+  const ps = Math.ceil(soma * FUSAO_BONUS);
+  const gasto = totalGasto(a) + totalGasto(b);
+  const mult = modoAtual().prod * multRebirth() * multConquistas() * multSelos();
+  return { nivel, ps, custo: Math.round((a.custo + b.custo) * FUSAO_PRECO), gasto, taxa: Math.round(gasto * FUSAO_TAXA),
+    antes: (a.ps * la + b.ps * lb) * mult, depois: ps * nivel * mult,
+    nome: "Fusão " + (CURTO[a.id] || a.nome) + "+" + (CURTO[b.id] || b.nome) };
+}
+const podeFundir = (a, b) => !DUEL && a && b && a.id !== b.id && elegiveisFusao().some(m => m.id === a.id) &&
+  elegiveisFusao().some(m => m.id === b.id) && (S.fusoes || []).length < FUSAO_MAX;
+
+function fundir(a, b){
+  if(!podeFundir(a, b)) return null;
+  const pl = planoFusao(a, b);
+  if(S.wallet < pl.taxa) return null;
+  S.wallet -= pl.taxa;
+  [a, b].forEach(m=>{
+    S.machines[m.id] = 0;
+    if(S.gasto) S.gasto[m.id] = 0;
+    if(S.gastoN) S.gastoN[m.id] = 0;
+    if(S.broken) delete S.broken[m.id];
+    if(S.fuel) delete S.fuel[m.id];
+    ABERTAS.delete(m.id);
+  });
+  S.fusaoSeq = (S.fusaoSeq || 0) + 1;
+  const id = "fu_" + S.fusaoSeq;
+  if(!S.fusoes) S.fusoes = [];
+  S.fusoes.push({ id, nome: pl.nome, ps: pl.ps, custo: pl.custo, a: a.id, b: b.id });
+  S.machines[id] = pl.nivel;
+  if(!S.gasto) S.gasto = {}; if(!S.gastoN) S.gastoN = {};
+  S.gasto[id] = pl.gasto + pl.taxa;           // o que valeu as duas + a taxa: base do valor de venda
+  S.gastoN[id] = pl.nivel;
+  sincronizarFusoes();
+  fusSel = [null, null];
+  tocar("compra");
+  for(let i = 0; i < 24; i++) faisca();
+  vibrar([20, 30, 20, 30, 40]);
+  assinatura = ""; bannerKey = null;
+  render(); salvar();
+  return Object.assign({ id }, pl);
+}
+
+/* ---- desenho ---- */
+function linhaPx(x0, y0, x1, y1, cor){
+  const n = Math.max(1, Math.abs(x1 - x0), Math.abs(y1 - y0));
+  for(let i = 0; i <= n; i++) R(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, 2, 2, cor);
+}
+function raioPx(x0, y0, x1, y1, cor, seed){
+  const n = 7; let ax = x0, ay = y0;
+  for(let i = 1; i <= n; i++){
+    const t = i / n, bx = x0 + (x1 - x0) * t;
+    const by = y0 + (y1 - y0) * t + (i < n ? Math.sin(F * .8 + i * 2.3 + seed) * 5 : 0);
+    linhaPx(ax, ay, bx, by, cor); ax = bx; ay = by;
+  }
+}
+// maquina fundida: 140 de largura (2 casas). Mesmas maquinas originais, chassi comum, reator central
+// com as duas cores, tubos de ligacao, arcos de energia e acabamento que evolui a cada 4 niveis.
+function elipse(px, py, rx, ry, cor){
+  for(let dy = -ry; dy <= ry; dy++){
+    const w = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry))));
+    if(w > 0) R(px - w, py + dy, w * 2, 1, cor);
+  }
+}
+function halo(px, py, rx, ry, cor, alfa){
+  for(let k = 6; k >= 1; k--){ cx.globalAlpha = alfa; elipse(px, py, rx * k / 6, ry * k / 6, cor); }
+  cx.globalAlpha = 1;
+}
+function desenhaFusaoPar(aId, bId, x, nivel){
+  const cA = COR_MAQ[aId] || "#35e0d8", cB = COR_MAQ[bId] || "#ffd24a", cM = misturaCor(cA, cB);
+  const tier = Math.min(5, Math.floor((Math.max(1, nivel) - 1) / 4));
+  const px = x + 70, seed = (aId.length * 7 + bId.length * 3) % 11;
+  // aura redonda (aneis de elipse, sem quadrado)
+  halo(px, BASE - 38, 78 + tier * 4, 52 + tier * 2, cM, .07);
+  if(tier >= 5) halo(px, BASE - 38, 92, 64, "#a855f7", .05 + .02 * Math.sin(F / 12));
+  sombraChao(x + 2, 136);
+  // chassi comum
+  chapa(x + 1, BASE - 8, 138, 8); rebites(x + 1, BASE - 8, 138, 8);
+  R(x + 4, BASE - 5, 64, 2, cA); R(x + 72, BASE - 5, 64, 2, cB); R(x + 68, BASE - 5, 4, 2, cM);
+  cx.globalAlpha = .22; R(x + 4, BASE - 9, 64, 6, cA); R(x + 72, BASE - 9, 64, 6, cB); cx.globalAlpha = 1;
+  if(tier >= 1) R(x + 1, BASE - 8, 138, 1, "#ffd24a");
+  // as duas maquinas originais, sem os acabamentos proprios (a fundida tem o seu)
+  const sa = S.machines[aId], sb = S.machines[bId];
+  S.machines[aId] = 1; S.machines[bId] = 1;
+  try{ desenhaMaquina(aId, x); desenhaMaquina(bId, x + 76); }
+  finally { S.machines[aId] = sa; S.machines[bId] = sb; if(sa === undefined) delete S.machines[aId]; if(sb === undefined) delete S.machines[bId]; }
+  // tubos de ligacao
+  cano(x + 50, BASE - 22, 40, 4); cano(x + 52, BASE - 34, 36, 3);
+  R(x + 50, BASE - 22, 40, 1, MP.hi);
+  // reator central: vidro, liquido de duas cores que pulsa e bolhas
+  const pulso = .72 + .28 * Math.sin(F / 9), h = Math.round(42 * pulso);
+  chapa(px - 9, BASE - 66, 18, 58, MP.mid, MP.lit, MP.dark);
+  R(px - 6, BASE - 62, 12, 50, MP.glass);
+  R(px - 5, BASE - 12 - h, 5, h, cA); R(px, BASE - 12 - h, 5, h, cB);
+  R(px - 5, BASE - 12 - h, 10, 1, "#ffffff");
+  cx.globalAlpha = .75;
+  for(let i = 0; i < 4; i++) R(px - 4 + ((i * 5 + F * .25) % 7), BASE - 14 - ((F * .8 + i * 11) % 38), 2, 2, "#ffffff");
+  cx.globalAlpha = 1;
+  R(px - 6, BASE - 62, 3, 50, "#ffffff22");
+  [BASE - 22, BASE - 44].forEach(y=>{ R(px - 10, y, 20, 3, "#c79a21"); R(px - 10, y, 20, 1, "#ffd24a"); R(px - 11, y - 1, 22, 1, MP.out); });
+  R(px - 10, BASE - 68, 20, 3, "#c79a21"); R(px - 10, BASE - 68, 20, 1, "#ffd24a");
+  lamp(px - 2, BASE - 74, 4, 5, cM, (F >> 3) % 2 === 0);
+  // arcos de energia ligando o reator as duas maquinas
+  if((F + seed) % 7 < 5){
+    cx.globalAlpha = .9;
+    raioPx(x + 30, BASE - 52, px - 2, BASE - 66, cA, seed);
+    raioPx(x + 110, BASE - 52, px + 2, BASE - 66, cB, seed + 3);
+    cx.globalAlpha = 1;
+  }
+  if(tier >= 2) anelOrbita(px, BASE - 36, 60, 20, 2 + tier, "#ffd24a", 18);
+  if(tier >= 3){ lamp(x + 6, BASE - 14, 4, 4, "#ffd24a", (F >> 3) % 2 === 0); lamp(x + 130, BASE - 14, 4, 4, "#ffd24a", (F >> 3) % 2 === 1); }
+  // plaquinha de identificacao
+  chapa(px - 14, BASE - 9, 28, 7, "#1d2330", MP.lit, MP.out);
+  lamp(px - 9, BASE - 7, 3, 3, cA, true); lamp(px - 1, BASE - 7, 3, 3, cM, true); lamp(px + 7, BASE - 7, 3, 3, cB, true);
+}
+function desenhaFusao(id, x){
+  const m = MACHINES.find(q => q.id === id);
+  if(m) desenhaFusaoPar(m.a, m.b, x, nivelMaq(id));
+}
+function comContexto(ctx, fn){
+  const ant = cx; cx = ctx;
+  try{ fn(); } finally { cx = ant; }
+}
+
+/* ---- tela de Fusao ---- */
+let fusSel = [null, null], refsFus = null;
+function listaFusao(){
+  const box = $("#fus"); box.innerHTML = ""; refsFus = null;
+  const el_ = elegiveisFusao();
+  fusSel = fusSel.map(id => el_.some(m => m.id === id) ? id : null);
+  box.appendChild(el('<div class="note" style="margin:0 0 10px;line-height:1.6">Junte <strong>duas máquinas quaisquer</strong> (nível ' +
+    FUSAO_NIVEL_MIN + ' ou mais) em <strong>uma só</strong> que rende cerca de ' + Math.round((FUSAO_BONUS - 1) * 100) +
+    '% a mais. As duas voltam ao nível 0 e você pode comprá-las de novo. Máquina fundida não se funde com outra fundida.</div>'));
+  const qtd = (S.fusoes || []).length;
+  if(el_.length < 2){
+    box.appendChild(el('<div class="meta" style="display:block">Você precisa de <strong>2 máquinas no nível ' + FUSAO_NIVEL_MIN +
+      ' ou mais</strong>. Hoje tem ' + el_.length + '.</div>'));
+    return;
+  }
+  const ui = el('<div>' +
+    '<div class="fus-slots"><div class="fus-slot" data-s="0"></div><div class="fus-mais">+</div><div class="fus-slot" data-s="1"></div></div>' +
+    '<div class="lab" style="margin:12px 0 6px">Suas máquinas (toque para escolher)</div><div class="fus-chips"></div>' +
+    '<canvas id="fusprev" class="fus-prev" width="300" height="150"></canvas>' +
+    '<div class="fus-info"></div>' +
+    '<button class="collect fus-go" style="width:100%;margin:10px 0 0">FUNDIR</button>' +
+    '<div class="note fus-aviso" style="margin-top:6px"></div></div>');
+  box.appendChild(ui);
+  const chips = ui.querySelector(".fus-chips"), lista = [];
+  el_.forEach(m=>{
+    const b = document.createElement("button");
+    b.className = "fus-chip"; b.type = "button";
+    b.onclick = ()=>{
+      const i = fusSel.indexOf(m.id);
+      if(i >= 0) fusSel[i] = null;
+      else if(fusSel[0] === null) fusSel[0] = m.id;
+      else if(fusSel[1] === null) fusSel[1] = m.id;
+      else fusSel[1] = m.id;
+      atualizarFusao();
+    };
+    chips.appendChild(b); lista.push({ m, b });
+  });
+  refsFus = { slots: [...ui.querySelectorAll(".fus-slot")], chips: lista, info: ui.querySelector(".fus-info"),
+    go: ui.querySelector(".fus-go"), aviso: ui.querySelector(".fus-aviso"), prev: ui.querySelector("#fusprev") };
+  refsFus.slots.forEach((s, i)=> s.onclick = ()=>{ fusSel[i] = null; atualizarFusao(); });
+  refsFus.go.onclick = ()=>{
+    const a = MACHINES.find(m => m.id === fusSel[0]), b = MACHINES.find(m => m.id === fusSel[1]);
+    if(a && b) confirmarFusao(a, b);
+  };
+  atualizarFusao();
+}
+function atualizarFusao(){
+  const r = refsFus; if(!r) return;
+  const a = MACHINES.find(m => m.id === fusSel[0]), b = MACHINES.find(m => m.id === fusSel[1]);
+  r.slots.forEach((s, i)=>{
+    const m = i === 0 ? a : b;
+    const t = m ? '<b>' + esc(m.nome) + '</b><span>Nível ' + nivelMaq(m.id) + '</span>' : '<span>Escolha a máquina ' + (i + 1) + '</span>';
+    if(s.dataset.k !== t){ s.innerHTML = t; s.dataset.k = t; }
+    s.classList.toggle("cheio", Boolean(m));
+    s.style.borderColor = m ? (COR_MAQ[m.id] || "#35e0d8") : "";
+  });
+  r.chips.forEach(c=>{
+    const t = esc(c.m.nome) + ' <small>Nv ' + nivelMaq(c.m.id) + '</small>';
+    if(c.b.dataset.k !== t){ c.b.innerHTML = t; c.b.dataset.k = t; }
+    c.b.classList.toggle("on", fusSel.includes(c.m.id));
+  });
+  let pl = null, aviso = "";
+  if(a && b){
+    pl = planoFusao(a, b);
+    const ganho = pl.antes > 0 ? Math.round((pl.depois / pl.antes - 1) * 100) : 0;
+    const t = '<div class="nm" style="font-size:15px">' + esc(pl.nome) + '</div>' +
+      '<div class="sub">Nasce no <b>nível ' + pl.nivel + '</b> • evoluir custa bem mais que nas originais</div>' +
+      '<div class="fus-prod">R$ ' + fmt(pl.antes) + '/s &rarr; <b>R$ ' + fmt(pl.depois) + '/s</b> <span>(+' + ganho + '%)</span></div>' +
+      '<div class="sub">Taxa de fusão: <b>' + moeda(pl.taxa) + '</b> (25% do que você gastou nas duas)</div>';
+    if(r.info.dataset.k !== t){ r.info.innerHTML = t; r.info.dataset.k = t; }
+    if((S.fusoes || []).length >= FUSAO_MAX) aviso = "Limite de " + FUSAO_MAX + " máquinas fundidas. Venda uma para fazer outra.";
+    else if(S.wallet < pl.taxa) aviso = "Faltam " + moeda(pl.taxa - S.wallet) + " para a taxa de fusão.";
+  } else {
+    const t = '<div class="sub">Escolha duas máquinas para ver como a fundida fica.</div>';
+    if(r.info.dataset.k !== t){ r.info.innerHTML = t; r.info.dataset.k = t; }
+  }
+  r.go.textContent = pl ? "FUNDIR • " + moeda(pl.taxa) : "FUNDIR";
+  r.go.disabled = !pl || S.wallet < pl.taxa || (S.fusoes || []).length >= FUSAO_MAX;
+  r.aviso.textContent = aviso;
+}
+// previa animada da fundida (so enquanto a aba esta visivel)
+function loopPreviaFusao(){
+  requestAnimationFrame(loopPreviaFusao);
+  const r = refsFus; if(!r || !r.prev || r.prev.offsetParent === null) return;
+  const c = r.prev.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, 300, 150);
+  c.fillStyle = "#0d1016"; c.fillRect(0, 0, 300, 150);
+  c.fillStyle = "#141924";
+  for(let y = 0; y < 128; y += 10) for(let x = (y / 10 % 2) * 14; x < 300; x += 28) c.fillRect(x, y, 26, 8);
+  c.fillStyle = "#39404c"; c.fillRect(0, 128, 300, 3); c.fillStyle = "#0b0e13"; c.fillRect(0, 131, 300, 19);
+  const a = fusSel[0], b = fusSel[1];
+  if(!a || !b){
+    c.fillStyle = "#5d6877"; c.font = "12px monospace"; c.textAlign = "center";
+    c.fillText("a fundida aparece aqui", 150, 78);
+    return;
+  }
+  const A = MACHINES.find(m => m.id === a), B = MACHINES.find(m => m.id === b);
+  const pl = planoFusao(A, B);
+  comContexto(c, ()=>{ c.save(); c.scale(1.7, 1.7); c.translate(31, -(BASE - 75)); desenhaFusaoPar(a, b, 0, pl.nivel); c.restore(); });
+}
+loopPreviaFusao();
+
+function confirmarFusao(a, b){
+  if(!podeFundir(a, b)) return;
+  const pl = planoFusao(a, b);
+  const bg = document.createElement("div");
+  bg.className = "modal-bg"; bg.style.zIndex = 150;
+  bg.innerHTML = '<div class="modal-box" style="text-align:center" role="dialog" aria-label="Confirmar fusão">' +
+    '<div class="lab" style="color:var(--gold);letter-spacing:2px">FUNDIR MÁQUINAS</div>' +
+    '<div style="font-size:17px;font-weight:bold;margin:8px 0">' + esc(pl.nome) + '</div>' +
+    '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:10px 0;text-align:left;line-height:1.7;font-size:12px">' +
+      '<div>Saem: <strong>' + esc(a.nome) + '</strong> (nível ' + nivelMaq(a.id) + ') e <strong>' + esc(b.nome) + '</strong> (nível ' + nivelMaq(b.id) + '). As duas voltam ao nível 0.</div>' +
+      '<div>Entra: máquina fundida no <strong>nível ' + pl.nivel + '</strong>, rendendo <strong>R$ ' + fmt(pl.depois) + '/s</strong>.</div>' +
+      '<div>Taxa: <strong style="color:var(--gold)">' + moedaExata(pl.taxa) + '</strong></div>' +
+      '<div style="color:var(--dim)">Fundida não se funde de novo. Se vender, as originais não voltam.</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px"><button class="buy" id="fu-sim" style="flex:1;min-height:44px">FUNDIR</button>' +
+    '<button id="fu-nao" style="flex:1;font:inherit;min-height:44px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--txt)">CANCELAR</button></div></div>';
+  document.body.appendChild(bg);
+  const fechar = ()=> bg.remove();
+  bg.querySelector("#fu-sim").onclick = ()=>{ fechar(); const r = fundir(a, b); if(r) celebrarFusao(r, a.id, b.id); };
+  bg.querySelector("#fu-nao").onclick = fechar;
+  bg.onclick = e=>{ if(e.target === bg) fechar(); };
+  bg.querySelector("#fu-nao").focus();
+}
+function celebrarFusao(r, aId, bId){
+  const bg = document.createElement("div");
+  bg.className = "modal-bg"; bg.style.zIndex = 150;
+  bg.innerHTML = '<div class="modal-box" style="text-align:center">' +
+    '<div class="lab" style="color:var(--gold);letter-spacing:2px">FUSÃO CONCLUÍDA</div>' +
+    '<canvas width="300" height="150" style="width:100%;max-width:300px;image-rendering:pixelated;border-radius:6px;margin:8px 0"></canvas>' +
+    '<div style="font-size:18px;font-weight:bold">' + esc(r.nome) + '</div>' +
+    '<div class="sub" style="margin:4px 0 12px">Nível ' + r.nivel + ' • R$ ' + fmt(r.depois) + '/s</div>' +
+    '<button class="collect" id="fc-ok" style="margin:0;width:100%">CONTINUAR</button></div>';
+  document.body.appendChild(bg);
+  const cvx = bg.querySelector("canvas"), c = cvx.getContext("2d");
+  const quadro = ()=>{
+    if(!bg.isConnected) return;
+    c.imageSmoothingEnabled = false;
+    c.fillStyle = "#0d1016"; c.fillRect(0, 0, 300, 150);
+    c.fillStyle = "#141924";
+    for(let y = 0; y < 128; y += 10) for(let x = (y / 10 % 2) * 14; x < 300; x += 28) c.fillRect(x, y, 26, 8);
+    c.fillStyle = "#39404c"; c.fillRect(0, 128, 300, 3); c.fillStyle = "#0b0e13"; c.fillRect(0, 131, 300, 19);
+    comContexto(c, ()=>{ c.save(); c.scale(1.7, 1.7); c.translate(31, -(BASE - 75)); desenhaFusaoPar(aId, bId, 0, r.nivel); c.restore(); });
+    requestAnimationFrame(quadro);
+  };
+  quadro();
+  bg.querySelector("#fc-ok").onclick = ()=> bg.remove();
+  bg.onclick = e=>{ if(e.target === bg) bg.remove(); };
 }
 
 const ABERTAS = new Set();   // cartoes de maquina com o detalhe aberto (sobrevive a reconstrucao da lista)
@@ -2140,7 +2482,8 @@ function listaMaquinas(){
     '<button data-q="100">x100</button><button data-q="max">MÁX</button></div>');
   barra.querySelectorAll("button").forEach(b=> b.onclick = ()=>{ S.qtd = b.dataset.q; render(); salvar(); });
   box.appendChild(barra);
-  MACHINES.forEach(m=>{
+  // fundidas primeiro: sao as maquinas de topo e nao podem ficar enterradas no fim da lista
+  MACHINES.filter(m => m.fusao).concat(MACHINES.filter(m => !m.fusao)).forEach(m=>{
     if(m.secreta && !(S.codes && S.codes["calebe.."])) return;
     const rbReq = m.rebirthReq || 0;
     const bloqueada = rbReq > (S.rebirth || 0);
@@ -2171,7 +2514,8 @@ function listaMaquinas(){
     } else {
       subTxt = "R$ " + fmt(porNivel) + "/s por nível";
     }
-    detTxt = "Rende R$ " + fmt(porNivel) + " por segundo em cada nível." +
+    detTxt = (m.fusao ? "Fusão de " + esc((MACHINES.find(q => q.id === m.a) || {nome:m.a}).nome) + " e " + esc((MACHINES.find(q => q.id === m.b) || {nome:m.b}).nome) + ".<br>" : "") +
+      "Rende R$ " + fmt(porNivel) + " por segundo em cada nível." +
       (lvl > 0 ? "<br>Neste nível: R$ " + fmt(porNivel * lvl) + "/s no total." : "") +
       (modoAtual().prod !== 1 ? "<br>Modo " + modoAtual().nome + ": produção x" + modoAtual().prod + "." : "") +
       (quebrada ? "<br>Parada até ser consertada." : "") +
@@ -2189,7 +2533,7 @@ function listaMaquinas(){
     btnHtml += '<button class="buy cbuy"><span class="q">+1</span><span class="p">R$ ' + fmt(preco) + '</span></button>';
 
     const row = el(
-      '<div class="row card ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + '" data-mid="' + m.id + '">' +
+      '<div class="row card ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + (m.fusao ? " fusao" : "") + '" data-mid="' + m.id + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
         '<div class="info"><div class="nm">' + m.nome + (lvl > 0 ? '<span class="nvl">Nv ' + lvl + '</span>' : '') + '</div>' +
         '<div class="sub">' + subTxt + '</div>' +
@@ -2612,7 +2956,7 @@ function listaMissoes(){
 let alvoArte = null;
 function listaArtes(){
   const box = $("#artlist"); box.innerHTML = "";
-  const itens = MACHINES.map(m=>({id:m.id, nome:"Maquina " + m.nome}))
+  const itens = MACHINES.filter(m => !m.fusao).map(m=>({id:m.id, nome:"Maquina " + m.nome}))
     .concat([{id:"silo", nome:"Armazenador"}]);
   itens.forEach(it=>{
     const row = el(
@@ -2654,12 +2998,12 @@ document.addEventListener("keydown", e=>{
 });
 /* 4 abas, cada uma com sub-chips. Os paineis antigos continuam os mesmos; so muda quem aparece. */
 const ABAS = {
-  fab:  { subs:[["maq","Máquinas"],["arm","Armazenador"]] },
+  fab:  { subs:[["maq","Máquinas"],["arm","Armazenador"],["fus","Fusão"]] },
   eq:   { subs:[["ger","Gerentes e mecânico"]] },
   prog: { subs:[["mis","Missões"],["conq","Conquistas"],["reb","Rebirth e selos"]] },
   mais: { subs:[["sv","Salvar"],["cod","Códigos"],["art","Minhas artes"]] }
 };
-const PAINEIS = ["maq","arm","ger","reb","conq","cod","mis","art","sv"];
+const PAINEIS = ["maq","arm","fus","ger","reb","conq","cod","mis","art","sv"];
 const subSel = { fab:"maq", eq:"ger", prog:"mis", mais:"sv" };
 let abaAtual = "fab";
 function abrirAba(a, sub){
@@ -2673,7 +3017,7 @@ function abrirAba(a, sub){
   });
   PAINEIS.forEach(id=> $("#" + id).classList.toggle("hide", id !== atual));
   const st = $("#subtabs"); st.innerHTML = "";
-  const subs = ABAS[a].subs.filter(x => !(DUEL && x[0] === "cod"));
+  const subs = ABAS[a].subs.filter(x => !(DUEL && (x[0] === "cod" || x[0] === "fus")));
   if(subs.length > 1){
     st.style.display = "flex";
     subs.forEach(([id, rot])=>{
