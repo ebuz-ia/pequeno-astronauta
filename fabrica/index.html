@@ -245,9 +245,18 @@
   .bigbtn.facil{background:#16452c;border-color:#4ade80;color:#d1fae5}
   .bigbtn.normal{background:#123c3a;border-color:#35e0d8;color:#ccfbf1}
   .bigbtn.hardcore{background:#4a1616;border-color:#ef5350;color:#fee2e2}
-  .bigbtn.voltar{font-size:13px;padding:10px;border-width:2px;background:transparent;color:var(--dim)}
+  .bigbtn.voltar{font-size:13px;padding:10px;border-width:2px;background:rgba(11,14,20,.78);color:#b8c2d1}
   #inicio .chk{display:flex;align-items:flex-start;gap:8px;text-align:left;font-size:12px;line-height:1.5;color:var(--dim);margin:0 0 12px;cursor:pointer}
   #inicio input[type=checkbox]{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:#4ade80}
+  #inicio .amg{display:flex;align-items:center;gap:8px;background:var(--panel);border:2px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 6px;text-align:left}
+  #inicio .amg .nm{font-weight:bold;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #inicio .amg .sub{font-size:11px;color:var(--dim)}
+  #inicio .amg button{font:inherit;font-size:12px;font-weight:bold;padding:8px 12px;min-height:40px;cursor:pointer;border:2px solid #a855f7;border-radius:6px;background:#2d1b4e;color:#f3e8ff}
+  #inicio .amg button:disabled{border-color:var(--line);background:#2a303b;color:#5d6877;cursor:default}
+  #inicio .dot{width:11px;height:11px;border-radius:50%;flex:none;background:#5d6877}
+  #inicio .dot.online{background:#4ade80;box-shadow:0 0 6px #4ade80}
+  #inicio .dot.ocupado{background:#f59e0b}
+  #inicio .destaque{border-color:#4ade80 !important;color:#d1fae5 !important;animation:pulseTurbo .8s infinite alternate}
   #inicio .vinc{border:2px solid #c79a21;background:#1c1a10;border-radius:8px;padding:12px;margin:10px 0 12px;text-align:left}
   #inicio input{font:inherit;width:100%;padding:11px;margin:0 0 10px;border-radius:6px;
     border:2px solid var(--line);background:var(--panel);color:var(--txt);font-size:15px}
@@ -3530,6 +3539,13 @@ function msg(texto, tipo){
 }
 
 let timerReenvio = null, reenvioEm = 0, ultimoEmail = "", tokenPendente = null, ticketPendente = null, AUTH_CLIENTE = "ambos";
+let conviteAtual = null, urlConvite = "", amigosConhecidos = null, ultimoAmigos = 0;
+const CONVITE_KEY = "fabrica-convite";
+function guardarConvite(c){
+  conviteAtual = c;
+  try{ if(c) sessionStorage.setItem(CONVITE_KEY, c); else sessionStorage.removeItem(CONVITE_KEY); }catch(e){}
+}
+const msgConvite = url => "Vem jogar comigo na Fábrica de Pixel! Toque no link, entre com seu email e me desafie para um duelo de 5 minutos: " + url;
 function telaInicio(qual, extra){
   clearInterval(timerReenvio);
   emMenu = true;
@@ -3559,6 +3575,27 @@ function telaInicio(qual, extra){
          '<button class="bigbtn duelo" data-a="pedirlink">RECEBER LINK</button>' +
          (AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' : '') +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "convite"){
+    h += '<div style="font-size:34px;margin:4px 0">🎮</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px"><span style="color:var(--gold)">' + esc(extra) + '</span> te chamou para jogar!</div>' +
+         '<div class="note" style="margin:0 0 14px;line-height:1.7">Na Fábrica de Pixel vocês fazem um duelo de 5 minutos, cada um no seu aparelho, ao mesmo tempo. ' +
+         (CONTA ? 'Toque no botão para virar amigo de <strong>' + esc(extra) + '</strong>.' : 'Entre com o seu email para virar amigo de <strong>' + esc(extra) + '</strong>. O email é do responsável ou de quem tem 18 anos ou mais.') + '</div>' +
+         (CONTA ? '<button class="bigbtn jogar" data-a="aceitarconvite">ACEITAR E FICAR AMIGO</button>' +
+                  '<button class="bigbtn voltar" data-a="trocar">ENTRAR COM OUTRA CONTA</button>'
+                : '<input id="cemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com">' +
+                  '<div id="msg" class="msgbox"></div>' +
+                  '<button class="bigbtn duelo" data-a="pedirlink">RECEBER LINK</button>' +
+                  (AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' : '')) +
+         '<button class="bigbtn voltar" data-a="semconvite">AGORA NÃO</button>';
+  } else if(qual === "convidar"){
+    h += '<div style="font-size:34px;margin:4px 0">💌</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Convite pronto!</div>' +
+         '<div class="note" style="margin:0 0 12px;line-height:1.7">Mande este link para o seu amigo. Ele entra com o email dele, vira seu amigo na hora e aparece na sua lista. ' +
+         'O link vale 7 dias e serve para até 5 amigos.</div>' +
+         '<input id="curl" readonly value="' + esc(extra) + '" onclick="this.select()">' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn jogar" data-a="zap" style="font-size:15px;padding:12px">ENVIAR PELO WHATSAPP</button>' +
+         (navigator.share ? '<button class="bigbtn duelo" data-a="compartilhar" style="font-size:15px;padding:12px">COMPARTILHAR…</button>' : '') +
+         '<button class="bigbtn duelo" data-a="copiar" style="font-size:15px;padding:12px">COPIAR LINK</button>' +
+         '<button class="bigbtn voltar" data-a="voltardesafio">VOLTAR</button>';
   } else if(qual === "linkenviado"){
     h += '<div style="font-size:34px;margin:4px 0">✉️</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Link enviado!</div>' +
          '<div class="note" style="margin:0 0 14px;line-height:1.7">Abra o email de <strong style="color:var(--gold)">' + esc(extra) + '</strong> e toque em <strong>Entrar na Fábrica</strong>. ' +
@@ -3594,11 +3631,13 @@ function telaInicio(qual, extra){
             '<div class="note" style="margin:0 0 8px">Assim você entra por link, sem senha, e não perde a conta. Use o email do responsável ou de quem tem 18 anos ou mais.</div>' +
             '<input id="vemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" style="margin-bottom:8px">' +
             '<button class="bigbtn jogar" data-a="vincular" style="font-size:14px;padding:10px;margin:0">ENVIAR LINK DE CONFIRMAÇÃO</button></div>' : '') +
-         '<div class="note" style="text-align:left;margin:10px 0 12px">Digite o nome do seu amigo. Ele precisa ter conta e estar com o menu aberto neste jogo para aceitar. ' +
-         'Quando ele aceitar, a partida começa <strong>ao mesmo tempo</strong> nos dois computadores.</div>' +
-         '<input id="camigo" maxlength="14" placeholder="Nome do seu amigo" value="' + esc(extra||"") + '">' +
+         '<div id="amigos" style="margin:10px 0 4px"></div>' +
+         '<div class="note" style="text-align:left;margin:10px 0 8px">Ou digite o apelido de um amigo. Ele precisa estar com o menu aberto neste jogo para aceitar. ' +
+         'Quando ele aceitar, a partida começa <strong>ao mesmo tempo</strong> nos dois aparelhos.</div>' +
+         '<input id="camigo" maxlength="14" placeholder="Apelido do seu amigo" value="' + esc(extra||"") + '">' +
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="desafiar">DESAFIAR</button>' +
+         '<button class="bigbtn jogar" id="bconvite" data-a="convidar" style="font-size:14px;padding:11px">CONVIDAR AMIGO POR LINK</button>' +
          '<button class="bigbtn voltar" data-a="trocar">TROCAR DE CONTA</button>' +
          '<button class="bigbtn voltar" data-a="sairtodos">SAIR DE TODOS OS APARELHOS</button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
@@ -3633,7 +3672,7 @@ function telaInicio(qual, extra){
   box.querySelectorAll("input").forEach(i=> i.onkeydown = e=>{
     if(e.key === "Enter" && e.target.type !== "checkbox"){
       e.preventDefault();
-      acaoInicio({ login:"pedirlink", senha:"entrar", apelido:"criarconta" }[qual] || "desafiar");
+      acaoInicio({ login:"pedirlink", senha:"entrar", apelido:"criarconta", convite: CONTA ? "aceitarconvite" : "pedirlink" }[qual] || "desafiar");
     }
   });
   const prim = box.querySelector("input"); if(prim && !prim.value && prim.type !== "checkbox") prim.focus();
@@ -3646,6 +3685,7 @@ function telaInicio(qual, extra){
     };
     tic(); timerReenvio = setInterval(tic, 500);
   }
+  if(qual === "desafio") carregarAmigos();
 }
 
 async function acaoInicio(a){
@@ -3666,7 +3706,7 @@ async function acaoInicio(a){
     const email = a === "pedirlink" ? ($("#cemail").value || "").trim().toLowerCase() : ultimoEmail;
     if(!email) return msg("Digite o seu email.");
     msg("Enviando…", "ok");
-    const r = await api("/conta/link", { email });
+    const r = await api("/conta/link", conviteAtual ? { email, convite: conviteAtual } : { email });
     if(r.rede) return msg(r.msg);
     if(r.status === 429 && r.segundos){ ultimoEmail = email; reenvioEm = Date.now() + r.segundos * 1000; if(a === "pedirlink") telaInicio("linkenviado", email); return msg(r.msg); }
     if(r.status !== 200) return msg(r.msg || "Não foi possível enviar o link.");
@@ -3712,8 +3752,26 @@ async function acaoInicio(a){
     if(r.status !== 200) return msg(r.msg || "Não foi possível enviar o link.");
     return msg("Enviamos um link para " + email + ". Toque nele para confirmar o email.", "ok");
   }
-  if(a === "trocar"){ await api("/sair", {}); guardarConta(null); return telaInicio("login"); }
-  if(a === "sairtodos"){ await api("/conta/sair", { todos: true }); guardarConta(null); return telaInicio("login"); }
+  if(a === "convidar"){
+    msg("Criando o convite…", "ok");
+    const r = await api("/convites", {});
+    if(r.status === 401){ guardarConta(null); telaInicio("login"); return msg("Sua sessão acabou. Entre de novo."); }
+    if(!r.url) return msg(r.msg || "Não foi possível criar o convite.");
+    urlConvite = r.url;
+    return telaInicio("convidar", r.url);
+  }
+  if(a === "zap") return window.open("https://wa.me/?text=" + encodeURIComponent(msgConvite(urlConvite)), "_blank", "noopener");
+  if(a === "compartilhar"){ try{ await navigator.share({ title: "Fábrica de Pixel", text: msgConvite(urlConvite) }); }catch(e){} return; }
+  if(a === "copiar"){
+    try{ await navigator.clipboard.writeText(urlConvite); }
+    catch(e){ const i = $("#curl"); i.select(); try{ document.execCommand("copy"); }catch(_){} }
+    return msg("Link copiado! Cole na conversa com o seu amigo.", "ok");
+  }
+  if(a === "voltardesafio") return telaInicio("desafio");
+  if(a === "aceitarconvite"){ msg("Aceitando…", "ok"); await aceitarConvite(); return telaInicio("desafio"); }
+  if(a === "semconvite"){ guardarConvite(null); return telaInicio(CONTA ? "desafio" : "main"); }
+  if(a === "trocar"){ await api("/sair", {}); guardarConta(null); amigosConhecidos = null; return telaInicio("login"); }
+  if(a === "sairtodos"){ await api("/conta/sair", { todos: true }); guardarConta(null); amigosConhecidos = null; return telaInicio("login"); }
   if(a === "desafiar") return desafiar($("#camigo").value.trim());
   if(a === "cancelar"){ await api("/duelo/cancelar", {}); esperandoId = null; return telaInicio("desafio"); }
   if(a === "revanche"){
@@ -3728,8 +3786,45 @@ async function acaoInicio(a){
 // entrou (link ou senha): guarda a sessao e leva para a tela de desafio
 function entrou(r){
   guardarConta({ token:r.token, nome:r.nome, vit:r.vitorias, der:r.derrotas, semEmail: r.semEmail === true });
+  amigosConhecidos = null;
+  if(r.amigoDe){ toast("🎉 Agora você e " + r.amigoDe + " são amigos!"); guardarConvite(null); }
+  else if(conviteAtual){ aceitarConvite().then(()=> telaInicio("desafio")); return; }
   telaInicio("desafio");
   atualizarPerfil();
+}
+// aceita o convite guardado quando a pessoa ja tem conta e entrou por outro caminho (senha, sessao antiga)
+async function aceitarConvite(){
+  const codigo = conviteAtual;
+  if(!codigo || !CONTA) return;
+  const r = await api("/convites/aceitar", { codigo });
+  guardarConvite(null);
+  if(r.amigoDe) toast(r.nova ? "🎉 Agora você e " + r.amigoDe + " são amigos!" : "Você e " + r.amigoDe + " já eram amigos.");
+  else toast(r.msg || "Esse convite não vale mais.");
+}
+
+/* ---- lista de amigos ---- */
+const ROTULO_AMIGO = { online: "no menu agora", ocupado: "em duelo", offline: "fora do menu" };
+function renderAmigos(lista){
+  const box = document.getElementById("amigos"); if(!box) return;
+  if(!lista.length){
+    box.innerHTML = '<div class="note" style="margin:0">Você ainda não tem amigos aqui. Toque em <strong>CONVIDAR AMIGO POR LINK</strong> e mande no WhatsApp.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="lab" style="margin:0 0 6px;text-align:left">Seus amigos</div>' + lista.map(a =>
+    '<div class="amg"><span class="dot ' + a.estado + '"></span><div style="flex:1;min-width:0"><div class="nm">' + esc(a.apelido) + '</div>' +
+    '<div class="sub">' + ROTULO_AMIGO[a.estado] + '</div></div>' +
+    '<button type="button" data-amigo="' + esc(a.apelido) + '"' + (a.estado === "ocupado" ? " disabled" : "") + '>DESAFIAR</button></div>').join("");
+  box.querySelectorAll("[data-amigo]").forEach(b => b.onclick = ()=> desafiar(b.dataset.amigo));
+}
+async function carregarAmigos(){
+  ultimoAmigos = Date.now();
+  const r = await api("/amigos");
+  if(r.status === 401){ guardarConta(null); return telaInicio("login"); }
+  if(!r.amigos) return;
+  const nomes = r.amigos.map(a => a.apelido);
+  if(amigosConhecidos) nomes.filter(n => !amigosConhecidos.includes(n)).forEach(n => toast("🎉 " + n + " entrou pelo seu convite!"));
+  amigosConhecidos = nomes;
+  if(ultimaTela === "desafio") renderAmigos(r.amigos);
 }
 
 let ultimoAdversario = "";
@@ -3751,7 +3846,10 @@ async function desafiar(amigo){
   const r = await api("/duelo/desafiar", { amigo });
   if(r.status === 401){ guardarConta(null); telaInicio("login"); return msg("Sua sessão acabou. Entre de novo."); }
   if(r.rede) return msg(r.msg);
-  if(r.erro){ return msg(r.msg || "Não foi possível desafiar."); }
+  if(r.erro){
+    if(r.erro === "nao_existe"){ const bc = document.getElementById("bconvite"); if(bc) bc.classList.add("destaque"); }
+    return msg(r.msg || "Não foi possível desafiar.");
+  }
   ultimoAdversario = r.duelo.adversario;
   esperandoId = r.duelo.id;
   telaInicio("espera", r.duelo.adversario);
@@ -3892,6 +3990,7 @@ async function pollar(){
   if(pollando || !CONTA || !(emMenu || DUEL)) return;
   pollando = true;
   try{
+    if(ultimaTela === "desafio" && emMenu && !DUEL && Date.now() - ultimoAmigos > 5000) carregarAmigos();
     const r = await api("/duelo/estado", { ganho: (DUEL && DUEL.rodando) ? Math.round(S.stats.totalGanho||0) : 0 });
     if(r.status === 401){ guardarConta(null); if(DUEL) sairDuelo(); return; }
     if(r.rede) return;
@@ -3991,6 +4090,22 @@ window.addEventListener("resize", ajustaFundoMenu);
 
 abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
 api("/hora").then(r => { if(r && r.authMode) AUTH_CLIENTE = r.authMode; });
+// link de convite (?convite=CODIGO): guarda o codigo (some da barra de endereco) e mostra quem convidou
+async function mostrarConviteAmizade(){
+  const r = await api("/convites/" + conviteAtual);
+  if(r.status !== 200){ guardarConvite(null); toast(r.msg || "Esse convite venceu ou não existe."); return telaInicio(CONTA ? "desafio" : "main"); }
+  telaInicio("convite", r.de);
+}
+(function(){
+  try{
+    const u = new URL(location.href), c = u.searchParams.get("convite");
+    if(c && /^[0-9a-f]{32}$/.test(c)){
+      guardarConvite(c); u.searchParams.delete("convite");
+      history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+      mostrarConviteAmizade();
+    } else { const sc = sessionStorage.getItem(CONVITE_KEY); if(sc && /^[0-9a-f]{32}$/.test(sc)) conviteAtual = sc; }
+  }catch(e){}
+})();
 // link do email (?entrar=TOKEN): tira o token da barra de endereco na hora e mostra o botao de confirmar.
 // So o clique no botao gasta o token; abrir o link (ou um antivirus pre-visitar) nao gasta.
 (function(){
