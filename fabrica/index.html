@@ -110,11 +110,58 @@
   .btn-fuel{background:#f59e0b !important;color:#201402 !important;border-color:#b45309 !important;
     margin-right:6px;padding-left:8px !important;padding-right:8px !important}
   .btn-fuel:disabled{background:#2a303b !important;color:#5d6877 !important;border-color:var(--line) !important}
+  /* ---- cartoes compactos ---- */
+  .row{flex-wrap:wrap;padding:8px 10px;gap:8px;position:relative}
+  .row .info{flex:1 1 0;min-width:0}
+  .row .nm{font-size:13px;line-height:1.35}
+  .row .nvl{font-size:10px;font-weight:bold;color:#06240f;background:var(--ok);border-radius:3px;
+    padding:1px 5px;margin-left:5px;vertical-align:1px}
+  .row.card{cursor:pointer}
+  .row .det{display:none;flex:0 0 100%;font-size:11px;line-height:1.6;color:var(--dim);
+    border-top:1px dashed var(--line);padding-top:6px}
+  .row.open .det{display:block}
+  .mact{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+  .cbuy{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;
+    min-width:74px;padding:6px 10px;min-height:44px}
+  .cbuy .q{font-size:10px;opacity:.75}
+  .cbuy .p{font-size:13px}
+  .btn-fuel{min-height:44px}
+  .row.flash{animation:flashBuy .6s ease-out}
+  .row.flash .mini{animation:popBuy .35s ease-out}
+  @keyframes flashBuy{0%{box-shadow:0 0 0 0 rgba(74,222,128,.9);background:#1d4a2c}100%{box-shadow:0 0 0 12px rgba(74,222,128,0)}}
+  @keyframes popBuy{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+  /* ---- feedback ---- */
+  .float{position:fixed;z-index:70;pointer-events:none;font-weight:bold;font-size:16px;color:var(--gold);
+    white-space:nowrap;text-shadow:0 2px 0 #000,0 0 8px #000;animation:subirNum 1s ease-out forwards}
+  @keyframes subirNum{0%{opacity:0;transform:translate(-50%,8px) scale(.8)}15%{opacity:1;transform:translate(-50%,0) scale(1.1)}
+    100%{opacity:0;transform:translate(-50%,-48px) scale(1)}}
+  @media (prefers-reduced-motion: reduce){
+    .float{display:none} .row.flash,.row.flash .mini{animation:none} #inicio .bigbtn{transition:none}
+  }
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  /* ---- abas ---- */
+  .tabs{display:flex;gap:6px;margin:0 0 6px;flex-wrap:nowrap}
+  .tabs button{position:relative;flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+    font:inherit;font-weight:bold;font-size:13px;padding:11px 8px;min-height:44px}
+  .tabs .ti{font-size:16px}
+  .bdg{display:none;position:absolute;top:5px;right:8px;width:9px;height:9px;border-radius:50%;
+    background:#ef5350;border:2px solid var(--bg)}
+  .bdg.show{display:block}
+  .subtabs{display:flex;gap:6px;margin:0 0 8px;overflow-x:auto}
+  .subtabs button{font:inherit;font-size:12px;padding:8px 12px;min-height:36px;cursor:pointer;white-space:nowrap;
+    border:2px solid var(--line);border-radius:16px;background:transparent;color:var(--dim)}
+  .subtabs button.on{background:var(--panel2);color:var(--txt);border-color:#4b5a70}
+  @media (max-width:700px){
+    .tabs{position:fixed;left:0;right:0;bottom:0;z-index:60;margin:0;gap:4px;
+      padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:#0f131a;border-top:2px solid var(--line)}
+    .tabs button{flex-direction:column;gap:1px;font-size:10px;padding:5px 2px;min-height:50px}
+    .tabs .ti{font-size:19px}
+    .wrap{padding-bottom:92px}
+    #toast{bottom:calc(76px + env(safe-area-inset-bottom))}
+  }
   @media (max-width:560px){
-    .row{flex-wrap:wrap}
-    .row .sp{display:none}
-    .row > div:nth-child(2){flex:1;min-width:90px}
-    .row .buy{padding:8px 9px;font-size:12px}
+    .mini{width:46px;height:36px}
+    .row .buy{font-size:12px}
     #abast{font-size:12px !important;padding:12px 8px !important}
   }
   .msgbox{display:none;margin:0 0 10px;padding:9px 10px;border-radius:6px;background:#1a1216;border:2px solid #4b2630;font-size:13px;line-height:1.5}
@@ -142,7 +189,7 @@
   #duelbar .t.fim{color:#ef5350}
   body.duelo #duelbar{display:flex}
   body.duelo #topbar{display:none}
-  body.duelo .tools, body.duelo .tools + .note, body.duelo [data-t=cod]{display:none}
+  body.duelo [data-t=mais]{display:none}
   #fundoMenu{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;
     z-index:119;display:none;background:#0b0e14}
   #inicio{position:fixed;inset:0;z-index:120;
@@ -181,7 +228,7 @@
   </div>
   <div class="topbar" id="topbar">
     <span class="modotag normal" id="modotag">MODO NORMAL</span>
-    <button class="menubtn" id="menubtn">☰ MENU INICIAL</button>
+    <button class="menubtn" id="menubtn" aria-label="Voltar ao menu inicial">☰ MENU INICIAL</button>
   </div>
 
   <div class="hud">
@@ -205,21 +252,18 @@
     <button class="collect" id="collect" style="margin:0;flex:1;min-width:0">RECOLHER DINHEIRO</button>
     <button class="turbo" id="turbo">⚡ TURBO x2</button>
     <button class="turbo" id="abast" style="display:none;background:#f59e0b;border-color:#b45309;color:#201402">⛽ ABASTECER</button>
-    <button class="turbo" id="som" title="ligar ou desligar o som" style="background:#2a303b;border-color:#4b5a70;color:#e6ecf5;padding:14px 12px">🔊</button>
+    <button class="turbo" id="som" title="ligar ou desligar o som" aria-label="Som" style="background:#2a303b;border-color:#4b5a70;color:#e6ecf5;padding:14px 12px">🔊</button>
   </div>
 
   <div id="banners" style="display:grid;gap:8px;margin-bottom:10px"></div>
 
-  <div class="tabs">
-    <button data-t="maq" class="on">MAQUINAS</button>
-    <button data-t="arm">ARMAZENADOR</button>
-    <button data-t="ger">GERENTES</button>
-    <button data-t="reb">REBIRTH</button>
-    <button data-t="conq">CONQUISTAS</button>
-    <button data-t="cod">CÓDIGOS</button>
-    <button data-t="mis">MISSOES</button>
-    <button data-t="art">MINHAS ARTES</button>
-  </div>
+  <nav class="tabs" role="tablist" aria-label="Seções do jogo">
+    <button data-t="fab" role="tab" class="on"><span class="ti">🏭</span><span class="tl">Fábrica</span><i class="bdg"></i></button>
+    <button data-t="eq" role="tab"><span class="ti">👔</span><span class="tl">Equipe</span><i class="bdg"></i></button>
+    <button data-t="prog" role="tab"><span class="ti">🏆</span><span class="tl">Progresso</span><i class="bdg"></i></button>
+    <button data-t="mais" role="tab"><span class="ti">⚙️</span><span class="tl">Mais</span><i class="bdg"></i></button>
+  </nav>
+  <div class="subtabs" id="subtabs"></div>
 
   <div id="maq" class="list"></div>
   <div id="arm" class="list hide"></div>
@@ -235,6 +279,7 @@
     <div class="list" id="artlist" style="margin-top:8px"></div>
   </div>
 
+  <div id="sv" class="hide">
   <div class="tools">
     <button id="save">SALVAR AGORA</button>
     <button id="exp">EXPORTAR SAVE</button>
@@ -243,10 +288,11 @@
   </div>
   <div class="note">O jogo salva sozinho a cada 5 segundos neste computador.
     Use EXPORTAR SAVE de vez em quando para guardar uma copia de seguranca.</div>
+  </div>
   <input type="file" id="imp" accept="application/json">
   <input type="file" id="artfile" accept="image/*">
 </div>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <canvas id="fundoMenu"></canvas>
 <div id="inicio"></div>
 
@@ -512,6 +558,7 @@ function resgatarMissao(q){
   e.nivel += 1;
   e.marco = q.cont(S);
   toast("🏆 " + q.t + " nivel " + (e.nivel-1) + " concluida: + " + moeda(premio));
+  flutuar("🏆 +" + moeda(premio), $("#wallet"), "#4ade80"); vibrar([30, 40, 30]);
   for(let i=0;i<10;i++) faisca();
   assinatura = "";
   render(); salvar();
@@ -801,6 +848,7 @@ function recolher(){
   tocar("moeda");
   S.stats.collects++; S.stats.dailyCollects++;
   toast("+ " + moeda(v) + " recolhido");
+  flutuar("+" + moeda(v), $("#collect")); vibrar(12);
   for(let i=0;i<10;i++) faisca();
   render();
 }
@@ -828,7 +876,10 @@ function comprarMaquina(m){
   tocar("compra");
   S.stats.niveisComprados = (S.stats.niveisComprados||0) + plano.n;
   toast("Maquina " + m.nome + (plano.n > 1 ? " +" + plano.n + " niveis" : "") + " (nivel " + (lvl + plano.n) + ")");
+  FLASH = { id:m.id, t:Date.now() };
   render(); salvar();
+  flutuar("+" + plano.n + (plano.n === 1 ? " nível" : " níveis"), document.querySelector('[data-mid="' + m.id + '"] .cbuy'), "#4ade80");
+  vibrar(15);
 }
 function subirArmazenador(){
   const prox = STORAGE[S.storageLevel];
@@ -858,6 +909,7 @@ function checarGerente(){
   ganhar(liquido);
   S.stats.collects++; S.stats.dailyCollects++;
   toast("👔 " + mgr.nome + " recolheu: + " + moeda(liquido) + " (-" + Math.round(mgr.taxa*100) + "%)");
+  flutuar("+" + moeda(liquido), $("#stage"), "#9be7ff");
   for(let i=0;i<8;i++) faisca();
   render(); salvar();
 }
@@ -890,6 +942,28 @@ function moeda(n){
 const exato = n => Number(n).toLocaleString("pt-BR", {maximumFractionDigits:2});
 const moedaExata = n => "R$ " + exato(n);
 const fmtDec = n => n < 1000 ? n.toFixed(1).replace(".", ",") : abrev(n);
+
+/* ---------------- FEEDBACK DE TOQUE ---------------- */
+const reduzMov = Boolean(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+let nFlutuando = 0, FLASH = null;
+function vibrar(padrao){
+  if(!S.som || reduzMov || !navigator.vibrate) return;      // o botao de som tambem liga e desliga a vibracao
+  try{ navigator.vibrate(padrao); }catch(e){}
+}
+// numero que sobe e some a partir de um elemento da tela (nunca bloqueia clique)
+function flutuar(texto, ancora, cor){
+  if(reduzMov || nFlutuando >= 10) return;
+  let x = innerWidth / 2, y = innerHeight / 2;
+  if(ancora && ancora.getBoundingClientRect){
+    const r = ancora.getBoundingClientRect();
+    x = Math.min(innerWidth - 40, Math.max(40, r.left + r.width / 2)); y = r.top + r.height / 3;
+  }
+  const d = document.createElement("div");
+  d.className = "float"; d.textContent = texto; d.style.left = x + "px"; d.style.top = y + "px";
+  if(cor) d.style.color = cor;
+  nFlutuando++; document.body.appendChild(d);
+  setTimeout(()=>{ d.remove(); nFlutuando--; }, 1000);
+}
 
 /* ---------------- SOM ----------------
    Tudo gerado na hora pela Web Audio API. Nenhum arquivo e baixado. */
@@ -1832,6 +1906,23 @@ function renderMeta(){
   $("#mfill").style.width = (prog * 100) + "%";
 }
 
+function rebirthPronto(){
+  if((S.rebirth || 0) >= REBIRTH_REQS.length) return false;
+  const rq = REBIRTH_REQS[S.rebirth || 0];
+  return maquinasDoRebirthAtual().every(m => nivelMaq(m.id) >= rq.nivelReq);
+}
+// bolinha vermelha nas abas quando ha algo para fazer la dentro
+function atualizarBadges(){
+  const ger = S.managerLevel < MANAGERS.length && S.wallet >= custoModo(MANAGERS[S.managerLevel].custo);
+  const mec = !S.hasMechanic && S.wallet >= custoMecanico();
+  const missao = MISSOES.some(q => !(q.id === "m_turbo" && !modoAtual().turbo) && progMissao(q) >= alvoMissao(q));
+  const arm = STORAGE[S.storageLevel] && S.wallet >= custoModo(STORAGE[S.storageLevel].custo);
+  const marca = { fab:Boolean(arm), eq:Boolean(ger || mec), prog:Boolean(missao || rebirthPronto() || podeReiniciar()), mais:false };
+  document.querySelectorAll(".tabs button").forEach(b=>{
+    const i = b.querySelector(".bdg"); if(i) i.classList.toggle("show", marca[b.dataset.t] && abaAtual !== b.dataset.t);
+  });
+}
+
 function renderHUD(){
   $("#wallet").textContent = moeda(S.wallet);
   $("#wallet").title = moedaExata(S.wallet);
@@ -1913,15 +2004,17 @@ function renderHUD(){
 
   renderBanners();
   renderMeta();
+  atualizarBadges();
 }
 
 function atualizarEstados(){
   document.querySelectorAll(".qtdbar button").forEach(b=> b.classList.toggle("on", b.dataset.q === qtdSel()));
   refsMaq.forEach(r=>{
     if(r.btn){
-      const pl = planoCompra(r.m), lv = nivelMaq(r.m.id);
-      const txt = "Nv " + lv + (pl.n > 1 ? " +" + pl.n : "") + " • R$ " + fmt(pl.custo);
-      if(r.btn.textContent !== txt) r.btn.textContent = txt;
+      const pl = planoCompra(r.m);
+      const q = "+" + pl.n, pr = "R$ " + fmt(pl.custo);
+      if(r.q.textContent !== q) r.q.textContent = q;
+      if(r.p.textContent !== pr) r.p.textContent = pr;
       r.btn.title = pl.n + (pl.n === 1 ? " nivel" : " niveis") + " por " + moedaExata(pl.custo);
       r.btn.disabled = S.wallet < pl.custo;
     }
@@ -1933,7 +2026,7 @@ function atualizarEstados(){
     if(r.fbtn){
       const falta = FUEL_MAX - fuelDe(r.m.id);
       const c = custoAbastecer(r.m);
-      r.fbtn.textContent = falta <= 0.05 ? "⛽ CHEIO" : ("⛽ R$ " + fmt(c));
+      r.fbtn.textContent = falta <= 0.05 ? "⛽ cheio" : ("⛽ " + fmt(c));
       r.fbtn.disabled = falta <= 0.05 || S.wallet < 1;
     }
   });
@@ -1971,6 +2064,7 @@ function construirListas(){
   listaMaquinas(); listaArmazenador(); listaGerentes(); listaRebirth(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes();
 }
 
+const ABERTAS = new Set();   // cartoes de maquina com o detalhe aberto (sobrevive a reconstrucao da lista)
 function listaMaquinas(){
   const box = $("#maq"); box.innerHTML = "";
   const barra = el('<div class="qtdbar"><span class="lab">Comprar</span>' +
@@ -1991,9 +2085,8 @@ function listaMaquinas(){
       const row = el(
         '<div class="row locked">' +
           '<canvas class="mini" width="56" height="44"></canvas>' +
-          '<div><div class="nm" style="color:var(--dim)">🔒 ' + m.nome + '</div>' +
-          '<div class="sub">Desbloqueia no Rebirth ' + rbReq + ' • Produção base: R$ ' + m.ps + '/s</div></div>' +
-          '<div class="sp"></div>' +
+          '<div class="info"><div class="nm" style="color:var(--dim)">🔒 ' + m.nome + '</div>' +
+          '<div class="sub">Libera no Rebirth ' + rbReq + '</div></div>' +
           '<span class="tag" style="background:#261d24;color:#f87171;border-color:#5a2b38">REBIRTH ' + rbReq + '</span>' +
         '</div>');
       box.appendChild(row);
@@ -2001,39 +2094,47 @@ function listaMaquinas(){
       return;
     }
 
-    let subTxt = "";
+    const porNivel = Math.round(m.ps * multRebirth() * multConquistas() * multSelos() * modoAtual().prod);
+    let subTxt, detTxt;
     if(quebrada){
-      subTxt = '<span style="color:#ef5350">⚠️ QUEBRADA — sem produção</span>';
+      subTxt = '<span style="color:#ef5350">⚠️ quebrada</span>';
     } else if(lvl > 0){
-      const mult = multRebirth();
-      const realPs = Math.round(m.ps * lvl * mult * modoAtual().prod);
-      subTxt = "R$ " + fmt(realPs) + " por segundo" + (mult > 1 ? " (+" + Math.round((mult-1)*100) + "%)" : "");
+      subTxt = "R$ " + fmt(porNivel * lvl) + "/s";
     } else {
-      subTxt = "R$ " + (+(m.ps * modoAtual().prod).toFixed(1)).toLocaleString("pt-BR") + " por segundo (base)";
+      subTxt = "R$ " + fmt(porNivel) + "/s por nível";
     }
+    detTxt = "Rende R$ " + fmt(porNivel) + " por segundo em cada nível." +
+      (lvl > 0 ? "<br>Neste nível: R$ " + fmt(porNivel * lvl) + "/s no total." : "") +
+      (modoAtual().prod !== 1 ? "<br>Modo " + modoAtual().nome + ": produção x" + modoAtual().prod + "." : "") +
+      (quebrada ? "<br>Parada até ser consertada." : "");
     const mostraFuel = comCombustivel() && lvl > 0 && !m.secreta;
 
-    let btnHtml = mostraFuel ? '<button class="buy btn-fuel">⛽</button>' : "";
+    let btnHtml = mostraFuel ? '<button class="buy btn-fuel" aria-label="Abastecer ' + m.nome + '">⛽</button>' : "";
     if(quebrada){
       if(bInfo && bInfo.consertando){
-        btnHtml += '<button class="buy" disabled style="background:#223326;color:#86efac;border-color:#14532d">🔧 ' + Math.ceil(bInfo.tempoRestante) + 's</button>';
+        btnHtml += '<button class="buy" disabled style="background:#223326;color:#86efac;border-color:#14532d;min-height:44px">🔧 ' + Math.ceil(bInfo.tempoRestante) + 's</button>';
       } else {
-        btnHtml += '<button class="buy btn-consertar" style="background:#f59e0b;color:#201402;border-color:#b45309">🔧 CONSERTAR (10s)</button>';
+        btnHtml += '<button class="buy btn-consertar" style="background:#f59e0b;color:#201402;border-color:#b45309;min-height:44px">🔧 CONSERTAR</button>';
       }
-      btnHtml += '<button class="buy" style="margin-left:6px">Nv ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
-    } else {
-      btnHtml += '<button class="buy">Nv ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
     }
+    btnHtml += '<button class="buy cbuy"><span class="q">+1</span><span class="p">R$ ' + fmt(preco) + '</span></button>';
 
     const row = el(
-      '<div class="row ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + '">' +
+      '<div class="row card ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + '" data-mid="' + m.id + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
-        '<div><div class="nm">' + m.nome + '</div>' +
+        '<div class="info"><div class="nm">' + m.nome + (lvl > 0 ? '<span class="nvl">Nv ' + lvl + '</span>' : '') + '</div>' +
         '<div class="sub">' + subTxt + '</div>' +
         (mostraFuel ? '<div class="fuelbar"><i></i></div>' : '') + '</div>' +
-        '<div class="sp"></div>' +
         btnHtml +
+        '<div class="det">' + detTxt + '</div>' +
       '</div>');
+    if(ABERTAS.has(m.id)) row.classList.add("open");
+    if(FLASH && FLASH.id === m.id && Date.now() - FLASH.t < 700) row.classList.add("flash");
+    row.onclick = e=>{
+      if(e.target.closest("button")) return;
+      row.classList.toggle("open");
+      if(row.classList.contains("open")) ABERTAS.add(m.id); else ABERTAS.delete(m.id);
+    };
     box.appendChild(row);
     thumb(row.querySelector("canvas"), m.id);
 
@@ -2042,10 +2143,9 @@ function listaMaquinas(){
       if(btnCons) btnCons.onclick = () => iniciarConserto(m.id, false);
     }
 
-    const buyBtns = row.querySelectorAll("button");
-    const btnBuy = buyBtns[buyBtns.length - 1];
-    if(btnBuy) btnBuy.onclick = ()=>comprarMaquina(m);
-    refsMaq.push({m, btn: btnBuy,
+    const btnBuy = row.querySelector(".cbuy");
+    btnBuy.onclick = ()=>comprarMaquina(m);
+    refsMaq.push({m, btn: btnBuy, q: btnBuy.querySelector(".q"), p: btnBuy.querySelector(".p"),
       fbtn: row.querySelector(".btn-fuel"), fbar: row.querySelector(".fuelbar")});
     const fb = row.querySelector(".btn-fuel");
     if(fb) fb.onclick = ()=>abastecer(m);
@@ -2251,17 +2351,15 @@ function missaoRow(q){
       '<div style="min-width:0;flex:1">' +
         '<div class="nm">' + q.t +
           ' <span class="tag" style="background:#1f2a3a;color:#8fd3ff;border-color:#2f4a66">' +
-          'nivel ' + e.nivel + '</span></div>' +
+          'Nv ' + e.nivel + '</span></div>' +
         '<div class="sub dsc"></div>' +
         '<div class="prog" style="width:100%;max-width:320px"><i></i></div>' +
         '<div class="sub prg"></div>' +
       '</div>' +
-      '<div class="sp"></div>' +
-      '<div style="text-align:right;white-space:nowrap">' +
-        '<div class="sub">recompensa</div>' +
-        '<div class="gold rec" style="font-weight:bold"></div>' +
+      '<div class="mact">' +
+        '<div class="gold rec" style="font-weight:bold;white-space:nowrap"></div>' +
+        '<button class="buy" style="min-height:40px">RESGATAR</button>' +
       '</div>' +
-      '<button class="buy">RESGATAR</button>' +
     '</div>');
   const btn = row.querySelector("button");
   btn.onclick = ()=> resgatarMissao(q);
@@ -2483,14 +2581,40 @@ $("#som").onclick = ()=>{
 document.addEventListener("keydown", e=>{
   if(e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT"){ e.preventDefault(); recolher(); }
 });
-document.querySelectorAll(".tabs button").forEach(b=>{
-  b.onclick = ()=>{
-    document.querySelectorAll(".tabs button").forEach(o=>o.classList.remove("on"));
-    b.classList.add("on");
-    ["maq","arm","ger","reb","conq","cod","mis","art"].forEach(id=>
-      $("#"+id).classList.toggle("hide", id !== b.dataset.t));
-  };
-});
+/* 4 abas, cada uma com sub-chips. Os paineis antigos continuam os mesmos; so muda quem aparece. */
+const ABAS = {
+  fab:  { subs:[["maq","Máquinas"],["arm","Armazenador"]] },
+  eq:   { subs:[["ger","Gerentes e mecânico"]] },
+  prog: { subs:[["mis","Missões"],["conq","Conquistas"],["reb","Rebirth e selos"]] },
+  mais: { subs:[["sv","Salvar"],["cod","Códigos"],["art","Minhas artes"]] }
+};
+const PAINEIS = ["maq","arm","ger","reb","conq","cod","mis","art","sv"];
+const subSel = { fab:"maq", eq:"ger", prog:"mis", mais:"sv" };
+let abaAtual = "fab";
+function abrirAba(a, sub){
+  if(!ABAS[a]) a = "fab";
+  abaAtual = a;
+  if(sub) subSel[a] = sub;
+  const atual = subSel[a];
+  document.querySelectorAll(".tabs button").forEach(b=>{
+    const on = b.dataset.t === a;
+    b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  PAINEIS.forEach(id=> $("#" + id).classList.toggle("hide", id !== atual));
+  const st = $("#subtabs"); st.innerHTML = "";
+  const subs = ABAS[a].subs.filter(x => !(DUEL && x[0] === "cod"));
+  if(subs.length > 1){
+    st.style.display = "flex";
+    subs.forEach(([id, rot])=>{
+      const b = document.createElement("button");
+      b.textContent = rot; b.className = id === atual ? "on" : "";
+      b.onclick = ()=> abrirAba(a, id);
+      st.appendChild(b);
+    });
+  } else st.style.display = "none";
+}
+document.querySelectorAll(".tabs button").forEach(b=>{ b.onclick = ()=> abrirAba(b.dataset.t); });
+
 $("#artfile").onchange = e=>{
   const f = e.target.files[0]; if(!f || !alvoArte) return;
   const rd = new FileReader();
@@ -2932,7 +3056,7 @@ function prepararDuelo(d){
            rodando:false, terminado:false, final:null, art:S.art, ganhoAdv:0, enviado:false };
   ultimoAdversario = d.adversario;
   document.body.classList.add("duelo");
-  document.querySelector('.tabs button[data-t="maq"]').click();
+  abrirAba("fab", "maq");
   telaInicio("contagem");
 }
 
@@ -3105,7 +3229,7 @@ function loopMenu(){
 }
 window.addEventListener("resize", ajustaFundoMenu);
 
-testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
+abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
 </script>
 </body>
 </html>
