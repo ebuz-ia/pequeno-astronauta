@@ -118,6 +118,16 @@
     #abast{font-size:12px !important;padding:12px 8px !important}
   }
   .msgbox{display:none;margin:0 0 10px;padding:9px 10px;border-radius:6px;background:#1a1216;border:2px solid #4b2630;font-size:13px;line-height:1.5}
+  .qtdbar{display:flex;gap:6px;align-items:center;margin:0 0 8px}
+  .qtdbar button{font:inherit;font-weight:bold;min-width:52px;padding:9px 10px;cursor:pointer;border:2px solid var(--line);
+    border-radius:6px;background:var(--panel2);color:var(--dim)}
+  .qtdbar button.on{background:#16452c;border-color:#4ade80;color:#d1fae5}
+  .meta{margin:0 0 10px;padding:8px 12px;border:2px solid var(--line);border-radius:6px;background:var(--panel)}
+  .meta .mtxt{font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+  .meta .mbar{height:8px;background:#0c0f14;border:1px solid var(--line);border-radius:4px;margin-top:6px;overflow:hidden}
+  .meta .mbar i{display:block;height:100%;width:0;background:#35e0d8;transition:width .2s linear}
+  .meta.pronto{border-color:#4ade80;background:#13241a}
+  .meta.pronto .mbar i{background:#4ade80}
   .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:2px 0 8px}
   .modotag{font-size:11px;letter-spacing:1px;font-weight:bold;padding:5px 9px;border-radius:5px;
     border:2px solid var(--line);background:var(--panel2)}
@@ -185,6 +195,8 @@
       <div class="sub dim" id="status" style="font-size:11px;color:var(--dim);margin-top:4px">
         produzindo</div></div>
   </div>
+
+  <div class="meta" id="meta"><div class="mtxt" id="mtxt"></div><div class="mbar"><i id="mfill"></i></div></div>
 
   <div class="stage-wrap">
     <canvas id="stage" width="640" height="200"></canvas>
@@ -519,6 +531,7 @@ function novoJogo(){
     turbo: { restante: 0, espera: 0 },
     som: true,
     modo: "normal",
+    qtd: "1",
     fuel: {},
     selos: 0,
     bill: { ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 },
@@ -791,15 +804,30 @@ function recolher(){
   for(let i=0;i<10;i++) faisca();
   render();
 }
+const QTD_OPCOES = ["1","10","100","max"];
+const qtdSel = () => QTD_OPCOES.includes(String(S.qtd)) ? String(S.qtd) : "1";
+// quantos niveis o seletor pede e quanto custam, somando nivel por nivel (mesmo arredondamento da compra)
+function planoCompra(m){
+  const lvl = nivelMaq(m.id), sel = qtdSel();
+  const alvo = sel === "max" ? 10000 : Number(sel);
+  let n = 0, custo = 0;
+  while(n < alvo){
+    const p = Math.round((m.custo || 25) * Math.pow(1.15, lvl + n) * modoAtual().custo);
+    if(!isFinite(p) || (sel === "max" && custo + p > S.wallet)) break;
+    custo += p; n++;
+  }
+  if(n === 0){ n = 1; custo = precoMaq(m); }      // max sem dinheiro: mostra o preco de 1 nivel
+  return { n, custo };
+}
 function comprarMaquina(m){
-  const custo = precoMaq(m);
-  if(S.wallet < custo) return;
+  const plano = planoCompra(m);
+  if(S.wallet < plano.custo) return;
   const lvl = nivelMaq(m.id);
-  S.wallet -= custo;
-  S.machines[m.id] = lvl + 1;
+  S.wallet -= plano.custo;
+  S.machines[m.id] = lvl + plano.n;
   tocar("compra");
-  S.stats.niveisComprados = (S.stats.niveisComprados||0) + 1;
-  toast("Maquina " + m.nome + " nivel " + (lvl + 1));
+  S.stats.niveisComprados = (S.stats.niveisComprados||0) + plano.n;
+  toast("Maquina " + m.nome + (plano.n > 1 ? " +" + plano.n + " niveis" : "") + " (nivel " + (lvl + plano.n) + ")");
   render(); salvar();
 }
 function subirArmazenador(){
@@ -836,9 +864,32 @@ function checarGerente(){
 
 
 /* ---------------- FORMATO ---------------- */
-function fmt(n){ return n.toLocaleString("pt-BR",{maximumFractionDigits:0}); }
-function moeda(n){ return "R$ " + n.toLocaleString("pt-BR",
-  {minimumFractionDigits:2, maximumFractionDigits:2}); }
+/* Numeros curtos (K, M, B, T...). Abaixo de 1.000 mostra inteiro; dai para cima 3 algarismos
+   significativos (1,25K  12,3K  123K  1,5M). O valor exato fica no title do elemento. */
+const SUFIXOS = ["","K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
+function abrev(n){
+  n = Number(n);
+  if(!isFinite(n)) return "∞";
+  const neg = n < 0 ? "-" : "", a = Math.abs(n);
+  if(a < 999.5) return neg + Math.round(a).toLocaleString("pt-BR");
+  if(a >= 1e36) return neg + a.toExponential(2).replace(/\.?0+e/, "e").replace(".", ",").replace("e+", "e");
+  const casas = v => v < 10 ? 2 : (v < 100 ? 1 : 0);
+  let k = Math.min(SUFIXOS.length - 1, Math.floor(Math.log10(a) / 3));
+  let v = a / Math.pow(1000, k), d = casas(v), r = +v.toFixed(d);
+  if(r >= 1000 && k < SUFIXOS.length - 1){       // 999.999 arredonda para 1.000K: sobe para 1M
+    k++; v = a / Math.pow(1000, k); d = casas(v); r = +v.toFixed(d);
+  }
+  return neg + r.toLocaleString("pt-BR", {maximumFractionDigits:d}) + SUFIXOS[k];
+}
+const fmt = n => abrev(n);
+function moeda(n){
+  n = Number(n) || 0;
+  if(Math.abs(n) >= 999.995) return "R$ " + abrev(n);
+  return "R$ " + n.toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+const exato = n => Number(n).toLocaleString("pt-BR", {maximumFractionDigits:2});
+const moedaExata = n => "R$ " + exato(n);
+const fmtDec = n => n < 1000 ? n.toFixed(1).replace(".", ",") : abrev(n);
 
 /* ---------------- SOM ----------------
    Tudo gerado na hora pela Web Audio API. Nenhum arquivo e baixado. */
@@ -1749,9 +1800,43 @@ function atualizarBanners(){
   });
 }
 
+// Proxima meta: sempre um alvo a vista. Ordem: maquina que ainda nao tenho, armazenador, rebirth, selos.
+function proximaMeta(){
+  const nova = MACHINES.filter(m => !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0) && nivelMaq(m.id) === 0)
+    .sort((a,b)=> precoMaq(a) - precoMaq(b))[0];
+  if(nova) return { txt:"Próxima máquina: " + nova.nome, custo:precoMaq(nova) };
+  const arm = STORAGE[S.storageLevel];
+  if(arm) return { txt:"Armazenador nível " + arm.nivel, custo:custoModo(arm.custo) };
+  if((S.rebirth || 0) < REBIRTH_REQS.length){
+    const rq = REBIRTH_REQS[S.rebirth || 0];
+    const menor = Math.min(...maquinasDoRebirthAtual().map(m => nivelMaq(m.id)));
+    return { txt:"Rebirth " + rq.rebirth + ": todas as máquinas no nível " + rq.nivelReq + " (a menor está no " + menor + ")",
+             prog: Math.min(1, menor / rq.nivelReq) };
+  }
+  if(podeReiniciar()) return { txt:"Você já pode reiniciar a fábrica e ganhar selos", prog:1, pronto:true };
+  return { txt:"Reiniciar a fábrica: carteira de " + moeda(S.wallet) + " em " + moeda(SELO_LIBERA), prog: Math.min(1, S.wallet / SELO_LIBERA) };
+}
+function renderMeta(){
+  const m = proximaMeta(), box = $("#meta");
+  if(!m){ box.style.display = "none"; return; }
+  box.style.display = "";
+  let txt, prog, pronto = Boolean(m.pronto);
+  if(m.custo !== undefined){
+    pronto = S.wallet >= m.custo;
+    prog = m.custo > 0 ? Math.min(1, S.wallet / m.custo) : 1;
+    txt = "🎯 " + m.txt + "  •  " + (pronto ? "pode comprar agora!" : "faltam " + moeda(m.custo - S.wallet));
+    box.title = moedaExata(m.custo);
+  } else { prog = m.prog; txt = "🎯 " + m.txt; box.title = ""; }
+  if($("#mtxt").textContent !== txt) $("#mtxt").textContent = txt;
+  box.classList.toggle("pronto", pronto);
+  $("#mfill").style.width = (prog * 100) + "%";
+}
+
 function renderHUD(){
   $("#wallet").textContent = moeda(S.wallet);
-  $("#stored").textContent = "R$ " + S.stored.toFixed(1) + " / R$ " + fmt(cap());
+  $("#wallet").title = moedaExata(S.wallet);
+  $("#stored").textContent = "R$ " + fmtDec(S.stored) + " / R$ " + fmt(cap());
+  $("#stored").title = moedaExata(S.stored) + " de " + moedaExata(cap());
   $("#slvl").textContent = "(nivel " + S.storageLevel + ")";
   const bar = $("#bar"), p = Math.min(1, S.stored/cap());
   bar.classList.toggle("full", cheio());
@@ -1760,7 +1845,8 @@ function renderHUD(){
   const mult = multRebirth();
   const rbTag = (S.rebirth > 0) ? (" (" + (mult > 1 ? ("+" + Math.round((mult-1)*100) + "% ") : "") + "RB " + S.rebirth + ")") : "";
   const seloTag = (S.selos > 0) ? ("  🏵️" + fmt(S.selos)) : "";
-  $("#rate").textContent = "R$ " + taxa() + " / s" + rbTag + seloTag;
+  $("#rate").textContent = "R$ " + fmt(taxa()) + " / s" + rbTag + seloTag;
+  $("#rate").title = moedaExata(taxa()) + " por segundo";
 
   let st = "produzindo";
   let stCor = "var(--dim)";
@@ -1826,11 +1912,19 @@ function renderHUD(){
   b.textContent = S.stored > 0 ? ("RECOLHER " + moeda(S.stored)) : "RECOLHER DINHEIRO";
 
   renderBanners();
+  renderMeta();
 }
 
 function atualizarEstados(){
+  document.querySelectorAll(".qtdbar button").forEach(b=> b.classList.toggle("on", b.dataset.q === qtdSel()));
   refsMaq.forEach(r=>{
-    if(r.btn) r.btn.disabled = S.wallet < precoMaq(r.m);
+    if(r.btn){
+      const pl = planoCompra(r.m), lv = nivelMaq(r.m.id);
+      const txt = "Nv " + lv + (pl.n > 1 ? " +" + pl.n : "") + " • R$ " + fmt(pl.custo);
+      if(r.btn.textContent !== txt) r.btn.textContent = txt;
+      r.btn.title = pl.n + (pl.n === 1 ? " nivel" : " niveis") + " por " + moedaExata(pl.custo);
+      r.btn.disabled = S.wallet < pl.custo;
+    }
     if(r.fbar){
       const f = fuelDe(r.m.id);
       r.fbar.firstElementChild.style.width = (Math.max(0, f) / FUEL_MAX * 100) + "%";
@@ -1866,7 +1960,7 @@ function atualizarEstados(){
         ? (moeda(pr) + "  de  " + moeda(alvo))
         : (r.q.tempo
             ? (Math.floor(pr/60) + "min de " + Math.round(alvo/60) + "min")
-            : (Math.floor(pr).toLocaleString("pt-BR") + " de " + fmt(alvo)));
+            : (fmt(Math.floor(pr)) + " de " + fmt(alvo)));
     }
     if(r.btn) r.btn.disabled = pr < alvo;
   });
@@ -1879,6 +1973,11 @@ function construirListas(){
 
 function listaMaquinas(){
   const box = $("#maq"); box.innerHTML = "";
+  const barra = el('<div class="qtdbar"><span class="lab">Comprar</span>' +
+    '<button data-q="1">x1</button><button data-q="10">x10</button>' +
+    '<button data-q="100">x100</button><button data-q="max">MÁX</button></div>');
+  barra.querySelectorAll("button").forEach(b=> b.onclick = ()=>{ S.qtd = b.dataset.q; render(); salvar(); });
+  box.appendChild(barra);
   MACHINES.forEach(m=>{
     if(m.secreta && !(S.codes && S.codes["calebe.."])) return;
     const rbReq = m.rebirthReq || 0;
@@ -1921,9 +2020,9 @@ function listaMaquinas(){
       } else {
         btnHtml += '<button class="buy btn-consertar" style="background:#f59e0b;color:#201402;border-color:#b45309">🔧 CONSERTAR (10s)</button>';
       }
-      btnHtml += '<button class="buy" style="margin-left:6px">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
+      btnHtml += '<button class="buy" style="margin-left:6px">Nv ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
     } else {
-      btnHtml += '<button class="buy">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
+      btnHtml += '<button class="buy">Nv ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
     }
 
     const row = el(
@@ -2241,7 +2340,7 @@ function listaConquistas(){
     const pr = Math.min(c.alvo, c.prog(S));
     const txt = c.alvo > 1
       ? (c.dinheiro ? (moeda(pr) + " de " + moeda(c.alvo))
-                    : (Math.floor(pr).toLocaleString("pt-BR") + " de " + fmt(c.alvo)))
+                    : (fmt(Math.floor(pr)) + " de " + fmt(c.alvo)))
       : "";
     box.appendChild(el(
       '<div class="row ' + (ok?"owned":"") + '" style="margin-bottom:8px">' +
@@ -2702,7 +2801,7 @@ function telaInicio(qual, extra){
          '<div class="note" style="margin-top:14px">Os dois computadores largam juntos. Vence quem ganhar mais dinheiro em 5 minutos.</div>';
   } else if(qual === "fim"){
     h += '<div style="font-size:30px;margin:6px 0">⏱️</div><div style="font-size:20px;font-weight:bold">TEMPO ESGOTADO</div>' +
-         '<div class="val gold" style="font-size:24px;margin:10px 0">' + moeda(DUEL.final || 0) + '</div>' +
+         '<div class="val gold" style="font-size:24px;margin:10px 0">' + moedaExata(DUEL.final || 0) + '</div>' +
          '<div class="note">Aguardando ' + esc(DUEL.nomes[1]) + ' terminar…</div>';
   } else if(qual === "resultado"){
     const d = extra, eu = d.seuFinal || 0, el_ = d.finalAdversario || 0;
@@ -2711,8 +2810,8 @@ function telaInicio(qual, extra){
          '<div class="lab" style="color:var(--gold);letter-spacing:2px">RESULTADO DO DUELO</div>' +
          '<div style="font-size:24px;font-weight:bold;margin:8px 0">' + (empate ? "EMPATE!" : venci ? "VOCÊ VENCEU!" : esc(d.adversario) + " VENCEU!") + '</div>' +
          '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:12px 0;text-align:left;line-height:2">' +
-           '<div style="display:flex;justify-content:space-between;' + (venci?'color:var(--gold);font-weight:bold':'') + '"><span>' + (venci?"🏆 ":"") + esc(d.voceNome) + ' (você)</span><span>' + moeda(eu) + '</span></div>' +
-           '<div style="display:flex;justify-content:space-between;' + (!venci&&!empate?'color:var(--gold);font-weight:bold':'') + '"><span>' + (!venci&&!empate?"🏆 ":"") + esc(d.adversario) + '</span><span>' + moeda(el_) + '</span></div></div>' +
+           '<div style="display:flex;justify-content:space-between;' + (venci?'color:var(--gold);font-weight:bold':'') + '"><span>' + (venci?"🏆 ":"") + esc(d.voceNome) + ' (você)</span><span>' + moedaExata(eu) + '</span></div>' +
+           '<div style="display:flex;justify-content:space-between;' + (!venci&&!empate?'color:var(--gold);font-weight:bold':'') + '"><span>' + (!venci&&!empate?"🏆 ":"") + esc(d.adversario) + '</span><span>' + moedaExata(el_) + '</span></div></div>' +
          '<button class="bigbtn duelo" data-a="revanche" style="font-size:16px;padding:12px">REVANCHE</button>' +
          '<button class="bigbtn voltar" data-a="sairduelo">SAIR</button>';
   }
