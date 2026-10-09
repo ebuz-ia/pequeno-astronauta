@@ -77,7 +77,7 @@
   .row.owned{border-color:#2f5a3a;background:#16211a}
   .row .nm{font-weight:bold}
   .row .sub{color:var(--dim);font-size:11px;margin-top:2px}
-  .row .sp{flex:1}
+  .row .sp{display:none}
   .buy{font:inherit;padding:9px 12px;cursor:pointer;border:2px solid #14532d;border-radius:5px;
     background:var(--ok);color:#06240f;font-weight:bold;white-space:nowrap}
   .buy:disabled{background:#2a303b;border-color:var(--line);color:#5d6877;cursor:default}
@@ -131,6 +131,11 @@
     border-top:1px dashed var(--line);padding-top:6px}
   .row.open .det{display:block}
   .mact{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+  .habchips{display:none;gap:6px;flex-wrap:wrap;margin:-4px 0 10px}
+  .habchip{font-size:11px;font-weight:bold;padding:5px 10px;border-radius:14px;background:#2b2410;border:2px solid #c79a21;color:#ffd24a}
+  .habchip.rev{background:#10242b;border-color:#0891b2;color:#9be7ff}
+  .row.hab .habico{width:46px;height:40px;border-radius:6px;background:#0c0f14;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
+  .row.hab.ativa{border-color:#c79a21;background:linear-gradient(90deg,#1c1a10,#16211a)}
   .row.fusao{border-color:#c79a21;background:linear-gradient(90deg,#1c1a10,#16211a)}
   .fus-slots{display:flex;gap:8px;align-items:stretch}
   .fus-slot{flex:1;min-height:66px;border:2px dashed var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;
@@ -275,6 +280,7 @@
   </div>
 
   <div class="meta" id="meta"><div class="mtxt" id="mtxt"></div><div class="mbar"><i id="mfill"></i></div></div>
+  <div class="habchips" id="habchips"></div>
 
   <div class="stage-wrap">
     <canvas id="stage" width="640" height="200"></canvas>
@@ -389,8 +395,26 @@ const STORAGE = [
 const MANAGERS = [
   {nivel:1, nome:"Gerente Júnior", taxa:0.10, desc:"Recolhe sozinho ao encher e fica com 10%", custo:1000},
   {nivel:2, nome:"Gerente Pleno",  taxa:0.05, desc:"Recolhe sozinho ao encher e fica com 5%",  custo:5000},
-  {nivel:3, nome:"Gerente Sênior", taxa:0.02, desc:"Recolhe sozinho ao encher e fica com 2%",  custo:20000}
+  {nivel:3, nome:"Gerente Sênior", taxa:0.02, desc:"Recolhe sozinho ao encher, fica com 2% e libera 3 habilidades especiais", custo:40000}
 ];
+/* Habilidades especiais: so com o Gerente Sênior contratado. Cada uma tem duracao (dur, 0 = instantanea) e
+   recarga (contada desde que foi usada, entao inclui o tempo em que ela esta ativa).
+   Hora Extra SOMA com o overclock (+100% cada: 1 + 1 + 1 = x3 no maximo), nao multiplica: assim nao explode. */
+const HABS = [
+  { id:"hora",     ico:"🚀", nome:"Hora Extra",       dur:300, recarga:1200,
+    desc:"Produção +100% por 5 minutos. Soma com o overclock. Recarga de 20 minutos." },
+  { id:"revisao",  ico:"🔧", nome:"Revisão Geral",    dur:300, recarga:900,
+    desc:"Conserta todas as máquinas quebradas na hora e impede novas quebras por 5 minutos. Recarga de 15 minutos." },
+  { id:"colheita", ico:"💰", nome:"Colheita Dourada", dur:0,   recarga:600,
+    desc:"Recolhe o armazenador agora, sem taxa, e paga 25% de bônus. Recarga de 10 minutos." }
+];
+const HAB_BONUS_COLHEITA = 0.25;
+function novoHab(){ return { hora:{restante:0,espera:0}, revisao:{restante:0,espera:0}, colheita:{restante:0,espera:0} }; }
+const temSenior = () => (S.managerLevel || 0) >= 3;
+const habEstado = id => (S.hab && S.hab[id]) || { restante:0, espera:0 };
+const habAtiva = id => temSenior() && habEstado(id).restante > 0;
+const horaExtraAtiva = () => habAtiva("hora");
+const revisaoAtiva = () => habAtiva("revisao");
 /* Missoes repetiveis: ao resgatar, a missao sobe de nivel, o alvo cresce
    e o premio cresce mais rapido que o alvo. Nunca acabam. */
 const MISSOES = [
@@ -611,6 +635,7 @@ function novoJogo(){
     breakdownTimer: 300,
     turbo: { restante: 0, espera: 0 },
     oc: { carga: 0 },
+    hab: novoHab(),
     som: true,
     modo: "normal",
     qtd: "1",
@@ -652,6 +677,7 @@ function carregar(){
     S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
     S.turbo.restante = Math.min(S.turbo.restante, TURBO_DURACAO); S.turbo.espera = Math.min(S.turbo.espera, TURBO_ESPERA);   // save do turbo antigo (30 s / 5 min)
     S.oc = Object.assign({ carga: 0 }, o.oc || {});
+    S.hab = novoHab(); for(const k in S.hab) S.hab[k] = Object.assign(S.hab[k], (o.hab || {})[k] || {});
     S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
     S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
   }catch(e){ console.warn("save invalido", e); }
@@ -737,15 +763,43 @@ function ligarTurbo(){
   render(); salvar();
 }
 
+// overclock e Hora Extra somam (+1 cada) em vez de multiplicar
+const multBoost = () => 1 + (turboAtivo() ? 1 : 0) + (horaExtraAtiva() ? 1 : 0);
 const taxa = () => {
   if(contaPendente()) return 0;
   const base = MACHINES.reduce((a,m)=> {
     if(maquinaQuebrada(m.id) || semFuel(m.id)) return a;
     return a + m.ps * nivelMaq(m.id);
   }, 0);
-  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * (turboAtivo() ? 2 : 1));
+  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost());
 };
 const cheio = () => S.stored >= cap() - 1e-9;
+
+function ativarHabilidade(id){
+  if(!temSenior() || emMenu || (DUEL && !DUEL.rodando)) return;
+  const h = HABS.find(x => x.id === id), e = habEstado(id);
+  if(!h || e.restante > 0 || e.espera > 0) return;
+  if(!S.hab) S.hab = novoHab();
+  if(id === "colheita"){
+    if(S.stored <= 0){ toast("O armazém está vazio. Espere encher para usar a Colheita Dourada."); return; }
+    const v = S.stored, total = v * (1 + HAB_BONUS_COLHEITA);
+    S.stored = 0; ganhar(total);
+    S.stats.collects++; S.stats.dailyCollects++;
+    toast("💰 Colheita Dourada: + " + moeda(total) + " (25% de bônus, sem taxa)");
+    flutuar("+" + moeda(total), $("#collect"), "#ffd24a");
+  } else if(id === "revisao"){
+    let n = 0;
+    for(const k in (S.broken || {})) if(S.broken[k] && S.broken[k].quebrada){ n++; S.stats.consertos = (S.stats.consertos || 0) + 1; }
+    S.broken = {};
+    toast("🔧 Revisão Geral: " + (n ? n + (n === 1 ? " máquina consertada" : " máquinas consertadas") + " e " : "") + "sem quebras por 5 minutos.");
+  } else {
+    toast("🚀 Hora Extra! Produção +100% por 5 minutos.");
+  }
+  S.hab[id] = { restante: h.dur, espera: h.recarga };
+  tocar("compra"); for(let i = 0; i < 14; i++) faisca(); vibrar([20, 30, 20]);
+  assinatura = ""; render(); salvar();
+}
+const habPronta = () => temSenior() && HABS.some(h => habEstado(h.id).restante <= 0 && habEstado(h.id).espera <= 0 && !(h.id === "colheita" && S.stored <= 0));
 
 // esquenta um pouco a cada clique; cheio, liga o overclock
 function esquentar(){
@@ -759,12 +813,12 @@ function esquentar(){
 function superaquecer(){
   const lista = maquinasDoRebirthAtual().filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id));
   let quebrar = [];
-  if(!S.semQuebras && lista.length >= 3){
+  if(!S.semQuebras && !revisaoAtiva() && lista.length >= 3){
     lista.sort(()=> Math.random() - .5);
     quebrar = lista.filter(()=> Math.random() < OC_RISCO).slice(0, OC_MAX_QUEBRAS);
   }
   toast(quebrar.length ? "🔥 Overclock acabou: " + quebrar.length + (quebrar.length === 1 ? " máquina estourou!" : " máquinas estouraram!")
-                       : "❄️ Overclock acabou. Esfriando " + TURBO_ESPERA + " s.");
+                       : (revisaoAtiva() ? "🔧 Overclock acabou. A Revisão Geral protegeu as máquinas." : "❄️ Overclock acabou. Esfriando " + TURBO_ESPERA + " s."));
   quebrar.forEach(quebrarMaquina);
 }
 function quebrarMaquinaAleatoria(){
@@ -1775,7 +1829,7 @@ function corProduto(m){
   return COR_MAQ[m.id] || "#ffd24a";
 }
 function rendaMaq(m){
-  return m.ps * nivelMaq(m.id) * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * (turboAtivo() ? 2 : 1);
+  return m.ps * nivelMaq(m.id) * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost();
 }
 const esteiraParada = () => cheio() || contaPendente();
 function passoProdutos(siloX, pos){
@@ -1915,6 +1969,16 @@ function loopDesenho(){
     cx.fillStyle = "#7a2e05"; cx.fillRect(7, 6, cx.measureText(etq).width + 10, 15);
     cx.fillStyle = "#ffd9a0"; cx.fillText(etq, 12, 17);
   }
+  if(horaExtraAtiva()){
+    cx.globalAlpha = .035 + .02 * Math.sin(F / 9);
+    R(0, 0, neededW, BASE, "#ffd24a");
+    cx.globalAlpha = 1;
+    const et2 = "HORA EXTRA +100%  " + mmss(habEstado("hora").restante);
+    cx.font = "bold 11px monospace"; cx.textAlign = "left";
+    const yy = turboAtivo() ? 26 : 6;
+    cx.fillStyle = "#5a4310"; cx.fillRect(7, yy, cx.measureText(et2).width + 10, 15);
+    cx.fillStyle = "#ffe9a8"; cx.fillText(et2, 12, yy + 11);
+  }
 
   requestAnimationFrame(loopDesenho);
 }
@@ -1989,7 +2053,7 @@ function thumb(canvasEl, id){
 const $ = s => document.querySelector(s);
 const el = (h)=>{ const d=document.createElement("div"); d.innerHTML=h.trim(); return d.firstChild; };
 
-let refsMaq = [], refsArm = [], refsGer = [], refsMis = [], assinatura = "";
+let refsMaq = [], refsArm = [], refsGer = [], refsMis = [], refsHab = [], assinatura = "";
 
 function assinaturaAtual(){
   const brokenKeys = Object.keys(S.broken || {}).sort().map(k => k + ":" + (S.broken[k].consertando?1:0)).join(",");
@@ -2132,7 +2196,7 @@ function atualizarBadges(){
   const mec = !S.hasMechanic && S.wallet >= custoMecanico();
   const missao = MISSOES.some(q => !(q.id === "m_turbo" && !modoAtual().turbo) && progMissao(q) >= alvoMissao(q));
   const arm = STORAGE[S.storageLevel] && S.wallet >= custoModo(STORAGE[S.storageLevel].custo);
-  const marca = { fab:Boolean(arm), eq:Boolean(ger || mec), prog:Boolean(missao || rebirthPronto() || podeReiniciar()), mais:false };
+  const marca = { fab:Boolean(arm), eq:Boolean(ger || mec || habPronta()), prog:Boolean(missao || rebirthPronto() || podeReiniciar()), mais:false };
   document.querySelectorAll(".tabs button").forEach(b=>{
     const i = b.querySelector(".bdg"); if(i) i.classList.toggle("show", marca[b.dataset.t] && abaAtual !== b.dataset.t);
   });
@@ -2226,11 +2290,17 @@ function renderHUD(){
   renderBanners();
   renderMeta();
   atualizarBadges();
+  const chips = [];
+  if(horaExtraAtiva()) chips.push('<span class="habchip">🚀 Hora Extra ' + mmss(habEstado("hora").restante) + '</span>');
+  if(revisaoAtiva()) chips.push('<span class="habchip rev">🔧 Revisão Geral ' + mmss(habEstado("revisao").restante) + '</span>');
+  const hc = $("#habchips"), html = chips.join("");
+  if(hc.dataset.k !== html){ hc.innerHTML = html; hc.dataset.k = html; hc.style.display = html ? "flex" : "none"; }
 }
 
 function atualizarEstados(){
   document.querySelectorAll(".qtdbar button").forEach(b=> b.classList.toggle("on", b.dataset.q === qtdSel()));
   atualizarFusao();
+  atualizarHab();
   refsMaq.forEach(r=>{
     if(r.btn){
       const pl = planoCompra(r.m);
@@ -2698,7 +2768,7 @@ function listaArmazenador(){
     const row = el(
       '<div class="row ' + (tem?"owned":"") + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
-        '<div><div class="nm">Nivel ' + s.nivel + '</div>' +
+        '<div class="info"><div class="nm">Nivel ' + s.nivel + '</div>' +
         '<div class="sub">Guarda ate R$ ' + fmt(s.cap) + '</div></div>' +
         '<div class="sp"></div>' +
         (tem ? '<span class="tag">' + (S.storageLevel===s.nivel?"ATUAL":"OK") + '</span>'
@@ -2721,7 +2791,7 @@ function listaGerentes(){
     const row = el(
       '<div class="row ' + (contratado ? "owned" : "") + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
-        '<div><div class="nm">' + g.nome + ' (Nivel ' + g.nivel + ')</div>' +
+        '<div class="info"><div class="nm">' + g.nome + ' (Nivel ' + g.nivel + ')</div>' +
         '<div class="sub">' + g.desc + '</div></div>' +
         '<div class="sp"></div>' +
         (contratado ? '<span class="tag">' + (atual ? "ATIVO" : "OK") + '</span>'
@@ -2739,7 +2809,7 @@ function listaGerentes(){
   const rowMec = el(
     '<div class="row ' + (temMec ? "owned" : "") + '">' +
       '<canvas class="mini" width="56" height="44"></canvas>' +
-      '<div><div class="nm">Mecânico Chefe</div>' +
+      '<div class="info"><div class="nm">Mecânico Chefe</div>' +
       '<div class="sub">Conserta máquinas quebradas sozinho em 10s sem precisar clicar</div></div>' +
       '<div class="sp"></div>' +
       (temMec ? '<span class="tag">ATIVO</span>'
@@ -2750,6 +2820,38 @@ function listaGerentes(){
   const btnMec = rowMec.querySelector("button");
   if(btnMec) btnMec.onclick = contratarMecanico;
   refsGer.push({isMec: true, btn: btnMec});
+
+  box.appendChild(el('<div class="lab" style="margin-top:14px">Habilidades do Gerente Sênior</div>'));
+  refsHab = [];
+  HABS.forEach(h=>{
+    const row = el(
+      '<div class="row hab">' +
+        '<div class="habico">' + h.ico + '</div>' +
+        '<div class="info"><div class="nm">' + h.nome + '</div><div class="sub">' + h.desc + '</div></div>' +
+        '<button class="buy cbuy hbtn"><span class="q"></span><span class="p"></span></button>' +
+      '</div>');
+    box.appendChild(row);
+    const btn = row.querySelector(".hbtn");
+    btn.onclick = ()=> ativarHabilidade(h.id);
+    refsHab.push({ h, row, btn, q: btn.querySelector(".q"), p: btn.querySelector(".p") });
+  });
+}
+function atualizarHab(){
+  const sen = temSenior();
+  refsHab.forEach(r=>{
+    const e = habEstado(r.h.id);
+    let q, p, dis = true;
+    if(!sen){ q = "🔒"; p = "Sênior"; }
+    else if(e.restante > 0){ q = "ATIVA"; p = mmss(e.restante); }
+    else if(e.espera > 0){ q = "RECARGA"; p = mmss(e.espera); }
+    else if(r.h.id === "colheita" && S.stored <= 0){ q = "SEM ESTOQUE"; p = "espere"; }
+    else { q = "PRONTA"; p = "ATIVAR"; dis = false; }
+    if(r.q.textContent !== q) r.q.textContent = q;
+    if(r.p.textContent !== p) r.p.textContent = p;
+    r.btn.disabled = dis;
+    r.row.classList.toggle("locked", !sen);
+    r.row.classList.toggle("ativa", sen && e.restante > 0);
+  });
 }
 
 function cardSelos(){
@@ -3028,7 +3130,7 @@ function listaCodigos(){
     usados.forEach(c=>{
       box.appendChild(el(
         '<div class="row owned" style="margin-bottom:8px">' +
-          '<div><div class="nm">' + c.titulo + '</div>' +
+          '<div class="info"><div class="nm">' + c.titulo + '</div>' +
           '<div class="sub">' + c.efeito + '</div></div>' +
           '<div class="sp"></div><span class="tag">USADO</span>' +
         '</div>'));
@@ -3038,7 +3140,7 @@ function listaCodigos(){
   if(faltam > 0){
     box.appendChild(el(
       '<div class="row" style="margin-top:8px">' +
-        '<div><div class="nm">' + faltam + ' código' + (faltam>1?'s':'') + ' escondido' + (faltam>1?'s':'') + '</div>' +
+        '<div class="info"><div class="nm">' + faltam + ' código' + (faltam>1?'s':'') + ' escondido' + (faltam>1?'s':'') + '</div>' +
         '<div class="sub">Peça para quem fez o jogo</div></div>' +
         '<div class="sp"></div><span class="tag" style="background:#2a303b;color:#8b97a8;border-color:#3b4556">???</span>' +
       '</div>'));
@@ -3062,6 +3164,7 @@ function listaCodigos(){
   add("rebirth +1", ()=> S.rebirth = Math.min(5, (S.rebirth||0)+1));
   add("consertar tudo", ()=> S.broken = {});
   add("quitar conta", ()=>{ if(S.bill) S.bill.ativa = false; });
+  add("habilidades prontas", ()=>{ S.hab = novoHab(); });
   add("overclock pronto", ()=>{ if(!S.turbo) S.turbo={restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; S.oc={carga:0}; });
   add(((S.semQuebras?"✅":"❌") + " quebras desligadas"), ()=> S.semQuebras = !S.semQuebras);
   add(((S.semContas?"✅":"❌") + " contas desligadas"),  ()=> S.semContas  = !S.semContas);
@@ -3086,7 +3189,7 @@ function listaArtes(){
     const row = el(
       '<div class="row">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
-        '<div><div class="nm">' + it.nome + '</div>' +
+        '<div class="info"><div class="nm">' + it.nome + '</div>' +
         '<div class="sub">' + (S.art[it.id] ? "arte propria" : "desenho padrao") + '</div></div>' +
         '<div class="sp"></div>' +
         '<button class="buy">TROCAR</button>' +
@@ -3290,7 +3393,7 @@ setInterval(()=>{
   S.breakdownTimer = (S.breakdownTimer !== undefined ? S.breakdownTimer : 300) - dt;
   if(S.breakdownTimer <= 0){
     S.breakdownTimer = modoAtual().quebra;
-    if(!S.semQuebras) quebrarMaquinaAleatoria();
+    if(!S.semQuebras && !revisaoAtiva()) quebrarMaquinaAleatoria();
   }
 
   // 2. Conserto de máquinas quebradas (10s)
@@ -3338,6 +3441,14 @@ setInterval(()=>{
       if(ml){ S.fuel[ml.id] = 10; toast("🆘 Tanque de emergência: 10s de combustível grátis"); }
     }
   }
+
+  // 3c. Habilidades do Gerente Sênior (tempo ativo e recarga)
+  if(!S.hab) S.hab = novoHab();
+  HABS.forEach(h=>{
+    const e = S.hab[h.id]; if(!e) return;
+    if(e.restante > 0){ e.restante -= dt; if(e.restante <= 0){ e.restante = 0; if(h.dur && temSenior()) toast(h.ico + " " + h.nome + " terminou."); } }
+    if(e.espera > 0){ e.espera -= dt; if(e.espera <= 0){ e.espera = 0; if(temSenior()) toast(h.ico + " " + h.nome + " pronta de novo."); } }
+  });
 
   // 4. Overclock
   if(!S.turbo) S.turbo = { restante:0, espera:0 };
