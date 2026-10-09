@@ -241,6 +241,9 @@
   .bigbtn.normal{background:#123c3a;border-color:#35e0d8;color:#ccfbf1}
   .bigbtn.hardcore{background:#4a1616;border-color:#ef5350;color:#fee2e2}
   .bigbtn.voltar{font-size:13px;padding:10px;border-width:2px;background:transparent;color:var(--dim)}
+  #inicio .chk{display:flex;align-items:flex-start;gap:8px;text-align:left;font-size:12px;line-height:1.5;color:var(--dim);margin:0 0 12px;cursor:pointer}
+  #inicio input[type=checkbox]{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:#4ade80}
+  #inicio .vinc{border:2px solid #c79a21;background:#1c1a10;border-radius:8px;padding:12px;margin:10px 0 12px;text-align:left}
   #inicio input{font:inherit;width:100%;padding:11px;margin:0 0 10px;border-radius:6px;
     border:2px solid var(--line);background:var(--panel);color:var(--txt);font-size:15px}
 </style>
@@ -3415,7 +3418,9 @@ function msg(texto, tipo){
   m.style.display = texto ? "block" : "none";
 }
 
+let timerReenvio = null, reenvioEm = 0, ultimoEmail = "", tokenPendente = null, ticketPendente = null, AUTH_CLIENTE = "ambos";
 function telaInicio(qual, extra){
+  clearInterval(timerReenvio);
   emMenu = true;
   ultimaTela = qual;
   const box = $("#inicio");
@@ -3435,23 +3440,56 @@ function telaInicio(qual, extra){
            '<small>Você abastece as máquinas (sem combustível elas param). Tudo 80% mais caro, máquinas dão 30% a menos, contas em dobro, quebras mais frequentes e SEM overclock.</small></button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
   } else if(qual === "login"){
-    h += '<div class="note" style="text-align:left;margin:0 0 12px">Para duelar você precisa de uma conta: escolha um <strong>nome</strong> e uma <strong>senha</strong>. ' +
-         'Seu amigo vai te achar por esse nome. O progresso do seu jogo normal continua só neste computador.</div>' +
+    h += '<div class="note" style="text-align:left;margin:0 0 12px">Entre com o seu <strong>email</strong>. Mandamos um link para você tocar: não tem senha para decorar. ' +
+         'Se ainda não tem conta, o mesmo link cria uma. O email é <strong>do responsável ou de quem tem 18 anos ou mais</strong> e ninguém vê. ' +
+         'O progresso do jogo normal continua só neste aparelho.</div>' +
+         '<input id="cemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" value="' + esc(extra||"") + '">' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn duelo" data-a="pedirlink">RECEBER LINK</button>' +
+         (AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' : '') +
+         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "linkenviado"){
+    h += '<div style="font-size:34px;margin:4px 0">✉️</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Link enviado!</div>' +
+         '<div class="note" style="margin:0 0 14px;line-height:1.7">Abra o email de <strong style="color:var(--gold)">' + esc(extra) + '</strong> e toque em <strong>Entrar na Fábrica</strong>. ' +
+         'O link vale 15 minutos. Se não achar, olhe o spam.</div>' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn duelo" id="breenv" data-a="reenviar" style="font-size:15px;padding:12px">REENVIAR LINK</button>' +
+         '<button class="bigbtn voltar" data-a="outroemail">USAR OUTRO EMAIL</button>';
+  } else if(qual === "confirmar"){
+    h += '<div style="font-size:34px;margin:4px 0">🔑</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Quase lá</div>' +
+         '<div class="note" style="margin:0 0 14px">Toque no botão para entrar na Fábrica de Pixel.</div>' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn jogar" data-a="confirmar">ENTRAR NA FÁBRICA</button>' +
+         '<button class="bigbtn voltar" data-a="outroemail">PEDIR UM LINK NOVO</button>';
+  } else if(qual === "apelido"){
+    h += '<div style="font-size:34px;margin:4px 0">🎮</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Escolha seu apelido</div>' +
+         '<div class="note" style="text-align:left;margin:0 0 12px">É assim que seu amigo vai te achar. <strong>Todo mundo vê esse nome</strong>, então não use seu nome completo. De 3 a 14 letras ou números.</div>' +
+         '<input id="capelido" maxlength="14" placeholder="Seu apelido" autocomplete="nickname">' +
+         '<label class="chk"><input type="checkbox" id="cconfirmo"><span>Este email é do responsável ou de alguém com 18 anos ou mais.</span></label>' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn duelo" data-a="criarconta">CRIAR MINHA CONTA</button>';
+  } else if(qual === "senha"){
+    h += '<div class="note" style="text-align:left;margin:0 0 12px">Entre com o seu <strong>nome</strong> e a <strong>senha</strong>. ' +
+         'Depois vincule um email para entrar sem senha.</div>' +
          '<input id="cnome" maxlength="14" placeholder="Seu nome" autocomplete="username" value="' + esc(extra||"") + '">' +
          '<input id="csenha" type="password" maxlength="64" placeholder="Sua senha" autocomplete="current-password">' +
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="entrar">ENTRAR</button>' +
-         '<button class="bigbtn jogar" data-a="criar" style="font-size:15px;padding:12px">CRIAR CONTA NOVA</button>' +
-         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+         '<button class="bigbtn voltar" data-a="outroemail">ENTRAR COM EMAIL</button>';
   } else if(qual === "desafio"){
     h += '<div class="note" style="margin:0 0 4px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' +
          (CONTA.vit !== undefined ? ' &nbsp;•&nbsp; ' + CONTA.vit + ' vitória' + (CONTA.vit===1?"":"s") + ' / ' + CONTA.der + ' derrota' + (CONTA.der===1?"":"s") : '') + '</div>' +
+         (CONTA.semEmail ? '<div class="vinc"><div style="font-size:13px;font-weight:bold;color:var(--gold);margin-bottom:6px">Vincule um email à sua conta</div>' +
+            '<div class="note" style="margin:0 0 8px">Assim você entra por link, sem senha, e não perde a conta. Use o email do responsável ou de quem tem 18 anos ou mais.</div>' +
+            '<input id="vemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" style="margin-bottom:8px">' +
+            '<button class="bigbtn jogar" data-a="vincular" style="font-size:14px;padding:10px;margin:0">ENVIAR LINK DE CONFIRMAÇÃO</button></div>' : '') +
          '<div class="note" style="text-align:left;margin:10px 0 12px">Digite o nome do seu amigo. Ele precisa ter conta e estar com o menu aberto neste jogo para aceitar. ' +
          'Quando ele aceitar, a partida começa <strong>ao mesmo tempo</strong> nos dois computadores.</div>' +
          '<input id="camigo" maxlength="14" placeholder="Nome do seu amigo" value="' + esc(extra||"") + '">' +
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="desafiar">DESAFIAR</button>' +
          '<button class="bigbtn voltar" data-a="trocar">TROCAR DE CONTA</button>' +
+         '<button class="bigbtn voltar" data-a="sairtodos">SAIR DE TODOS OS APARELHOS</button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
   } else if(qual === "espera"){
     h += '<div style="font-size:30px;margin:6px 0">⏳</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Aguardando ' + esc(extra) + ' aceitar…</div>' +
@@ -3482,25 +3520,89 @@ function telaInicio(qual, extra){
   box.querySelectorAll("[data-a]").forEach(b=> b.onclick = ()=> acaoInicio(b.dataset.a));
   box.querySelectorAll("[data-m]").forEach(b=> b.onclick = ()=> escolherModo(b.dataset.m));
   box.querySelectorAll("input").forEach(i=> i.onkeydown = e=>{
-    if(e.key === "Enter"){ e.preventDefault(); acaoInicio(qual === "login" ? "entrar" : "desafiar"); }
+    if(e.key === "Enter" && e.target.type !== "checkbox"){
+      e.preventDefault();
+      acaoInicio({ login:"pedirlink", senha:"entrar", apelido:"criarconta" }[qual] || "desafiar");
+    }
   });
-  const prim = box.querySelector("input"); if(prim && !prim.value) prim.focus();
+  const prim = box.querySelector("input"); if(prim && !prim.value && prim.type !== "checkbox") prim.focus();
+  if(qual === "linkenviado"){
+    const b = $("#breenv");
+    const tic = ()=>{
+      const falta = Math.ceil((reenvioEm - Date.now()) / 1000);
+      b.disabled = falta > 0; b.style.opacity = falta > 0 ? ".5" : "";
+      b.textContent = falta > 0 ? "REENVIAR LINK (" + falta + "s)" : "REENVIAR LINK";
+    };
+    tic(); timerReenvio = setInterval(tic, 500);
+  }
 }
 
 async function acaoInicio(a){
   if(a === "jogar") return telaInicio("modos");
   if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "login"); if(CONTA) atualizarPerfil(); return; }
   if(a === "voltar") return telaInicio("main");
-  if(a === "entrar" || a === "criar"){
+  if(a === "senha") return telaInicio("senha");
+  if(a === "outroemail") return telaInicio("login");
+  if(a === "entrar"){
     const nome = $("#cnome").value.trim(), senha = $("#csenha").value;
     if(!nome || !senha) return msg("Preencha o nome e a senha.");
     msg("Conectando…", "ok");
-    const r = await api(a === "entrar" ? "/entrar" : "/registrar", { nome, senha });
+    const r = await api("/entrar", { nome, senha });
     if(r.rede || !r.token) return msg(r.msg || "Não foi possível entrar.");
-    guardarConta({ token:r.token, nome:r.nome, vit:r.vitorias, der:r.derrotas });
-    return telaInicio("desafio");
+    return entrou(r);
+  }
+  if(a === "pedirlink" || a === "reenviar"){
+    const email = a === "pedirlink" ? ($("#cemail").value || "").trim().toLowerCase() : ultimoEmail;
+    if(!email) return msg("Digite o seu email.");
+    msg("Enviando…", "ok");
+    const r = await api("/conta/link", { email });
+    if(r.rede) return msg(r.msg);
+    if(r.status === 429 && r.segundos){ ultimoEmail = email; reenvioEm = Date.now() + r.segundos * 1000; if(a === "pedirlink") telaInicio("linkenviado", email); return msg(r.msg); }
+    if(r.status !== 200) return msg(r.msg || "Não foi possível enviar o link.");
+    ultimoEmail = email; reenvioEm = Date.now() + 60000;
+    if(a === "pedirlink") telaInicio("linkenviado", email); else msg("Enviamos outro link. Confira o email.", "ok");
+    return;
+  }
+  if(a === "confirmar"){
+    if(!tokenPendente) return telaInicio("login");
+    msg("Entrando…", "ok");
+    const r = await api("/conta/verificar", { token: tokenPendente });
+    if(r.rede) return msg(r.msg);
+    if(r.status === 410 || r.status === 400){ tokenPendente = null; return msg(r.msg || "Esse link não vale mais. Peça um novo."); }
+    tokenPendente = null;
+    if(r.precisaApelido){ ticketPendente = r.ticket; return telaInicio("apelido"); }
+    if(r.vinculado){
+      toast("✅ Email vinculado: " + r.email);
+      if(CONTA){ CONTA.semEmail = false; guardarConta(CONTA); }
+      return telaInicio(CONTA ? "desafio" : "login");
+    }
+    if(r.status === 409) return msg(r.msg);
+    return entrou(r);
+  }
+  if(a === "criarconta"){
+    const apelido = $("#capelido").value.trim(), confirmo = $("#cconfirmo").checked;
+    if(!apelido) return msg("Escolha um apelido.");
+    if(!confirmo) return msg("Marque que o email é do responsável ou de quem tem 18 anos ou mais.");
+    msg("Criando…", "ok");
+    const r = await api("/conta/apelido", { ticket: ticketPendente, apelido, confirmo: true });
+    if(r.rede) return msg(r.msg);
+    if(r.status === 410){ ticketPendente = null; telaInicio("login"); return msg("Essa etapa venceu. Peça um novo link."); }
+    if(!r.token) return msg(r.msg || "Não foi possível criar a conta.");
+    ticketPendente = null;
+    return entrou(r);
+  }
+  if(a === "vincular"){
+    const email = ($("#vemail").value || "").trim().toLowerCase();
+    if(!email) return msg("Digite o email para vincular.");
+    msg("Enviando…", "ok");
+    const r = await api("/conta/email", { email });
+    if(r.rede) return msg(r.msg);
+    if(r.status === 401){ guardarConta(null); telaInicio("login"); return msg("Sua sessão acabou. Entre de novo."); }
+    if(r.status !== 200) return msg(r.msg || "Não foi possível enviar o link.");
+    return msg("Enviamos um link para " + email + ". Toque nele para confirmar o email.", "ok");
   }
   if(a === "trocar"){ await api("/sair", {}); guardarConta(null); return telaInicio("login"); }
+  if(a === "sairtodos"){ await api("/conta/sair", { todos: true }); guardarConta(null); return telaInicio("login"); }
   if(a === "desafiar") return desafiar($("#camigo").value.trim());
   if(a === "cancelar"){ await api("/duelo/cancelar", {}); esperandoId = null; return telaInicio("desafio"); }
   if(a === "revanche"){
@@ -3512,14 +3614,22 @@ async function acaoInicio(a){
   if(a === "sairduelo"){ await api("/duelo/encerrar", {}); sairDuelo(); }
 }
 
+// entrou (link ou senha): guarda a sessao e leva para a tela de desafio
+function entrou(r){
+  guardarConta({ token:r.token, nome:r.nome, vit:r.vitorias, der:r.derrotas, semEmail: r.semEmail === true });
+  telaInicio("desafio");
+  atualizarPerfil();
+}
+
 let ultimoAdversario = "";
 async function atualizarPerfil(){
   const r = await api("/eu");
   if(r.status === 401){ guardarConta(null); return telaInicio("login"); }
   if(r.nome){
-    CONTA.vit = r.vitorias; CONTA.der = r.derrotas; guardarConta(CONTA);
+    const mudou = CONTA.semEmail !== (r.semEmail === true);
+    CONTA.vit = r.vitorias; CONTA.der = r.derrotas; CONTA.semEmail = r.semEmail === true; guardarConta(CONTA);
     const ci = document.getElementById("camigo");
-    if(ultimaTela === "desafio" && ci && !ci.value) telaInicio("desafio");
+    if(ultimaTela === "desafio" && ci && !ci.value && (mudou || !document.activeElement || document.activeElement.tagName !== "INPUT")) telaInicio("desafio");
   }
 }
 
@@ -3744,8 +3854,8 @@ function loopMenu(){
   fm.style.display = aberto ? "block" : "none";
   if(aberto){
     const H = fm.height, dy = H - 200;
-    const cxReal = cx, nivReal = S.machines, cnReal = coins;
-    cx = fmx; S.machines = {}; coins = [];
+    const cxReal = cx, nivReal = S.machines, cnReal = coins, quebReal = S.broken;
+    cx = fmx; S.machines = {}; S.broken = {}; coins = [];       // o fundo do menu nao herda as quebras do save
     try{
       fmx.save();
       fmx.fillStyle = "#0b0e14"; fmx.fillRect(0, 0, CENA_W, H);
@@ -3762,13 +3872,26 @@ function loopMenu(){
       for(let x=(F*1.4)%90; x<CENA_W; x+=90){ R(x-3, BASE+23, 6, 6, "#ffd24a"); R(x-1, BASE+24, 2, 4, "#fff3c4"); }
       fmx.restore();
     }catch(e){ /* o fundo nunca pode derrubar o menu */ }
-    cx = cxReal; S.machines = nivReal; coins = cnReal;
+    cx = cxReal; S.machines = nivReal; coins = cnReal; S.broken = quebReal;
   }
   requestAnimationFrame(loopMenu);
 }
 window.addEventListener("resize", ajustaFundoMenu);
 
 abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
+api("/hora").then(r => { if(r && r.authMode) AUTH_CLIENTE = r.authMode; });
+// link do email (?entrar=TOKEN): tira o token da barra de endereco na hora e mostra o botao de confirmar.
+// So o clique no botao gasta o token; abrir o link (ou um antivirus pre-visitar) nao gasta.
+(function(){
+  try{
+    const u = new URL(location.href), t = u.searchParams.get("entrar");
+    if(t && /^[0-9a-f]{64}$/.test(t)){
+      tokenPendente = t; u.searchParams.delete("entrar");
+      history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+      telaInicio("confirmar");
+    }
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
