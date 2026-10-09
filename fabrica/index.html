@@ -3634,6 +3634,9 @@ function telaInicio(qual, extra){
   } else if(qual === "desafio"){
     h += '<div class="note" style="margin:0 0 4px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' +
          (CONTA.vit !== undefined ? ' &nbsp;•&nbsp; ' + CONTA.vit + ' vitória' + (CONTA.vit===1?"":"s") + ' / ' + CONTA.der + ' derrota' + (CONTA.der===1?"":"s") : '') + '</div>' +
+         (CONTA.codigo ? '<div class="note" style="margin:2px 0 0">Seu ID: <strong style="color:var(--gold);letter-spacing:1px">#' + esc(CONTA.codigo) + '</strong> ' +
+            '<button type="button" data-a="copiarid" style="font:inherit;font-size:11px;padding:4px 8px;margin-left:4px;cursor:pointer;border:2px solid var(--line);border-radius:5px;background:var(--panel2);color:var(--dim)">COPIAR</button>' +
+            '<div style="font-size:11px;margin-top:3px">É só seu e não muda. Quem souber o ID acha você mesmo sem saber o apelido.</div></div>' : '') +
          (CONTA.semEmail ? '<div class="vinc"><div style="font-size:13px;font-weight:bold;color:var(--gold);margin-bottom:6px">Vincule um email à sua conta</div>' +
             '<div class="note" style="margin:0 0 8px">Assim você entra por link, sem senha, e não perde a conta. Use o email do responsável ou de quem tem 18 anos ou mais.</div>' +
             '<input id="vemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" style="margin-bottom:8px">' +
@@ -3641,7 +3644,7 @@ function telaInicio(qual, extra){
          '<div id="amigos" style="margin:10px 0 4px"></div>' +
          '<div class="note" style="text-align:left;margin:10px 0 8px">Ou digite o apelido de um amigo. Ele precisa estar com o menu aberto neste jogo para aceitar. ' +
          'Quando ele aceitar, a partida começa <strong>ao mesmo tempo</strong> nos dois aparelhos.</div>' +
-         '<input id="camigo" maxlength="14" placeholder="Apelido do seu amigo" value="' + esc(extra||"") + '">' +
+         '<input id="camigo" maxlength="14" placeholder="Apelido ou ID do amigo (#K7M2Q9)" value="' + esc(extra||"") + '">' +
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="desafiar">DESAFIAR</button>' +
          '<button class="bigbtn jogar" id="bconvite" data-a="convidar" style="font-size:14px;padding:11px">CONVIDAR AMIGO POR LINK</button>' +
@@ -3777,6 +3780,11 @@ async function acaoInicio(a){
     return msg("Link copiado! Cole na conversa com o seu amigo.", "ok");
   }
   if(a === "voltardesafio") return telaInicio("desafio");
+  if(a === "copiarid"){
+    const id = "#" + CONTA.codigo;
+    try{ await navigator.clipboard.writeText(id); toast("ID copiado: " + id); }catch(e){ toast("Seu ID: " + id); }
+    return;
+  }
   if(a === "aceitarconvite"){ msg("Aceitando…", "ok"); await aceitarConvite(); return telaInicio("desafio"); }
   if(a === "semconvite"){ guardarConvite(null); return telaInicio(CONTA ? "desafio" : "main"); }
   if(a === "trocar"){ await api("/sair", {}); guardarConta(null); amigosConhecidos = null; return telaInicio("login"); }
@@ -3841,8 +3849,8 @@ async function atualizarPerfil(){
   const r = await api("/eu");
   if(r.status === 401){ guardarConta(null); return telaInicio("login"); }
   if(r.nome){
-    const mudou = CONTA.semEmail !== (r.semEmail === true);
-    CONTA.vit = r.vitorias; CONTA.der = r.derrotas; CONTA.semEmail = r.semEmail === true; guardarConta(CONTA);
+    const mudou = CONTA.semEmail !== (r.semEmail === true) || CONTA.codigo !== r.codigo;
+    CONTA.vit = r.vitorias; CONTA.der = r.derrotas; CONTA.semEmail = r.semEmail === true; CONTA.codigo = r.codigo; guardarConta(CONTA);
     const ci = document.getElementById("camigo");
     if(ultimaTela === "desafio" && ci && !ci.value && (mudou || !document.activeElement || document.activeElement.tagName !== "INPUT")) telaInicio("desafio");
   }
