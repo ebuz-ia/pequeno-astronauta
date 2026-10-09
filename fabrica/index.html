@@ -3539,7 +3539,11 @@ function msg(texto, tipo){
 }
 
 let timerReenvio = null, reenvioEm = 0, ultimoEmail = "", tokenPendente = null, ticketPendente = null, AUTH_CLIENTE = "ambos";
-let conviteAtual = null, urlConvite = "", amigosConhecidos = null, ultimoAmigos = 0;
+let conviteAtual = null, urlConvite = "", amigosConhecidos = null, ultimoAmigos = 0, SENHA_ATE_CLIENTE = null;
+// botao da entrada antiga por nome e senha. No modo "link" so existe como ponte para conta antiga sem email.
+const botaoSenha = ()=> AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' :
+  (SENHA_ATE_CLIENTE ? '<button class="bigbtn voltar" data-a="senha">Tenho conta antiga, sem email</button>' : "");
+const dataBR = iso => { const d = new Date(iso); return pad2(d.getUTCDate()) + "/" + pad2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear(); };
 const CONVITE_KEY = "fabrica-convite";
 function guardarConvite(c){
   conviteAtual = c;
@@ -3573,7 +3577,7 @@ function telaInicio(qual, extra){
          '<input id="cemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" value="' + esc(extra||"") + '">' +
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="pedirlink">RECEBER LINK</button>' +
-         (AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' : '') +
+         botaoSenha() +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
   } else if(qual === "convite"){
     h += '<div style="font-size:34px;margin:4px 0">🎮</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px"><span style="color:var(--gold)">' + esc(extra) + '</span> te chamou para jogar!</div>' +
@@ -3584,7 +3588,7 @@ function telaInicio(qual, extra){
                 : '<input id="cemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com">' +
                   '<div id="msg" class="msgbox"></div>' +
                   '<button class="bigbtn duelo" data-a="pedirlink">RECEBER LINK</button>' +
-                  (AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' : '')) +
+                  botaoSenha()) +
          '<button class="bigbtn voltar" data-a="semconvite">AGORA NÃO</button>';
   } else if(qual === "convidar"){
     h += '<div style="font-size:34px;margin:4px 0">💌</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Convite pronto!</div>' +
@@ -3617,8 +3621,11 @@ function telaInicio(qual, extra){
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="criarconta">CRIAR MINHA CONTA</button>';
   } else if(qual === "senha"){
-    h += '<div class="note" style="text-align:left;margin:0 0 12px">Entre com o seu <strong>nome</strong> e a <strong>senha</strong>. ' +
-         'Depois vincule um email para entrar sem senha.</div>' +
+    h += '<div class="note" style="text-align:left;margin:0 0 12px">' +
+         (AUTH_CLIENTE === "link"
+           ? 'Esta entrada é <strong>só para contas antigas que ainda não têm email</strong>. Entre e vincule um email: a partir daí a conta entra só por link, sem senha.' +
+             (SENHA_ATE_CLIENTE ? ' A entrada por senha acaba em <strong>' + dataBR(SENHA_ATE_CLIENTE) + '</strong>.' : '')
+           : 'Entre com o seu <strong>nome</strong> e a <strong>senha</strong>. Depois vincule um email para entrar sem senha.') + '</div>' +
          '<input id="cnome" maxlength="14" placeholder="Seu nome" autocomplete="username" value="' + esc(extra||"") + '">' +
          '<input id="csenha" type="password" maxlength="64" placeholder="Sua senha" autocomplete="current-password">' +
          '<div id="msg" class="msgbox"></div>' +
@@ -3699,6 +3706,8 @@ async function acaoInicio(a){
     if(!nome || !senha) return msg("Preencha o nome e a senha.");
     msg("Conectando…", "ok");
     const r = await api("/entrar", { nome, senha });
+    if(r.erro === "use_link"){ const b = document.querySelector('#inicio [data-a=outroemail]'); if(b) b.classList.add("destaque"); return msg(r.msg); }
+    if(r.status === 410){ SENHA_ATE_CLIENTE = null; telaInicio("login"); return msg(r.msg || "A entrada por senha acabou. Entre com o seu email."); }
     if(r.rede || !r.token) return msg(r.msg || "Não foi possível entrar.");
     return entrou(r);
   }
@@ -4089,7 +4098,7 @@ function loopMenu(){
 window.addEventListener("resize", ajustaFundoMenu);
 
 abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
-api("/hora").then(r => { if(r && r.authMode) AUTH_CLIENTE = r.authMode; });
+api("/hora").then(r => { if(r && r.authMode){ AUTH_CLIENTE = r.authMode; SENHA_ATE_CLIENTE = r.senhaAte || null; } });
 // link de convite (?convite=CODIGO): guarda o codigo (some da barra de endereco) e mostra quem convidou
 async function mostrarConviteAmizade(){
   const r = await api("/convites/" + conviteAtual);
