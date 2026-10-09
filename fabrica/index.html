@@ -10,7 +10,7 @@
     desenhaMaquina  desenho de cada maquina
     desenhaSilo     desenho do armazenador
     MODOS           facil/normal/hardcore (custo, producao, conta, quebra, turbo, combustivel)
-    telaInicio      menu inicial; iniciarDuelo/fimTurno = duelo 1x1 de 5 minutos
+    telaInicio      menu inicial; duelo 1x1 ONLINE (API em api.ebuz.com.br/fabrica-game)
 
   Nao troque a chave do save "fabrica-pixel-save-v1": isso apaga o progresso de quem joga.
 -->
@@ -117,6 +117,7 @@
     .row .buy{padding:8px 9px;font-size:12px}
     #abast{font-size:12px !important;padding:12px 8px !important}
   }
+  .msgbox{display:none;margin:0 0 10px;padding:9px 10px;border-radius:6px;background:#1a1216;border:2px solid #4b2630;font-size:13px;line-height:1.5}
   .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:2px 0 8px}
   .modotag{font-size:11px;letter-spacing:1px;font-weight:bold;padding:5px 9px;border-radius:5px;
     border:2px solid var(--line);background:var(--panel2)}
@@ -2509,8 +2510,9 @@ setInterval(()=>{
   const agora = Date.now();
   const dt = Math.min(1, (agora - ultimo)/1000);
   ultimo = agora;
+  if(DUEL) tickDuelo();
   if(emMenu){ return; }
-  if(DUEL){ tickDuelo(); if(!DUEL.rodando){ render(); return; } }
+  if(DUEL && !DUEL.rodando){ render(); return; }
   checarDia();
   if(S.wallet > (S.stats.picoCarteira||0)) S.stats.picoCarteira = S.wallet;
   if(!document.hidden){ S.stats.dailySeconds += dt; S.stats.segundosTotais = (S.stats.segundosTotais||0) + dt; }
@@ -2602,20 +2604,59 @@ setInterval(salvar, 5000);
 window.addEventListener("beforeunload", salvar);
 
 
-/* ---------------- TELA INICIAL, MODOS E DUELO 1x1 ---------------- */
-const DUELO_SEG = 300;           // 5 minutos por jogador
+/* ---------------- TELA INICIAL, MODOS E DUELO 1x1 ONLINE ---------------- */
+const API = "https://api.ebuz.com.br/fabrica-game";
+const CONTA_KEY = "fabrica-pixel-conta";
 let emMenu = true;               // true enquanto a tela inicial esta aberta (jogo pausado, nada grava)
-let DUEL = null;                 // estado do duelo: {nomes, placar, turno, fim, rodando}
+let DUEL = null;                 // duelo em andamento neste computador
 let STASH = null;                // save real guardado enquanto dura o duelo
+let CONTA = null;                // {token, nome}
+let OFFSET = 0;                  // relogio do servidor menos o relogio daqui
+let conviteMostrado = null, esperandoId = null, resultadoMostrado = null, ultimaTela = "main", pollando = false;
+const agoraSrv = () => Date.now() + OFFSET;
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+try{ const c = JSON.parse(localStorage.getItem(CONTA_KEY) || "null"); if(c && c.token && c.nome) CONTA = c; }catch(e){}
+function guardarConta(c){
+  CONTA = c;
+  try{ if(c) localStorage.setItem(CONTA_KEY, JSON.stringify(c)); else localStorage.removeItem(CONTA_KEY); }catch(e){}
+}
+
+async function api(rota, corpo){
+  const t0 = Date.now();
+  try{
+    const ctl = new AbortController(), to = setTimeout(()=>ctl.abort(), 8000);
+    const r = await fetch(API + rota, {
+      method: corpo === undefined ? "GET" : "POST", signal: ctl.signal,
+      headers: Object.assign({"Content-Type":"application/json"}, CONTA ? {Authorization:"Bearer " + CONTA.token} : {}),
+      body: corpo === undefined ? undefined : JSON.stringify(corpo)
+    });
+    clearTimeout(to);
+    const j = await r.json();
+    if(j && j.agora) OFFSET = j.agora - (t0 + Date.now())/2;   // metade do tempo de ida e volta
+    j.status = r.status;
+    return j;
+  }catch(e){ return { rede:true, msg:"Não consegui falar com o servidor. Confira a internet." }; }
+}
+
+function msg(texto, tipo){
+  const m = document.getElementById("msg");
+  if(!m) return;
+  m.textContent = texto || "";
+  m.style.color = tipo === "ok" ? "var(--ok)" : "#ff9b9b";
+  m.style.display = texto ? "block" : "none";
+}
 
 function telaInicio(qual, extra){
   emMenu = true;
+  ultimaTela = qual;
   const box = $("#inicio");
   box.style.display = "flex";
-  let h = '<div class="box"><h2>FÁBRICA DE PIXEL</h2><div class="sub2">escolha como quer jogar</div>';
+  let h = '<div class="box"><h2>FÁBRICA DE PIXEL</h2><div class="sub2">' +
+    (qual === "main" || qual === "modos" ? "escolha como quer jogar" : "duelo 1x1 online") + '</div>';
   if(qual === "main"){
     h += '<button class="bigbtn jogar" data-a="jogar">JOGAR<small>Sua fábrica, no seu ritmo. Escolha fácil, normal ou hardcore.</small></button>' +
-         '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Quem faz a melhor fábrica em 5 minutos? Dois jogadores, a mesma fábrica do zero.</small></button>';
+         '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Desafie um amigo pelo nome. Os dois jogam 5 minutos ao mesmo tempo, cada um no seu computador.</small></button>';
   } else if(qual === "modos"){
     const at = S.modo || "normal";
     h += '<button class="bigbtn facil" data-m="facil">FÁCIL' + (at==="facil"?" ✓":"") +
@@ -2625,25 +2666,106 @@ function telaInicio(qual, extra){
          '<button class="bigbtn hardcore" data-m="hardcore">HARDCORE' + (at==="hardcore"?" ✓":"") +
            '<small>Você abastece as máquinas (sem combustível elas param). Tudo 80% mais caro, máquinas dão 30% a menos, contas em dobro, quebras mais frequentes e SEM turbo.</small></button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
-  } else if(qual === "duelo"){
-    h += '<div class="note" style="text-align:left;margin:0 0 12px">Cada jogador recebe uma fábrica nova, com as mesmas regras do modo normal, e joga <strong>5 minutos</strong>, um de cada vez. ' +
-         'No fim, o dinheiro ganho de cada um é comparado. Seu save normal não é mexido. Códigos e painel adm ficam bloqueados.</div>' +
-         '<input id="nome1" maxlength="14" placeholder="Nome do Jogador 1" value="' + (extra&&extra[0]||"") + '">' +
-         '<input id="nome2" maxlength="14" placeholder="Nome do Jogador 2" value="' + (extra&&extra[1]||"") + '">' +
-         '<button class="bigbtn duelo" data-a="comecar">COMEÇAR DUELO</button>' +
+  } else if(qual === "login"){
+    h += '<div class="note" style="text-align:left;margin:0 0 12px">Para duelar você precisa de uma conta: escolha um <strong>nome</strong> e uma <strong>senha</strong>. ' +
+         'Seu amigo vai te achar por esse nome. O progresso do seu jogo normal continua só neste computador.</div>' +
+         '<input id="cnome" maxlength="14" placeholder="Seu nome" autocomplete="username" value="' + esc(extra||"") + '">' +
+         '<input id="csenha" type="password" maxlength="64" placeholder="Sua senha" autocomplete="current-password">' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn duelo" data-a="entrar">ENTRAR</button>' +
+         '<button class="bigbtn jogar" data-a="criar" style="font-size:15px;padding:12px">CRIAR CONTA NOVA</button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "desafio"){
+    h += '<div class="note" style="margin:0 0 4px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' +
+         (CONTA.vit !== undefined ? ' &nbsp;•&nbsp; ' + CONTA.vit + ' vitória' + (CONTA.vit===1?"":"s") + ' / ' + CONTA.der + ' derrota' + (CONTA.der===1?"":"s") : '') + '</div>' +
+         '<div class="note" style="text-align:left;margin:10px 0 12px">Digite o nome do seu amigo. Ele precisa ter conta e estar com o menu aberto neste jogo para aceitar. ' +
+         'Quando ele aceitar, a partida começa <strong>ao mesmo tempo</strong> nos dois computadores.</div>' +
+         '<input id="camigo" maxlength="14" placeholder="Nome do seu amigo" value="' + esc(extra||"") + '">' +
+         '<div id="msg" class="msgbox"></div>' +
+         '<button class="bigbtn duelo" data-a="desafiar">DESAFIAR</button>' +
+         '<button class="bigbtn voltar" data-a="trocar">TROCAR DE CONTA</button>' +
+         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "espera"){
+    h += '<div style="font-size:30px;margin:6px 0">⏳</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Aguardando ' + esc(extra) + ' aceitar…</div>' +
+         '<div class="note" style="margin:0 0 16px">O convite vale por 2 minutos. ' + esc(extra) + ' vê o pedido quando estiver no menu do jogo.</div>' +
+         '<button class="bigbtn voltar" data-a="cancelar">CANCELAR CONVITE</button>';
+  } else if(qual === "contagem"){
+    h += '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">' + esc(DUEL.nomes[0]) + '  ×  ' + esc(DUEL.nomes[1]) + '</div>' +
+         '<div style="font-size:15px;margin:14px 0 4px;color:var(--dim)">A partida começa em</div>' +
+         '<div id="cont" style="font-size:84px;font-weight:bold;color:var(--gold);line-height:1">…</div>' +
+         '<div class="note" style="margin-top:14px">Os dois computadores largam juntos. Vence quem ganhar mais dinheiro em 5 minutos.</div>';
+  } else if(qual === "fim"){
+    h += '<div style="font-size:30px;margin:6px 0">⏱️</div><div style="font-size:20px;font-weight:bold">TEMPO ESGOTADO</div>' +
+         '<div class="val gold" style="font-size:24px;margin:10px 0">' + moeda(DUEL.final || 0) + '</div>' +
+         '<div class="note">Aguardando ' + esc(DUEL.nomes[1]) + ' terminar…</div>';
+  } else if(qual === "resultado"){
+    const d = extra, eu = d.seuFinal || 0, el_ = d.finalAdversario || 0;
+    const venci = eu > el_, empate = eu === el_;
+    h += '<div style="font-size:40px">' + (empate ? "🤝" : venci ? "🏆" : "😤") + '</div>' +
+         '<div class="lab" style="color:var(--gold);letter-spacing:2px">RESULTADO DO DUELO</div>' +
+         '<div style="font-size:24px;font-weight:bold;margin:8px 0">' + (empate ? "EMPATE!" : venci ? "VOCÊ VENCEU!" : esc(d.adversario) + " VENCEU!") + '</div>' +
+         '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:12px 0;text-align:left;line-height:2">' +
+           '<div style="display:flex;justify-content:space-between;' + (venci?'color:var(--gold);font-weight:bold':'') + '"><span>' + (venci?"🏆 ":"") + esc(d.voceNome) + ' (você)</span><span>' + moeda(eu) + '</span></div>' +
+           '<div style="display:flex;justify-content:space-between;' + (!venci&&!empate?'color:var(--gold);font-weight:bold':'') + '"><span>' + (!venci&&!empate?"🏆 ":"") + esc(d.adversario) + '</span><span>' + moeda(el_) + '</span></div></div>' +
+         '<button class="bigbtn duelo" data-a="revanche" style="font-size:16px;padding:12px">REVANCHE</button>' +
+         '<button class="bigbtn voltar" data-a="sairduelo">SAIR</button>';
   }
   box.innerHTML = h + '</div>';
-  box.querySelectorAll("[data-a]").forEach(b=> b.onclick = ()=>{
-    const a = b.dataset.a;
-    if(a === "jogar") telaInicio("modos");
-    else if(a === "duelo") telaInicio("duelo");
-    else if(a === "voltar") telaInicio("main");
-    else if(a === "comecar"){
-      iniciarDuelo($("#nome1").value.trim(), $("#nome2").value.trim());
-    }
-  });
+  box.querySelectorAll("[data-a]").forEach(b=> b.onclick = ()=> acaoInicio(b.dataset.a));
   box.querySelectorAll("[data-m]").forEach(b=> b.onclick = ()=> escolherModo(b.dataset.m));
+  box.querySelectorAll("input").forEach(i=> i.onkeydown = e=>{
+    if(e.key === "Enter"){ e.preventDefault(); acaoInicio(qual === "login" ? "entrar" : "desafiar"); }
+  });
+  const prim = box.querySelector("input"); if(prim && !prim.value) prim.focus();
+}
+
+async function acaoInicio(a){
+  if(a === "jogar") return telaInicio("modos");
+  if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "login"); if(CONTA) atualizarPerfil(); return; }
+  if(a === "voltar") return telaInicio("main");
+  if(a === "entrar" || a === "criar"){
+    const nome = $("#cnome").value.trim(), senha = $("#csenha").value;
+    if(!nome || !senha) return msg("Preencha o nome e a senha.");
+    msg("Conectando…", "ok");
+    const r = await api(a === "entrar" ? "/entrar" : "/registrar", { nome, senha });
+    if(r.rede || !r.token) return msg(r.msg || "Não foi possível entrar.");
+    guardarConta({ token:r.token, nome:r.nome, vit:r.vitorias, der:r.derrotas });
+    return telaInicio("desafio");
+  }
+  if(a === "trocar"){ await api("/sair", {}); guardarConta(null); return telaInicio("login"); }
+  if(a === "desafiar") return desafiar($("#camigo").value.trim());
+  if(a === "cancelar"){ await api("/duelo/cancelar", {}); esperandoId = null; return telaInicio("desafio"); }
+  if(a === "revanche"){
+    const adv = ultimoAdversario;
+    await api("/duelo/encerrar", {});
+    sairDuelo(true);
+    return desafiar(adv);
+  }
+  if(a === "sairduelo"){ await api("/duelo/encerrar", {}); sairDuelo(); }
+}
+
+let ultimoAdversario = "";
+async function atualizarPerfil(){
+  const r = await api("/eu");
+  if(r.status === 401){ guardarConta(null); return telaInicio("login"); }
+  if(r.nome){
+    CONTA.vit = r.vitorias; CONTA.der = r.derrotas; guardarConta(CONTA);
+    const ci = document.getElementById("camigo");
+    if(ultimaTela === "desafio" && ci && !ci.value) telaInicio("desafio");
+  }
+}
+
+async function desafiar(amigo){
+  if(!amigo){ telaInicio("desafio"); return msg("Digite o nome do seu amigo."); }
+  if(ultimaTela !== "desafio") telaInicio("desafio", amigo);
+  msg("Procurando " + amigo + "…", "ok");
+  const r = await api("/duelo/desafiar", { amigo });
+  if(r.status === 401){ guardarConta(null); telaInicio("login"); return msg("Sua sessão acabou. Entre de novo."); }
+  if(r.rede) return msg(r.msg);
+  if(r.erro){ return msg(r.msg || "Não foi possível desafiar."); }
+  ultimoAdversario = r.duelo.adversario;
+  esperandoId = r.duelo.id;
+  telaInicio("espera", r.duelo.adversario);
 }
 
 function fecharInicio(){
@@ -2676,18 +2798,40 @@ function abrirMenuInicial(){
 function pad2(n){ return String(n).padStart(2,"0"); }
 function mmss(seg){ seg = Math.max(0, Math.ceil(seg)); return Math.floor(seg/60) + ":" + pad2(seg%60); }
 
-function iniciarDuelo(n1, n2){
-  if(DUEL) return;
-  $("#inicio").style.display = "none";
-  STASH = JSON.stringify(S);
-  DUEL = { nomes:[n1 || "Jogador 1", n2 || "Jogador 2"], placar:[0,0], turno:0, fim:0, rodando:false, art:S.art };
-  document.body.classList.add("duelo");
-  // se a aba de codigos estava aberta, volta para as maquinas
-  document.querySelector('.tabs button[data-t="maq"]').click();
-  prepararTurno();
+/* ---- convite recebido ---- */
+function mostrarConvite(d){
+  const velho = document.getElementById("convite"); if(velho) velho.remove();
+  const m = document.createElement("div");
+  m.id = "convite"; m.className = "modal-bg"; m.style.zIndex = 140;
+  m.innerHTML = '<div class="modal-box" style="text-align:center">' +
+    '<div style="font-size:34px">⚔️</div>' +
+    '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">DESAFIO RECEBIDO</div>' +
+    '<div style="font-size:19px;font-weight:bold;margin:8px 0"><span style="color:var(--gold)">' + esc(d.desafiante) + '</span> te desafiou!</div>' +
+    '<div class="note" style="margin:0 0 14px">Duelo de 5 minutos. Os dois começam juntos, cada um na sua fábrica nova. Vence quem ganhar mais dinheiro.</div>' +
+    '<div style="display:flex;gap:8px"><button class="collect" id="cv-sim" style="margin:0;flex:1">ACEITAR</button>' +
+    '<button id="cv-nao" style="font:inherit;padding:10px 14px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--dim)">RECUSAR</button></div></div>';
+  document.body.appendChild(m);
+  m.querySelector("#cv-sim").onclick = async ()=>{
+    m.remove();
+    const r = await api("/duelo/aceitar", {});
+    if(r.duelo) aplicarEstado(r.duelo); else toast(r.msg || "Esse convite não vale mais.");
+  };
+  m.querySelector("#cv-nao").onclick = async ()=>{ m.remove(); await api("/duelo/recusar", {}); };
 }
 
-function prepararTurno(){
+/* ---- ciclo da partida ---- */
+function prepararDuelo(d){
+  const c = document.getElementById("convite"); if(c) c.remove();
+  STASH = JSON.stringify(S);
+  DUEL = { id:d.id, nomes:[d.voceNome, d.adversario], startAt:d.startAt, endAt:d.endAt,
+           rodando:false, terminado:false, final:null, art:S.art, ganhoAdv:0, enviado:false };
+  ultimoAdversario = d.adversario;
+  document.body.classList.add("duelo");
+  document.querySelector('.tabs button[data-t="maq"]').click();
+  telaInicio("contagem");
+}
+
+function comecarPartida(){
   const art = DUEL.art;
   S = novoJogo();
   S.art = art || {};
@@ -2695,87 +2839,104 @@ function prepararTurno(){
   S.semQuebras = true;                    // quebra sorteada seria injusta numa partida curta
   S.lastSave = Date.now();
   coins = []; assinatura = ""; bannerKey = null;
-  DUEL.rodando = false;
+  DUEL.rodando = true;
+  fecharInicio();
   render();
-  const nome = DUEL.nomes[DUEL.turno];
-  const m = document.createElement("div");
-  m.className = "modal-bg"; m.style.zIndex = 130;
-  m.innerHTML = '<div class="modal-box" style="text-align:center">' +
-    '<div style="font-size:30px">⚔️</div>' +
-    '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">DUELO • TURNO ' + (DUEL.turno+1) + ' DE 2</div>' +
-    '<div style="font-size:22px;font-weight:bold;margin:8px 0">Vez de ' + nome + '</div>' +
-    '<div class="note" style="margin:0 0 14px">Fábrica nova, 5 minutos no relógio. Ganhe o máximo de dinheiro que conseguir.' +
-      (DUEL.turno === 1 ? '<br><strong style="color:var(--gold)">' + DUEL.nomes[0] + ' fez ' + moeda(DUEL.placar[0]) + '. Dá para bater?</strong>' : '') +
-    '</div>' +
-    '<button class="collect" id="btn-duel-go" style="margin:0;width:100%">COMEÇAR AGORA</button></div>';
-  document.body.appendChild(m);
-  m.querySelector("#btn-duel-go").onclick = ()=>{
-    m.remove();
-    DUEL.fim = Date.now() + DUELO_SEG*1000;
-    DUEL.rodando = true;
-    ultimo = Date.now();
-    emMenu = false;
-  };
-  emMenu = false;     // o jogo fica parado por DUEL.rodando=false, nao pelo menu
 }
 
-function tickDuelo(){
-  if(!DUEL) return;
-  const quem = DUEL.nomes[DUEL.turno];
-  $("#duelwho").textContent = "⚔️ DUELO • " + quem + "  (turno " + (DUEL.turno+1) + "/2)";
-  const ganho = (S.stats.totalGanho||0);
-  $("#duelscore").textContent = "Ganho até agora: " + moeda(ganho) +
-    (DUEL.turno === 1 ? "  •  " + DUEL.nomes[0] + ": " + moeda(DUEL.placar[0]) : "");
-  if(!DUEL.rodando){ $("#dueltime").textContent = "5:00"; return; }
-  const rest = (DUEL.fim - Date.now())/1000;
-  const t = $("#dueltime");
-  t.textContent = mmss(rest);
-  t.classList.toggle("fim", rest <= 30);
-  if(rest <= 0) fimTurno();
-}
-
-function fimTurno(){
-  DUEL.rodando = false;
+async function terminarPartida(){
+  DUEL.rodando = false; DUEL.terminado = true;
   if(S.stored > 0) ganhar(S.stored);      // o que ficou no armazenador conta
   S.stored = 0;
-  DUEL.placar[DUEL.turno] = Math.round(S.stats.totalGanho || 0);
+  DUEL.final = Math.round(S.stats.totalGanho || 0);
   render();
-  const m = document.createElement("div");
-  m.className = "modal-bg"; m.style.zIndex = 130;
-  const nome = DUEL.nomes[DUEL.turno], pts = DUEL.placar[DUEL.turno];
-  if(DUEL.turno === 0){
-    m.innerHTML = '<div class="modal-box" style="text-align:center">' +
-      '<div style="font-size:30px">⏱️</div>' +
-      '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">TEMPO ESGOTADO</div>' +
-      '<div style="font-size:18px;font-weight:bold;margin:8px 0">' + nome + ' fez</div>' +
-      '<div class="val gold" style="font-size:26px;margin-bottom:12px">' + moeda(pts) + '</div>' +
-      '<div class="note" style="margin:0 0 14px">Passe o teclado para <strong>' + DUEL.nomes[1] + '</strong>. A fábrica dele começa do zero.</div>' +
-      '<button class="collect" id="btn-duel-next" style="margin:0;width:100%">PRÓXIMO JOGADOR</button></div>';
-    document.body.appendChild(m);
-    m.querySelector("#btn-duel-next").onclick = ()=>{ m.remove(); DUEL.turno = 1; prepararTurno(); };
-  } else {
-    const [a,b] = DUEL.placar;
-    const venc = a === b ? null : (a > b ? 0 : 1);
-    m.innerHTML = '<div class="modal-box" style="text-align:center">' +
-      '<div style="font-size:34px">' + (venc === null ? "🤝" : "🏆") + '</div>' +
-      '<div class="lab" style="color:var(--gold);letter-spacing:2px">RESULTADO DO DUELO</div>' +
-      '<div style="font-size:22px;font-weight:bold;margin:8px 0">' +
-        (venc === null ? "EMPATE!" : DUEL.nomes[venc] + " VENCEU!") + '</div>' +
-      '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:12px 0;text-align:left;line-height:2">' +
-        [0,1].map(i=> '<div style="display:flex;justify-content:space-between;' +
-          (venc===i ? 'color:var(--gold);font-weight:bold' : '') + '"><span>' + (venc===i?"🏆 ":"") + DUEL.nomes[i] +
-          '</span><span>' + moeda(DUEL.placar[i]) + '</span></div>').join("") +
-      '</div>' +
-      '<div style="display:flex;gap:8px"><button class="collect" id="btn-duel-re" style="margin:0;flex:1">REVANCHE</button>' +
-      '<button id="btn-duel-sai" style="font:inherit;padding:10px 14px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--dim)">SAIR</button></div></div>';
-    document.body.appendChild(m);
-    m.querySelector("#btn-duel-re").onclick = ()=>{ m.remove(); DUEL.placar=[0,0]; DUEL.turno=0; prepararTurno(); };
-    m.querySelector("#btn-duel-sai").onclick = ()=>{ m.remove(); sairDuelo(); };
+  telaInicio("fim");
+  enviarFinal();
+}
+async function enviarFinal(){
+  if(!DUEL || DUEL.enviado) return;
+  const id = DUEL.id;
+  const r = await api("/duelo/final", { valor: DUEL.final });
+  if(!DUEL || DUEL.id !== id) return;
+  if(r.duelo || r.status === 200){ DUEL.enviado = true; if(r.duelo) aplicarEstado(r.duelo); }
+  else setTimeout(enviarFinal, 2000);       // sem rede: tenta de novo
+}
+
+function aplicarEstado(d){
+  if(!d){
+    if(esperandoId){ esperandoId = null; telaInicio("desafio"); msg("O convite acabou sem resposta."); }
+    if(DUEL && !DUEL.terminado){ toast("A partida foi encerrada pelo servidor."); sairDuelo(); }
+    return;
+  }
+  if(d.fase === "convite"){
+    if(d.voce === "b"){ if(conviteMostrado !== d.id){ conviteMostrado = d.id; mostrarConvite(d); } }
+    else if(esperandoId !== d.id){ esperandoId = d.id; ultimoAdversario = d.adversario; telaInicio("espera", d.adversario); }
+    return;
+  }
+  if(d.fase === "recusado" || d.fase === "cancelado"){
+    const c = document.getElementById("convite");
+    if(c){ c.remove(); toast("O convite foi cancelado."); }
+    if(esperandoId === d.id){
+      esperandoId = null; telaInicio("desafio");
+      msg(d.fase === "recusado" ? d.adversario + " recusou o duelo." : "O convite foi cancelado.");
+    }
+    api("/duelo/encerrar", {});
+    return;
+  }
+  esperandoId = null;
+  if(d.fase === "contagem" || d.fase === "andamento"){
+    if(!DUEL){
+      if(d.fase === "contagem") prepararDuelo(d);
+      else { api("/duelo/desistir", {}); toast("Você saiu da partida e perdeu o duelo."); }
+    }
+    return;
+  }
+  if(d.fase === "resultado" && DUEL && resultadoMostrado !== d.id){
+    resultadoMostrado = d.id;
+    DUEL.rodando = false;
+    telaInicio("resultado", d);
+    atualizarPerfil();
   }
 }
 
-function sairDuelo(){
+async function pollar(){
+  if(pollando || !CONTA || !(emMenu || DUEL)) return;
+  pollando = true;
+  try{
+    const r = await api("/duelo/estado", { ganho: (DUEL && DUEL.rodando) ? Math.round(S.stats.totalGanho||0) : 0 });
+    if(r.status === 401){ guardarConta(null); if(DUEL) sairDuelo(); return; }
+    if(r.rede) return;
+    if(DUEL && r.duelo) DUEL.ganhoAdv = r.duelo.ganhoAdversario || 0;
+    aplicarEstado(r.duelo);
+  } finally { pollando = false; }
+}
+setInterval(pollar, 1500);
+
+/* relogio proprio, mais fino que o poll: contagem, largada e fim usam a hora do servidor */
+setInterval(()=>{
   if(!DUEL) return;
+  if(!DUEL.rodando && !DUEL.terminado){
+    const falta = (DUEL.startAt - agoraSrv())/1000;
+    const c = document.getElementById("cont");
+    if(c) c.textContent = Math.max(1, Math.ceil(falta));
+    if(falta <= 0) comecarPartida();
+  } else if(DUEL.rodando && (DUEL.endAt - agoraSrv()) <= 0){
+    terminarPartida();
+  }
+}, 100);
+
+function tickDuelo(){
+  if(!DUEL) return;
+  $("#duelwho").textContent = "⚔️ " + DUEL.nomes[0] + "  ×  " + DUEL.nomes[1];
+  $("#duelscore").textContent = "Você: " + moeda(S.stats.totalGanho || 0) + "  •  " + DUEL.nomes[1] + ": " + moeda(DUEL.ganhoAdv || 0);
+  const t = $("#dueltime");
+  const rest = DUEL.rodando ? (DUEL.endAt - agoraSrv())/1000 : (DUEL.terminado ? 0 : 300);
+  t.textContent = mmss(rest);
+  t.classList.toggle("fim", DUEL.rodando && rest <= 30);
+}
+
+function sairDuelo(manterMenu){
+  if(!DUEL) { if(!manterMenu) telaInicio("main"); return; }
   const salvo = JSON.parse(STASH);
   DUEL = null; STASH = null;
   S = Object.assign(novoJogo(), salvo);
@@ -2785,14 +2946,16 @@ function sairDuelo(){
   document.body.classList.remove("duelo");
   document.querySelectorAll(".modal-bg").forEach(x=>x.remove());
   render();
-  telaInicio("main");
+  if(!manterMenu) telaInicio("main");
 }
 
 $("#menubtn").onclick = abrirMenuInicial;
-$("#duelsair").onclick = ()=>{
-  if(!confirm("Sair do duelo? A partida atual se perde (seu save normal continua intacto).")) return;
+$("#duelsair").onclick = async ()=>{
+  if(!confirm("Sair do duelo? Você perde a partida (seu save normal continua intacto).")) return;
+  await api("/duelo/desistir", {});
   sairDuelo();
 };
+
 
 testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); telaInicio("main");
 </script>
