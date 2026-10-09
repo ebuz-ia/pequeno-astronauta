@@ -300,16 +300,19 @@ const multConquistas = () => 1 + 0.01 * conquistasFeitas();
 
 function checarConquistas(){
   if(!S.conquistas) S.conquistas = {};
-  let mudou = false;
+  const novas = [];
   CONQUISTAS.forEach(c=>{
     if(S.conquistas[c.id]) return;
     if(c.prog(S) >= c.alvo){
       S.conquistas[c.id] = true;
-      mudou = true;
-      toast("🏅 Conquista: " + c.t + "  (+1% de produção)");
+      novas.push(c.t);
     }
   });
-  if(mudou){ assinatura = ""; salvar(); }
+  if(!novas.length) return;
+  // varias de uma vez viram um aviso so, senao empilha e tampa a tela
+  if(novas.length <= 2) novas.forEach(t => toast("🏅 Conquista: " + t + "  (+1% de produção)"));
+  else toast("🏅 " + novas.length + " conquistas desbloqueadas!  (+" + novas.length + "% de produção)");
+  assinatura = ""; salvar();
 }
 
 // producao ignorando conta atrasada e turbo, so para calcular premio justo
