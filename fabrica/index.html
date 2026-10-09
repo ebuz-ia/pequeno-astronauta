@@ -260,7 +260,7 @@ const MISSOES = [
 /* ---------------- SELOS (recomecar a fabrica) ----------------
    Os Selos vem da raiz quadrada de tudo que o jogador ja ganhou na vida,
    dividido por mil. Nunca se perdem e cada um vale +2% de producao. */
-const SELO_LIBERA = 1000000;    // carteira precisa passar disso para liberar
+const SELO_LIBERA = 25000000;   // carteira precisa passar disso para liberar
 
 const multSelos = () => 1 + 0.02 * (S.selos || 0);
 const selosPossiveis = () => Math.floor(Math.sqrt((S.stats.totalGanho || 0) / 1000));
