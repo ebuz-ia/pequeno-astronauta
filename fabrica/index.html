@@ -9,6 +9,8 @@
     MISSOES         missoes repetiveis (alvo e premio sobem a cada resgate)
     desenhaMaquina  desenho de cada maquina
     desenhaSilo     desenho do armazenador
+    MODOS           facil/normal/hardcore (custo, producao, conta, quebra, turbo, combustivel)
+    telaInicio      menu inicial; iniciarDuelo/fimTurno = duelo 1x1 de 5 minutos
 
   Nao troque a chave do save "fabrica-pixel-save-v1": isso apaga o progresso de quem joga.
 -->
@@ -101,11 +103,70 @@
   @keyframes pulseDanger{from{box-shadow:0 0 2px #ef5350}to{box-shadow:0 0 10px #ef5350}}
   .row.broken{border-color:#ef5350;background:#201215}
   .row.locked{border-color:#343f50;background:#131720;opacity:0.65}
+  .fuelbar{height:6px;background:#0c0f14;border:1px solid var(--line);border-radius:3px;margin-top:5px;
+    overflow:hidden;max-width:180px}
+  .fuelbar i{display:block;height:100%;background:#f59e0b;width:100%}
+  .fuelbar.low i{background:#ef5350}
+  .btn-fuel{background:#f59e0b !important;color:#201402 !important;border-color:#b45309 !important;
+    margin-right:6px;padding-left:8px !important;padding-right:8px !important}
+  .btn-fuel:disabled{background:#2a303b !important;color:#5d6877 !important;border-color:var(--line) !important}
+  @media (max-width:560px){
+    .row{flex-wrap:wrap}
+    .row .sp{display:none}
+    .row > div:nth-child(2){flex:1;min-width:90px}
+    .row .buy{padding:8px 9px;font-size:12px}
+    #abast{font-size:12px !important;padding:12px 8px !important}
+  }
+  .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:2px 0 8px}
+  .modotag{font-size:11px;letter-spacing:1px;font-weight:bold;padding:5px 9px;border-radius:5px;
+    border:2px solid var(--line);background:var(--panel2)}
+  .modotag.facil{color:#4ade80;border-color:#14532d}
+  .modotag.normal{color:#35e0d8;border-color:#155e5a}
+  .modotag.hardcore{color:#ef5350;border-color:#7f1d1d}
+  .menubtn{font:inherit;font-size:11px;padding:6px 10px;cursor:pointer;border:2px solid var(--line);
+    border-radius:5px;background:var(--panel2);color:var(--dim)}
+  #duelbar{display:none;align-items:center;gap:10px;justify-content:space-between;margin:0 0 8px;
+    padding:8px 12px;border-radius:6px;border:2px solid #a855f7;background:#1e1530;color:#e9d5ff}
+  #duelbar .t{font-size:20px;font-weight:bold;color:#fff;letter-spacing:1px}
+  #duelbar .t.fim{color:#ef5350}
+  body.duelo #duelbar{display:flex}
+  body.duelo #topbar{display:none}
+  body.duelo .tools, body.duelo .tools + .note, body.duelo [data-t=cod]{display:none}
+  #inicio{position:fixed;inset:0;z-index:120;background:radial-gradient(circle at 50% 20%,#1d2635,#0b0e14 70%);
+    display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+  #inicio .box{max-width:440px;width:100%;text-align:center}
+  #inicio h2{margin:0 0 4px;font-size:30px;letter-spacing:3px;color:var(--gold);
+    text-shadow:0 3px 0 #7a5a00}
+  #inicio .sub2{color:var(--dim);margin-bottom:22px;font-size:12px}
+  .bigbtn{display:block;width:100%;font:inherit;font-size:20px;font-weight:bold;letter-spacing:2px;
+    padding:18px 12px;margin:0 0 12px;cursor:pointer;border-radius:8px;border:3px solid #4b5a70;
+    background:var(--panel2);color:var(--txt);transition:transform .08s,filter .15s}
+  .bigbtn:hover{filter:brightness(1.2)} .bigbtn:active{transform:translateY(2px)}
+  .bigbtn small{display:block;font-size:11px;font-weight:normal;letter-spacing:0;color:var(--dim);
+    margin-top:5px;line-height:1.5}
+  .bigbtn.jogar{background:#16452c;border-color:#4ade80;color:#d1fae5}
+  .bigbtn.duelo{background:#2d1b4e;border-color:#a855f7;color:#f3e8ff}
+  .bigbtn.facil{background:#16452c;border-color:#4ade80;color:#d1fae5}
+  .bigbtn.normal{background:#123c3a;border-color:#35e0d8;color:#ccfbf1}
+  .bigbtn.hardcore{background:#4a1616;border-color:#ef5350;color:#fee2e2}
+  .bigbtn.voltar{font-size:13px;padding:10px;border-width:2px;background:transparent;color:var(--dim)}
+  #inicio input{font:inherit;width:100%;padding:11px;margin:0 0 10px;border-radius:6px;
+    border:2px solid var(--line);background:var(--panel);color:var(--txt);font-size:15px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>FABRICA DE PIXEL</h1>
+  <div id="duelbar">
+    <div><div class="lab" id="duelwho" style="color:#d8b4fe"></div>
+      <div class="sub dim" id="duelscore" style="font-size:11px"></div></div>
+    <div class="t" id="dueltime">5:00</div>
+    <button class="menubtn" id="duelsair">SAIR DO DUELO</button>
+  </div>
+  <div class="topbar" id="topbar">
+    <span class="modotag normal" id="modotag">MODO NORMAL</span>
+    <button class="menubtn" id="menubtn">☰ MENU INICIAL</button>
+  </div>
 
   <div class="hud">
     <div class="card"><div class="lab">Carteira</div>
@@ -125,6 +186,7 @@
   <div style="display:flex;gap:8px;margin:10px 0;align-items:stretch">
     <button class="collect" id="collect" style="margin:0;flex:1;min-width:0">RECOLHER DINHEIRO</button>
     <button class="turbo" id="turbo">⚡ TURBO x2</button>
+    <button class="turbo" id="abast" style="display:none;background:#f59e0b;border-color:#b45309;color:#201402">⛽ ABASTECER</button>
     <button class="turbo" id="som" title="ligar ou desligar o som" style="background:#2a303b;border-color:#4b5a70;color:#e6ecf5;padding:14px 12px">🔊</button>
   </div>
 
@@ -167,6 +229,7 @@
   <input type="file" id="artfile" accept="image/*">
 </div>
 <div id="toast"></div>
+<div id="inicio"></div>
 
 <script>
 "use strict";
@@ -398,7 +461,7 @@ function checarConquistas(){
 
 // producao ignorando conta atrasada e turbo, so para calcular premio justo
 const producaoBruta = () => Math.round(
-  MACHINES.reduce((a,m)=> a + m.ps * nivelMaq(m.id), 0) * multRebirth() * multConquistas() * multSelos());
+  MACHINES.reduce((a,m)=> a + m.ps * nivelMaq(m.id), 0) * modoAtual().prod * multRebirth() * multConquistas() * multSelos());
 
 function estadoMissao(q){
   if(!S.missoes) S.missoes = {};
@@ -448,6 +511,8 @@ function novoJogo(){
     breakdownTimer: 300,
     turbo: { restante: 0, espera: 0 },
     som: true,
+    modo: "normal",
+    fuel: {},
     selos: 0,
     bill: { ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 },
     machines:{ m1265xv:1 },
@@ -475,6 +540,8 @@ function carregar(){
     S.hasMechanic = Boolean(o.hasMechanic);
     S.rebirth = Number(o.rebirth) || 0;
     S.broken = o.broken || {};
+    S.modo = MODOS[o.modo] ? o.modo : "normal";
+    S.fuel = o.fuel || {};
     S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
     S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
     S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
@@ -494,7 +561,7 @@ function testarArmazenamento(){
   }
 }
 function salvar(){
-  if(!podeSalvar) return;
+  if(!podeSalvar || emMenu || DUEL) return;   // menu e duelo nunca gravam por cima do save real
   S.lastSave = Date.now();
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }
   catch(e){ podeSalvar = false; }
@@ -509,7 +576,31 @@ function checarDia(){
 
 /* ---------------- REGRAS ---------------- */
 const nivelMaq = id => S.machines[id] === true ? 1 : (Number(S.machines[id]) || 0);
-const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)));
+/* ---------------- MODOS DE JOGO ----------------
+   custo   multiplica TUDO que se compra (maquinas, armazenador, gerentes, mecanico)
+   prod    multiplica o dinheiro que as maquinas dao
+   conta   multiplica o valor da conta da fabrica
+   quebra  segundos entre quebras de maquina
+   turbo   se o modo tem turbo
+   combustivel  hardcore: cada maquina gasta combustivel e para quando zera */
+const MODOS = {
+  facil:    { nome:"FÁCIL",    custo:0.6, prod:1.3, conta:0.5, quebra:600, turbo:true,  combustivel:false },
+  normal:   { nome:"NORMAL",   custo:1,   prod:1,   conta:1,   quebra:300, turbo:true,  combustivel:false },
+  hardcore: { nome:"HARDCORE", custo:1.8, prod:0.7, conta:2,   quebra:180, turbo:false, combustivel:true  }
+};
+const modoAtual = () => MODOS[S.modo] || MODOS.normal;
+const custoModo = v => Math.round(v * modoAtual().custo);
+const FUEL_MAX = 60;          // segundos de funcionamento num tanque cheio
+const FUEL_CUSTO = 0.2;       // cada segundo de combustivel custa 20% do ps base da maquina
+const comCombustivel = () => modoAtual().combustivel;
+const fuelDe = id => (S.fuel && typeof S.fuel[id] === "number") ? S.fuel[id] : FUEL_MAX;
+const semFuel = id => comCombustivel() && fuelDe(id) <= 0;
+const custoPorSegFuel = m => m.ps * nivelMaq(m.id) * FUEL_CUSTO;
+const custoAbastecer = m => Math.ceil(custoPorSegFuel(m) * (FUEL_MAX - fuelDe(m.id)));
+const MECANICO_CUSTO = 3000;
+const custoMecanico = () => custoModo(MECANICO_CUSTO);
+
+const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)) * modoAtual().custo);
 const cap  = () => (STORAGE[S.storageLevel-1] || STORAGE[STORAGE.length-1]).cap;
 const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
 const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0));
@@ -517,12 +608,12 @@ const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].q
 const contaPendente = () => Boolean(S.bill && S.bill.ativa);
 const TURBO_DURACAO = 30;   // segundos ligado
 const TURBO_ESPERA   = 300;  // 5 minutos ate poder de novo
-const turboAtivo = () => Boolean(S.turbo && S.turbo.restante > 0);
-const turboPronto = () => !turboAtivo() && !(S.turbo && S.turbo.espera > 0);
+const turboAtivo = () => modoAtual().turbo && Boolean(S.turbo && S.turbo.restante > 0);
+const turboPronto = () => modoAtual().turbo && !turboAtivo() && !(S.turbo && S.turbo.espera > 0);
 
 function ligarTurbo(){
   if(!S.turbo) S.turbo = { restante:0, espera:0 };
-  if(!turboPronto()) return;
+  if(!modoAtual().turbo || !turboPronto()) return;
   S.turbo.restante = TURBO_DURACAO;
   S.stats.turbos = (S.stats.turbos||0) + 1;
   toast("⚡ TURBO LIGADO! Produção dobrada por " + TURBO_DURACAO + " segundos");
@@ -533,10 +624,10 @@ function ligarTurbo(){
 const taxa = () => {
   if(contaPendente()) return 0;
   const base = MACHINES.reduce((a,m)=> {
-    if(maquinaQuebrada(m.id)) return a;
+    if(maquinaQuebrada(m.id) || semFuel(m.id)) return a;
     return a + m.ps * nivelMaq(m.id);
   }, 0);
-  return Math.round(base * multRebirth() * multConquistas() * multSelos() * (turboAtivo() ? 2 : 1));
+  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * (turboAtivo() ? 2 : 1));
 };
 const cheio = () => S.stored >= cap() - 1e-9;
 
@@ -578,7 +669,7 @@ function iniciarConserto(id, peloMecanico){
 
 function contratarMecanico(){
   if(S.hasMechanic) return;
-  const custo = 3000;
+  const custo = custoMecanico();
   if(S.wallet < custo) return;
   S.wallet -= custo;
   S.hasMechanic = true;
@@ -597,7 +688,7 @@ function contratarMecanico(){
 function gerarConta(){
   if(!S.bill) S.bill = {};
   const baseRate = MACHINES.reduce((a,m)=> a + m.ps * nivelMaq(m.id), 0);
-  const v = Math.max(25, Math.round(25 + baseRate * 5));
+  const v = Math.max(25, Math.round((25 + baseRate * 5) * modoAtual().conta));
   S.bill.ativa = true;
   S.bill.valor = v;
   toast("📄 Chegou a conta da fábrica: " + moeda(v) + ". Pague para voltar a dar dinheiro!");
@@ -658,7 +749,31 @@ function mostrarModalRebirth(req){
 
 function ganhar(v){ S.wallet += v; S.stats.dailyEarned += v; S.stats.totalGanho = (S.stats.totalGanho||0) + Math.max(0, v); }
 
+function abastecer(m){
+  if(!comCombustivel() || nivelMaq(m.id) <= 0) return;
+  const falta = FUEL_MAX - fuelDe(m.id);
+  if(falta <= 0.05) return;
+  const porSeg = custoPorSegFuel(m);
+  const seg = Math.min(falta, S.wallet / porSeg);   // pagamento parcial: nunca beco sem saida
+  if(seg <= 0.05) return;
+  S.wallet -= seg * porSeg;
+  if(!S.fuel) S.fuel = {};
+  S.fuel[m.id] = Math.min(FUEL_MAX, fuelDe(m.id) + seg);
+  tocar("moeda");
+  render(); salvar();
+}
+function abastecerTudo(){
+  if(!comCombustivel()) return;
+  // mais barata de abastecer primeiro, para o dinheiro render o maximo de maquinas
+  MACHINES.filter(m => nivelMaq(m.id) > 0 && !m.secreta)
+    .sort((a,b)=> custoAbastecer(a) - custoAbastecer(b))
+    .forEach(abastecer);
+}
+const custoAbastecerTudo = () => MACHINES.reduce((a,m)=>
+  a + ((nivelMaq(m.id) > 0 && !m.secreta) ? custoAbastecer(m) : 0), 0);
+
 function recolher(){
+  if(emMenu || (DUEL && !DUEL.rodando)) return;
   if(S.stored <= 0) return;
   const v = S.stored;
   S.stored = 0;
@@ -682,16 +797,16 @@ function comprarMaquina(m){
 }
 function subirArmazenador(){
   const prox = STORAGE[S.storageLevel];
-  if(!prox || S.wallet < prox.custo) return;
-  S.wallet -= prox.custo; S.storageLevel = prox.nivel;
+  if(!prox || S.wallet < custoModo(prox.custo)) return;
+  S.wallet -= custoModo(prox.custo); S.storageLevel = prox.nivel;
   toast("Armazenador nivel " + prox.nivel + " (R$ " + fmt(prox.cap) + ")");
   render(); salvar();
 }
 function contratarGerente(g){
   if(S.managerLevel >= g.nivel) return;
   if(S.managerLevel + 1 !== g.nivel) return;
-  if(S.wallet < g.custo) return;
-  S.wallet -= g.custo;
+  if(S.wallet < custoModo(g.custo)) return;
+  S.wallet -= custoModo(g.custo);
   S.managerLevel = g.nivel;
   toast("👔 " + g.nome + " contratado!");
   render(); salvar();
@@ -1537,7 +1652,7 @@ function assinaturaAtual(){
     (S.managerLevel||0) + "|" + (S.hasMechanic?1:0) + "|" + (S.rebirth||0) + "|" +
     brokenKeys + "|" + billKey + "|" +
     MISSOES.map(q=>(S.missoes&&S.missoes[q.id]?S.missoes[q.id].nivel:1)).join(",") + "|" + conquistasFeitas() + "|" + (S.selos||0) + "|" + (podeReiniciar()?1:0) +
-    "|" + Object.keys(S.art).sort().join(",");
+    "|" + Object.keys(S.art).sort().join(",") + "|" + (S.modo||"normal");
 }
 
 function render(){
@@ -1650,7 +1765,11 @@ function renderHUD(){
     stCor = "var(--no)";
   } else {
     const quebradas = Object.keys(S.broken||{}).filter(k => S.broken[k].quebrada).length;
-    if(quebradas > 0){
+ const semComb = comCombustivel() ? MACHINES.filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id) && semFuel(m.id)).length : 0;
+    if(semComb > 0){
+      st = "⛽ " + semComb + " máquina" + (semComb>1?"s":"") + " sem combustível — abasteça!";
+      stCor = "#f59e0b";
+    } else if(quebradas > 0){
       st = "⚠️ " + quebradas + " máquina" + (quebradas>1?"s":"") + " quebrada" + (quebradas>1?"s":"");
       stCor = "#f59e0b";
     } else if(taxa() > 0){
@@ -1667,8 +1786,21 @@ function renderHUD(){
   const bs = $("#som");
   if(bs) bs.textContent = S.som ? "🔊" : "🔇";
 
+  const tag = $("#modotag");
+  if(tag){ tag.textContent = "MODO " + modoAtual().nome; tag.className = "modotag " + (MODOS[S.modo] ? S.modo : "normal"); }
+  const ba = $("#abast");
+  if(ba){
+    ba.style.display = comCombustivel() ? "" : "none";
+    if(comCombustivel()){
+      const c = custoAbastecerTudo();
+      ba.textContent = c > 0 ? ("⛽ TUDO R$ " + fmt(c)) : "⛽ TUDO CHEIO";
+      ba.title = "Abastecer todas as máquinas";
+      ba.disabled = c <= 0 || S.wallet < 1;
+    }
+  }
   const bt = $("#turbo");
   if(bt){
+    bt.style.display = modoAtual().turbo ? "" : "none";
     if(turboAtivo()){
       bt.classList.add("active"); bt.disabled = true;
       bt.textContent = "⚡ x2 — " + Math.ceil(S.turbo.restante) + "s";
@@ -1690,17 +1822,30 @@ function renderHUD(){
 }
 
 function atualizarEstados(){
-  refsMaq.forEach(r=>{ if(r.btn) r.btn.disabled = S.wallet < precoMaq(r.m); });
+  refsMaq.forEach(r=>{
+    if(r.btn) r.btn.disabled = S.wallet < precoMaq(r.m);
+    if(r.fbar){
+      const f = fuelDe(r.m.id);
+      r.fbar.firstElementChild.style.width = (Math.max(0, f) / FUEL_MAX * 100) + "%";
+      r.fbar.classList.toggle("low", f < FUEL_MAX * 0.25);
+    }
+    if(r.fbtn){
+      const falta = FUEL_MAX - fuelDe(r.m.id);
+      const c = custoAbastecer(r.m);
+      r.fbtn.textContent = falta <= 0.05 ? "⛽ CHEIO" : ("⛽ R$ " + fmt(c));
+      r.fbtn.disabled = falta <= 0.05 || S.wallet < 1;
+    }
+  });
   refsArm.forEach(r=>{
     if(!r.btn) return;
-    r.btn.disabled = (S.storageLevel + 1 !== r.s.nivel) || S.wallet < r.s.custo;
+    r.btn.disabled = (S.storageLevel + 1 !== r.s.nivel) || S.wallet < custoModo(r.s.custo);
   });
   refsGer.forEach(r=>{
     if(!r.btn) return;
     if(r.isMec){
-      r.btn.disabled = S.hasMechanic || S.wallet < 3000;
+      r.btn.disabled = S.hasMechanic || S.wallet < custoMecanico();
     } else {
-      r.btn.disabled = (S.managerLevel + 1 !== r.g.nivel) || S.wallet < r.g.custo;
+      r.btn.disabled = (S.managerLevel + 1 !== r.g.nivel) || S.wallet < custoModo(r.g.custo);
     }
   });
   refsMis.forEach(r=>{
@@ -1755,29 +1900,31 @@ function listaMaquinas(){
       subTxt = '<span style="color:#ef5350">⚠️ QUEBRADA — sem produção</span>';
     } else if(lvl > 0){
       const mult = multRebirth();
-      const realPs = Math.round(m.ps * lvl * mult);
+      const realPs = Math.round(m.ps * lvl * mult * modoAtual().prod);
       subTxt = "R$ " + fmt(realPs) + " por segundo" + (mult > 1 ? " (+" + Math.round((mult-1)*100) + "%)" : "");
     } else {
-      subTxt = "R$ " + m.ps + " por segundo (base)";
+      subTxt = "R$ " + (+(m.ps * modoAtual().prod).toFixed(1)).toLocaleString("pt-BR") + " por segundo (base)";
     }
+    const mostraFuel = comCombustivel() && lvl > 0 && !m.secreta;
 
-    let btnHtml = "";
+    let btnHtml = mostraFuel ? '<button class="buy btn-fuel">⛽</button>' : "";
     if(quebrada){
       if(bInfo && bInfo.consertando){
-        btnHtml = '<button class="buy" disabled style="background:#223326;color:#86efac;border-color:#14532d">🔧 ' + Math.ceil(bInfo.tempoRestante) + 's</button>';
+        btnHtml += '<button class="buy" disabled style="background:#223326;color:#86efac;border-color:#14532d">🔧 ' + Math.ceil(bInfo.tempoRestante) + 's</button>';
       } else {
-        btnHtml = '<button class="buy btn-consertar" style="background:#f59e0b;color:#201402;border-color:#b45309">🔧 CONSERTAR (10s)</button>';
+        btnHtml += '<button class="buy btn-consertar" style="background:#f59e0b;color:#201402;border-color:#b45309">🔧 CONSERTAR (10s)</button>';
       }
       btnHtml += '<button class="buy" style="margin-left:6px">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
     } else {
-      btnHtml = '<button class="buy">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
+      btnHtml += '<button class="buy">Nivel ' + lvl + ' • R$ ' + fmt(preco) + '</button>';
     }
 
     const row = el(
       '<div class="row ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
         '<div><div class="nm">' + m.nome + '</div>' +
-        '<div class="sub">' + subTxt + '</div></div>' +
+        '<div class="sub">' + subTxt + '</div>' +
+        (mostraFuel ? '<div class="fuelbar"><i></i></div>' : '') + '</div>' +
         '<div class="sp"></div>' +
         btnHtml +
       '</div>');
@@ -1792,7 +1939,10 @@ function listaMaquinas(){
     const buyBtns = row.querySelectorAll("button");
     const btnBuy = buyBtns[buyBtns.length - 1];
     if(btnBuy) btnBuy.onclick = ()=>comprarMaquina(m);
-    refsMaq.push({m, btn: btnBuy});
+    refsMaq.push({m, btn: btnBuy,
+      fbtn: row.querySelector(".btn-fuel"), fbar: row.querySelector(".fuelbar")});
+    const fb = row.querySelector(".btn-fuel");
+    if(fb) fb.onclick = ()=>abastecer(m);
   });
 }
 
@@ -1807,7 +1957,7 @@ function listaArmazenador(){
         '<div class="sub">Guarda ate R$ ' + fmt(s.cap) + '</div></div>' +
         '<div class="sp"></div>' +
         (tem ? '<span class="tag">' + (S.storageLevel===s.nivel?"ATUAL":"OK") + '</span>'
-             : '<button class="buy">R$ ' + fmt(s.custo) + '</button>') +
+             : '<button class="buy">R$ ' + fmt(custoModo(s.custo)) + '</button>') +
       '</div>');
     box.appendChild(row);
     thumb(row.querySelector("canvas"), "silo");
@@ -1830,7 +1980,7 @@ function listaGerentes(){
         '<div class="sub">' + g.desc + '</div></div>' +
         '<div class="sp"></div>' +
         (contratado ? '<span class="tag">' + (atual ? "ATIVO" : "OK") + '</span>'
-                    : '<button class="buy">R$ ' + fmt(g.custo) + '</button>') +
+                    : '<button class="buy">R$ ' + fmt(custoModo(g.custo)) + '</button>') +
       '</div>');
     box.appendChild(row);
     thumb(row.querySelector("canvas"), "ger_" + g.nivel);
@@ -1848,7 +1998,7 @@ function listaGerentes(){
       '<div class="sub">Conserta máquinas quebradas sozinho em 10s sem precisar clicar</div></div>' +
       '<div class="sp"></div>' +
       (temMec ? '<span class="tag">ATIVO</span>'
-              : '<button class="buy">R$ 3.000</button>') +
+              : '<button class="buy">R$ ' + fmt(custoMecanico()) + '</button>') +
     '</div>');
   box.appendChild(rowMec);
   thumb(rowMec.querySelector("canvas"), "ger_mec");
@@ -2034,6 +2184,7 @@ const CODIGOS = [
 let codTexto = "";
 
 function resgatarCodigo(txt){
+  if(DUEL) return false;
   let k = String(txt||"").trim().toLowerCase().replace(/\s+/g,"");
   if(k === "calebe" || k === "calebe.") k = "calebe..";
   const c = CODIGOS.find(o => o.chave === k);
@@ -2179,7 +2330,7 @@ function listaMissoes(){
   box.appendChild(el('<div class="lab" style="margin-top:4px">' +
     'Missoes — podem ser repetidas para sempre. A cada vez o alvo sobe um pouco ' +
     'e o premio sobe mais.</div>'));
-  MISSOES.forEach(q=> box.appendChild(missaoRow(q)));
+  MISSOES.forEach(q=>{ if(q.id === "m_turbo" && !modoAtual().turbo) return; box.appendChild(missaoRow(q)); });
 }
 
 
@@ -2216,6 +2367,7 @@ function toast(msg){
 /* ---------------- EVENTOS ---------------- */
 $("#collect").onclick = recolher;
 $("#turbo").onclick = ligarTurbo;
+$("#abast").onclick = abastecerTudo;
 $("#som").onclick = ()=>{
   S.som = !S.som;
   if(S.som){ tocar("moeda"); toast("🔊 Som ligado"); }
@@ -2223,7 +2375,7 @@ $("#som").onclick = ()=>{
   render(); salvar();
 };
 document.addEventListener("keydown", e=>{
-  if(e.code === "Space" && e.target.tagName !== "BUTTON"){ e.preventDefault(); recolher(); }
+  if(e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT"){ e.preventDefault(); recolher(); }
 });
 document.querySelectorAll(".tabs button").forEach(b=>{
   b.onclick = ()=>{
@@ -2331,7 +2483,7 @@ function checarGanhoOffline(){
   const agora = Date.now();
   if(!S.lastSave){ S.lastSave = agora; salvar(); return; }
   const seg = Math.floor((agora - S.lastSave) / 1000);
-  if(seg < 2 || taxa() <= 0){ S.lastSave = agora; return; }
+  if(seg < 2 || taxa() <= 0 || comCombustivel()){ S.lastSave = agora; return; }  // hardcore: sem combustivel nao ha ganho offline
   
   const capacidade = cap();
   const antes = S.stored;
@@ -2357,6 +2509,8 @@ setInterval(()=>{
   const agora = Date.now();
   const dt = Math.min(1, (agora - ultimo)/1000);
   ultimo = agora;
+  if(emMenu){ return; }
+  if(DUEL){ tickDuelo(); if(!DUEL.rodando){ render(); return; } }
   checarDia();
   if(S.wallet > (S.stats.picoCarteira||0)) S.stats.picoCarteira = S.wallet;
   if(!document.hidden){ S.stats.dailySeconds += dt; S.stats.segundosTotais = (S.stats.segundosTotais||0) + dt; }
@@ -2365,7 +2519,7 @@ setInterval(()=>{
   if(!S.broken) S.broken = {};
   S.breakdownTimer = (S.breakdownTimer !== undefined ? S.breakdownTimer : 300) - dt;
   if(S.breakdownTimer <= 0){
-    S.breakdownTimer = 300;
+    S.breakdownTimer = modoAtual().quebra;
     if(!S.semQuebras) quebrarMaquinaAleatoria();
   }
 
@@ -2393,6 +2547,25 @@ setInterval(()=>{
     S.bill.proximaEm = (S.bill.proximaEm !== undefined ? S.bill.proximaEm : 180) - dt;
     if(S.bill.proximaEm <= 0){
       if(S.semContas) S.bill.proximaEm = 200; else gerarConta();
+    }
+  }
+
+  // 3b. Combustivel (hardcore): so gasta enquanto a fabrica realmente produz
+  if(comCombustivel()){
+    if(!S.fuel) S.fuel = {};
+    if(!contaPendente() && !cheio()){
+      MACHINES.forEach(m=>{
+        if(nivelMaq(m.id) <= 0 || m.secreta || maquinaQuebrada(m.id)) return;
+        const antes = fuelDe(m.id);
+        if(antes <= 0) return;
+        S.fuel[m.id] = Math.max(0, antes - dt);
+        if(S.fuel[m.id] <= 0) toast("⛽ " + m.nome + " ficou sem combustível!");
+      });
+    }
+    // rede de seguranca: tudo parado, sem dinheiro e nada guardado = beco sem saida
+    if(taxa() <= 0 && !contaPendente() && S.stored < 0.5 && S.wallet < 1){
+      const ml = MACHINES.find(m => nivelMaq(m.id) > 0 && !m.secreta && !maquinaQuebrada(m.id));
+      if(ml){ S.fuel[ml.id] = 10; toast("🆘 Tanque de emergência: 10s de combustível grátis"); }
     }
   }
 
@@ -2428,7 +2601,200 @@ setInterval(()=>{
 setInterval(salvar, 5000);
 window.addEventListener("beforeunload", salvar);
 
-testarArmazenamento(); carregar(); checarDia(); checarGanhoOffline(); render(); loopDesenho();
+
+/* ---------------- TELA INICIAL, MODOS E DUELO 1x1 ---------------- */
+const DUELO_SEG = 300;           // 5 minutos por jogador
+let emMenu = true;               // true enquanto a tela inicial esta aberta (jogo pausado, nada grava)
+let DUEL = null;                 // estado do duelo: {nomes, placar, turno, fim, rodando}
+let STASH = null;                // save real guardado enquanto dura o duelo
+
+function telaInicio(qual, extra){
+  emMenu = true;
+  const box = $("#inicio");
+  box.style.display = "flex";
+  let h = '<div class="box"><h2>FÁBRICA DE PIXEL</h2><div class="sub2">escolha como quer jogar</div>';
+  if(qual === "main"){
+    h += '<button class="bigbtn jogar" data-a="jogar">JOGAR<small>Sua fábrica, no seu ritmo. Escolha fácil, normal ou hardcore.</small></button>' +
+         '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Quem faz a melhor fábrica em 5 minutos? Dois jogadores, a mesma fábrica do zero.</small></button>';
+  } else if(qual === "modos"){
+    const at = S.modo || "normal";
+    h += '<button class="bigbtn facil" data-m="facil">FÁCIL' + (at==="facil"?" ✓":"") +
+           '<small>Tudo 40% mais barato, máquinas dão 30% a mais, contas pela metade e quebras mais raras.</small></button>' +
+         '<button class="bigbtn normal" data-m="normal">NORMAL' + (at==="normal"?" ✓":"") +
+           '<small>O jogo como ele é.</small></button>' +
+         '<button class="bigbtn hardcore" data-m="hardcore">HARDCORE' + (at==="hardcore"?" ✓":"") +
+           '<small>Você abastece as máquinas (sem combustível elas param). Tudo 80% mais caro, máquinas dão 30% a menos, contas em dobro, quebras mais frequentes e SEM turbo.</small></button>' +
+         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "duelo"){
+    h += '<div class="note" style="text-align:left;margin:0 0 12px">Cada jogador recebe uma fábrica nova, com as mesmas regras do modo normal, e joga <strong>5 minutos</strong>, um de cada vez. ' +
+         'No fim, o dinheiro ganho de cada um é comparado. Seu save normal não é mexido. Códigos e painel adm ficam bloqueados.</div>' +
+         '<input id="nome1" maxlength="14" placeholder="Nome do Jogador 1" value="' + (extra&&extra[0]||"") + '">' +
+         '<input id="nome2" maxlength="14" placeholder="Nome do Jogador 2" value="' + (extra&&extra[1]||"") + '">' +
+         '<button class="bigbtn duelo" data-a="comecar">COMEÇAR DUELO</button>' +
+         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  }
+  box.innerHTML = h + '</div>';
+  box.querySelectorAll("[data-a]").forEach(b=> b.onclick = ()=>{
+    const a = b.dataset.a;
+    if(a === "jogar") telaInicio("modos");
+    else if(a === "duelo") telaInicio("duelo");
+    else if(a === "voltar") telaInicio("main");
+    else if(a === "comecar"){
+      iniciarDuelo($("#nome1").value.trim(), $("#nome2").value.trim());
+    }
+  });
+  box.querySelectorAll("[data-m]").forEach(b=> b.onclick = ()=> escolherModo(b.dataset.m));
+}
+
+function fecharInicio(){
+  $("#inicio").style.display = "none";
+  emMenu = false;
+  ultimo = Date.now();
+}
+
+function escolherModo(k){
+  if(!MODOS[k]) return;
+  const mudou = S.modo !== k;
+  S.modo = k;
+  if(mudou){
+    S.fuel = {};                          // tanques cheios ao entrar no hardcore
+    if(k === "hardcore") S.turbo = { restante:0, espera:0 };
+  }
+  assinatura = ""; bannerKey = null;
+  fecharInicio();
+  checarGanhoOffline();
+  render(); salvar();
+  toast("Modo " + MODOS[k].nome);
+}
+
+function abrirMenuInicial(){
+  if(DUEL){ return; }
+  salvar();
+  telaInicio("main");
+}
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+function mmss(seg){ seg = Math.max(0, Math.ceil(seg)); return Math.floor(seg/60) + ":" + pad2(seg%60); }
+
+function iniciarDuelo(n1, n2){
+  if(DUEL) return;
+  $("#inicio").style.display = "none";
+  STASH = JSON.stringify(S);
+  DUEL = { nomes:[n1 || "Jogador 1", n2 || "Jogador 2"], placar:[0,0], turno:0, fim:0, rodando:false, art:S.art };
+  document.body.classList.add("duelo");
+  // se a aba de codigos estava aberta, volta para as maquinas
+  document.querySelector('.tabs button[data-t="maq"]').click();
+  prepararTurno();
+}
+
+function prepararTurno(){
+  const art = DUEL.art;
+  S = novoJogo();
+  S.art = art || {};
+  S.modo = "normal";
+  S.semQuebras = true;                    // quebra sorteada seria injusta numa partida curta
+  S.lastSave = Date.now();
+  coins = []; assinatura = ""; bannerKey = null;
+  DUEL.rodando = false;
+  render();
+  const nome = DUEL.nomes[DUEL.turno];
+  const m = document.createElement("div");
+  m.className = "modal-bg"; m.style.zIndex = 130;
+  m.innerHTML = '<div class="modal-box" style="text-align:center">' +
+    '<div style="font-size:30px">⚔️</div>' +
+    '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">DUELO • TURNO ' + (DUEL.turno+1) + ' DE 2</div>' +
+    '<div style="font-size:22px;font-weight:bold;margin:8px 0">Vez de ' + nome + '</div>' +
+    '<div class="note" style="margin:0 0 14px">Fábrica nova, 5 minutos no relógio. Ganhe o máximo de dinheiro que conseguir.' +
+      (DUEL.turno === 1 ? '<br><strong style="color:var(--gold)">' + DUEL.nomes[0] + ' fez ' + moeda(DUEL.placar[0]) + '. Dá para bater?</strong>' : '') +
+    '</div>' +
+    '<button class="collect" id="btn-duel-go" style="margin:0;width:100%">COMEÇAR AGORA</button></div>';
+  document.body.appendChild(m);
+  m.querySelector("#btn-duel-go").onclick = ()=>{
+    m.remove();
+    DUEL.fim = Date.now() + DUELO_SEG*1000;
+    DUEL.rodando = true;
+    ultimo = Date.now();
+    emMenu = false;
+  };
+  emMenu = false;     // o jogo fica parado por DUEL.rodando=false, nao pelo menu
+}
+
+function tickDuelo(){
+  if(!DUEL) return;
+  const quem = DUEL.nomes[DUEL.turno];
+  $("#duelwho").textContent = "⚔️ DUELO • " + quem + "  (turno " + (DUEL.turno+1) + "/2)";
+  const ganho = (S.stats.totalGanho||0);
+  $("#duelscore").textContent = "Ganho até agora: " + moeda(ganho) +
+    (DUEL.turno === 1 ? "  •  " + DUEL.nomes[0] + ": " + moeda(DUEL.placar[0]) : "");
+  if(!DUEL.rodando){ $("#dueltime").textContent = "5:00"; return; }
+  const rest = (DUEL.fim - Date.now())/1000;
+  const t = $("#dueltime");
+  t.textContent = mmss(rest);
+  t.classList.toggle("fim", rest <= 30);
+  if(rest <= 0) fimTurno();
+}
+
+function fimTurno(){
+  DUEL.rodando = false;
+  if(S.stored > 0) ganhar(S.stored);      // o que ficou no armazenador conta
+  S.stored = 0;
+  DUEL.placar[DUEL.turno] = Math.round(S.stats.totalGanho || 0);
+  render();
+  const m = document.createElement("div");
+  m.className = "modal-bg"; m.style.zIndex = 130;
+  const nome = DUEL.nomes[DUEL.turno], pts = DUEL.placar[DUEL.turno];
+  if(DUEL.turno === 0){
+    m.innerHTML = '<div class="modal-box" style="text-align:center">' +
+      '<div style="font-size:30px">⏱️</div>' +
+      '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">TEMPO ESGOTADO</div>' +
+      '<div style="font-size:18px;font-weight:bold;margin:8px 0">' + nome + ' fez</div>' +
+      '<div class="val gold" style="font-size:26px;margin-bottom:12px">' + moeda(pts) + '</div>' +
+      '<div class="note" style="margin:0 0 14px">Passe o teclado para <strong>' + DUEL.nomes[1] + '</strong>. A fábrica dele começa do zero.</div>' +
+      '<button class="collect" id="btn-duel-next" style="margin:0;width:100%">PRÓXIMO JOGADOR</button></div>';
+    document.body.appendChild(m);
+    m.querySelector("#btn-duel-next").onclick = ()=>{ m.remove(); DUEL.turno = 1; prepararTurno(); };
+  } else {
+    const [a,b] = DUEL.placar;
+    const venc = a === b ? null : (a > b ? 0 : 1);
+    m.innerHTML = '<div class="modal-box" style="text-align:center">' +
+      '<div style="font-size:34px">' + (venc === null ? "🤝" : "🏆") + '</div>' +
+      '<div class="lab" style="color:var(--gold);letter-spacing:2px">RESULTADO DO DUELO</div>' +
+      '<div style="font-size:22px;font-weight:bold;margin:8px 0">' +
+        (venc === null ? "EMPATE!" : DUEL.nomes[venc] + " VENCEU!") + '</div>' +
+      '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:12px 0;text-align:left;line-height:2">' +
+        [0,1].map(i=> '<div style="display:flex;justify-content:space-between;' +
+          (venc===i ? 'color:var(--gold);font-weight:bold' : '') + '"><span>' + (venc===i?"🏆 ":"") + DUEL.nomes[i] +
+          '</span><span>' + moeda(DUEL.placar[i]) + '</span></div>').join("") +
+      '</div>' +
+      '<div style="display:flex;gap:8px"><button class="collect" id="btn-duel-re" style="margin:0;flex:1">REVANCHE</button>' +
+      '<button id="btn-duel-sai" style="font:inherit;padding:10px 14px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--dim)">SAIR</button></div></div>';
+    document.body.appendChild(m);
+    m.querySelector("#btn-duel-re").onclick = ()=>{ m.remove(); DUEL.placar=[0,0]; DUEL.turno=0; prepararTurno(); };
+    m.querySelector("#btn-duel-sai").onclick = ()=>{ m.remove(); sairDuelo(); };
+  }
+}
+
+function sairDuelo(){
+  if(!DUEL) return;
+  const salvo = JSON.parse(STASH);
+  DUEL = null; STASH = null;
+  S = Object.assign(novoJogo(), salvo);
+  S.lastSave = Date.now();
+  for(const k in imgs) delete imgs[k];
+  coins = []; assinatura = ""; bannerKey = null;
+  document.body.classList.remove("duelo");
+  document.querySelectorAll(".modal-bg").forEach(x=>x.remove());
+  render();
+  telaInicio("main");
+}
+
+$("#menubtn").onclick = abrirMenuInicial;
+$("#duelsair").onclick = ()=>{
+  if(!confirm("Sair do duelo? A partida atual se perde (seu save normal continua intacto).")) return;
+  sairDuelo();
+};
+
+testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); telaInicio("main");
 </script>
 </body>
 </html>
