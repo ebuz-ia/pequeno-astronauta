@@ -234,25 +234,25 @@ const MANAGERS = [
 /* Missoes repetiveis: ao resgatar, a missao sobe de nivel, o alvo cresce
    e o premio cresce mais rapido que o alvo. Nunca acabam. */
 const MISSOES = [
-  { id:"m_coleta", piso:10,   t:"Coletor",       r:500,  alvo:5,     passo:1.35, premio:1.8,
+  { id:"m_coleta", piso:3,   t:"Coletor",       r:500,  alvo:5,     passo:1.45, premio:1.4,
     d:n=>"Recolher dinheiro " + fmt(n) + " vezes",
     cont:s=>s.stats.collects||0 },
-  { id:"m_niveis", piso:16,   t:"Investidor",    r:900,  alvo:3,     passo:1.35, premio:1.8,
+  { id:"m_niveis", piso:5,   t:"Investidor",    r:900,  alvo:3,     passo:1.45, premio:1.4,
     d:n=>"Comprar " + fmt(n) + " niveis de maquina",
     cont:s=>s.stats.niveisComprados||0 },
-  { id:"m_ganho", piso:30,    t:"Magnata",       r:2500, alvo:10000, passo:1.6,  premio:1.9,
+  { id:"m_ganho", piso:8,    t:"Magnata",       r:2500, alvo:10000, passo:1.6,  premio:1.5,
     d:n=>"Ganhar " + moeda(n),
     cont:s=>s.stats.totalGanho||0, dinheiro:true },
-  { id:"m_conserto", piso:20, t:"Mecanico",      r:1800, alvo:2,     passo:1.3,  premio:1.7,
+  { id:"m_conserto", piso:6, t:"Mecanico",      r:1800, alvo:2,     passo:1.4,  premio:1.35,
     d:n=>"Consertar " + fmt(n) + " maquinas",
     cont:s=>s.stats.consertos||0 },
-  { id:"m_contas", piso:20,   t:"Contas em Dia", r:2200, alvo:2,     passo:1.3,  premio:1.7,
+  { id:"m_contas", piso:6,   t:"Contas em Dia", r:2200, alvo:2,     passo:1.4,  premio:1.35,
     d:n=>"Pagar " + fmt(n) + " contas da fabrica",
     cont:s=>s.stats.billsPaid||0 },
-  { id:"m_turbo", piso:26,    t:"Acelerador",    r:3000, alvo:2,     passo:1.3,  premio:1.7,
+  { id:"m_turbo", piso:7,    t:"Acelerador",    r:3000, alvo:2,     passo:1.4,  premio:1.35,
     d:n=>"Usar o turbo " + fmt(n) + " vezes",
     cont:s=>s.stats.turbos||0 },
-  { id:"m_tempo", piso:60,    t:"Maratona",      r:3500, alvo:300,   passo:1.4,  premio:1.8,
+  { id:"m_tempo", piso:15,    t:"Maratona",      r:3500, alvo:300,   passo:1.5,  premio:1.4,
     d:n=>"Ficar " + Math.round(n/60) + " minutos jogando",
     cont:s=>s.stats.segundosTotais||0, tempo:true }
 ];
@@ -260,7 +260,7 @@ const MISSOES = [
 /* ---------------- SELOS (recomecar a fabrica) ----------------
    Os Selos vem da raiz quadrada de tudo que o jogador ja ganhou na vida,
    dividido por mil. Nunca se perdem e cada um vale +2% de producao. */
-const SELO_LIBERA = 15000000;   // carteira precisa passar disso para liberar
+const SELO_LIBERA = 1000000;    // carteira precisa passar disso para liberar
 
 const multSelos = () => 1 + 0.02 * (S.selos || 0);
 const selosPossiveis = () => Math.floor(Math.sqrt((S.stats.totalGanho || 0) / 1000));
@@ -411,7 +411,7 @@ function premioMissao(q){
   const base = Math.round(q.r * Math.pow(q.premio, e.nivel - 1));
   // piso: a missao nunca vale menos que alguns segundos de producao da fabrica,
   // senao no fim do jogo o premio vira troco. Missao mais demorada tem piso maior.
-  const fator = 1 + 0.15 * (e.nivel - 1);
+  const fator = Math.min(2.5, 1 + 0.03 * (e.nivel - 1));
   const piso = Math.round(producaoBruta() * (q.piso || 20) * fator);
   return Math.max(base, piso);
 }
@@ -1873,7 +1873,8 @@ function cardSelos(){
         'Cada selo vale +2% de producao <strong>para sempre</strong> e nunca se perde.' +
       '</div>' +
       '<div class="sub" style="margin-top:6px">Total ja ganho na vida: <strong>' +
-        moeda(S.stats.totalGanho || 0) + '</strong></div>' +
+        moeda(S.stats.totalGanho || 0) + '</strong> — hoje isso valeria <strong>' +
+        fmt(selosPossiveis()) + ' selo' + (selosPossiveis()===1?'':'s') + '</strong></div>' +
       (pode
         ? '<button class="collect" style="margin:10px 0 0;background:#ef5350;border-color:#b91c1c;' +
           'color:#fff">REINICIAR A FABRICA  (+' + ganhos + ' selo' + (ganhos>1?'s':'') + ')</button>'
