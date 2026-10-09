@@ -133,9 +133,14 @@
   body.duelo #duelbar{display:flex}
   body.duelo #topbar{display:none}
   body.duelo .tools, body.duelo .tools + .note, body.duelo [data-t=cod]{display:none}
-  #inicio{position:fixed;inset:0;z-index:120;background:radial-gradient(circle at 50% 20%,#1d2635,#0b0e14 70%);
+  #fundoMenu{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;
+    z-index:119;display:none;background:#0b0e14}
+  #inicio{position:fixed;inset:0;z-index:120;
+    background:linear-gradient(rgba(6,8,12,.62),rgba(6,8,12,.18) 42%,rgba(6,8,12,.55));
     display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
   #inicio .box{max-width:440px;width:100%;text-align:center}
+  #inicio .box h2{text-shadow:0 3px 0 #7a5a00,0 0 18px rgba(0,0,0,.9)}
+  #inicio .sub2{text-shadow:0 1px 6px #000}
   #inicio h2{margin:0 0 4px;font-size:30px;letter-spacing:3px;color:var(--gold);
     text-shadow:0 3px 0 #7a5a00}
   #inicio .sub2{color:var(--dim);margin-bottom:22px;font-size:12px}
@@ -230,6 +235,7 @@
   <input type="file" id="artfile" accept="image/*">
 </div>
 <div id="toast"></div>
+<canvas id="fundoMenu"></canvas>
 <div id="inicio"></div>
 
 <script>
@@ -2957,7 +2963,50 @@ $("#duelsair").onclick = async ()=>{
 };
 
 
-testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); telaInicio("main");
+
+/* ---------------- FUNDO ANIMADO DO MENU ----------------
+   Usa as mesmas funcoes de desenho do jogo (desenhaFundo, desenhaMaquina), entao a imagem
+   acompanha qualquer redesenho das maquinas. A cena e desenhada num canvas proprio, trocando
+   o contexto global "cx" so durante o quadro e devolvendo no fim. */
+const fm = document.getElementById("fundoMenu");
+const fmx = fm.getContext("2d");
+const CENA_W = 560;
+// da esquerda para a direita: maquinas cada vez mais evoluidas (nivel -> aparencia, 1 a cada 4 niveis)
+const CENA = [["m1265xv",1],["m4555tr",5],["m900",9],["m6000",13],["m9000",17],["mplasma",21],["mtitan",21],["msingularity",21]];
+function ajustaFundoMenu(){
+  fm.width = CENA_W;
+  fm.height = Math.max(315, Math.min(420, Math.round(CENA_W * innerHeight / Math.max(1, innerWidth))));
+}
+function loopMenu(){
+  const aberto = $("#inicio").style.display !== "none";
+  fm.style.display = aberto ? "block" : "none";
+  if(aberto){
+    const H = fm.height, dy = H - 200;
+    const cxReal = cx, nivReal = S.machines, cnReal = coins;
+    cx = fmx; S.machines = {}; coins = [];
+    try{
+      fmx.save();
+      fmx.fillStyle = "#0b0e14"; fmx.fillRect(0, 0, CENA_W, H);
+      // parede alta: repete o painel de tijolos para cima
+      const ys = []; for(let y = dy - 150; y > -150; y -= 150) ys.push(y);
+      ys.reverse().forEach(y=>{ fmx.save(); fmx.translate(0, y); desenhaFundo(CENA_W); fmx.restore(); });   // de cima para baixo
+      fmx.translate(0, dy);
+      desenhaFundo(CENA_W);
+      CENA.forEach(([id, lv], i)=>{ S.machines[id] = lv; desenhaMaquina(id, 8 + i*68); });
+      // esteira rolando
+      R(0, BASE+18, CENA_W, 14, "#232a36"); R(0, BASE+18, CENA_W, 2, "#39404c");
+      const off = (F * 2) % 12;
+      for(let x=-12; x<CENA_W+10; x+=12) R(x+off, BASE+22, 6, 6, "#2f3947");
+      for(let x=(F*1.4)%90; x<CENA_W; x+=90){ R(x-3, BASE+23, 6, 6, "#ffd24a"); R(x-1, BASE+24, 2, 4, "#fff3c4"); }
+      fmx.restore();
+    }catch(e){ /* o fundo nunca pode derrubar o menu */ }
+    cx = cxReal; S.machines = nivReal; coins = cnReal;
+  }
+  requestAnimationFrame(loopMenu);
+}
+window.addEventListener("resize", ajustaFundoMenu);
+
+testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
 </script>
 </body>
 </html>
