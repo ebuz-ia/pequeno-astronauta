@@ -46,11 +46,21 @@
   .collect{width:100%;margin:10px 0;padding:14px;font:inherit;font-size:15px;font-weight:bold;
     letter-spacing:1px;cursor:pointer;border:2px solid #6b5a12;border-radius:6px;
     background:var(--gold);color:#241d00}
-  .collect:disabled{background:#2a303b;border-color:var(--line);color:#5d6877;cursor:default}
+  .collect:disabled,.collect.vazio{background:#2a303b;border-color:var(--line);color:#8b97a8}
+  .collect:disabled{cursor:default}
   .collect:active:not(:disabled){transform:translateY(2px)}
   .turbo{font:inherit;font-size:14px;font-weight:bold;letter-spacing:1px;cursor:pointer;
     border:2px solid #0891b2;border-radius:6px;background:var(--cyan);color:#082f49;
     padding:14px;white-space:nowrap;transition:all .15s}
+  .turbo{position:relative;overflow:hidden}
+  .ocfill{position:absolute;left:0;top:0;bottom:0;width:0;background:#f97316;opacity:.6;pointer-events:none;transition:width .12s linear}
+  .octxt{position:relative}
+  #turbo{min-width:124px;background:#1f2937;border-color:#7c2d12;color:#ffd9a0}
+  #turbo.active{background:#f97316;border-color:#c2410c;color:#fff}
+  #turbo:disabled:not(.active){background:#2a303b;border-color:var(--line);color:#8b97a8}
+  #turbo .ocfill{background:linear-gradient(90deg,#f59e0b,#ef4444);opacity:.85}
+  #turbo.active .ocfill{opacity:.35}
+  .turbo.quente:not(.active){border-color:#c2410c;animation:pulseTurbo .5s infinite alternate}
   .turbo:hover:not(:disabled){filter:brightness(1.15)}
   .turbo:active:not(:disabled){transform:translateY(2px)}
   .turbo.active{background:#f97316;border-color:#c2410c;color:#fff;
@@ -268,7 +278,7 @@
   </div>
   <div style="display:flex;gap:8px;margin:10px 0;align-items:stretch">
     <button class="collect" id="collect" style="margin:0;flex:1;min-width:0">RECOLHER DINHEIRO</button>
-    <button class="turbo" id="turbo">⚡ TURBO x2</button>
+    <button class="turbo" id="turbo" title="Clique rápido em RECOLHER (ou aqui) para esquentar as máquinas"><i class="ocfill"></i><span class="octxt">⚡ OVERCLOCK</span></button>
     <button class="turbo" id="abast" style="display:none;background:#f59e0b;border-color:#b45309;color:#201402">⛽ ABASTECER</button>
     <button class="turbo" id="som" title="ligar ou desligar o som" aria-label="Som" style="background:#2a303b;border-color:#4b5a70;color:#e6ecf5;padding:14px 12px">🔊</button>
   </div>
@@ -397,7 +407,7 @@ const MISSOES = [
     d:n=>"Pagar " + fmt(n) + " contas da fabrica",
     cont:s=>s.stats.billsPaid||0 },
   { id:"m_turbo", piso:7,    t:"Acelerador",    r:3000, alvo:2,     passo:1.4,  premio:1.35,
-    d:n=>"Usar o turbo " + fmt(n) + " vezes",
+    d:n=>"Ligar o overclock " + fmt(n) + " vezes",
     cont:s=>s.stats.turbos||0 },
   { id:"m_tempo", piso:15,    t:"Maratona",      r:3500, alvo:300,   passo:1.5,  premio:1.4,
     d:n=>"Ficar " + Math.round(n/60) + " minutos jogando",
@@ -428,7 +438,7 @@ function reiniciarFabrica(){
   S.storageLevel = 1;
   S.broken = {};
   S.bill = { ativa:false, valor:0, tempoRestante:0, atrasada:false, proximaEm:180 };
-  S.turbo = { restante:0, espera:0 };
+  S.turbo = { restante:0, espera:0 }; S.oc = { carga:0 };
   S.gasto = {}; S.gastoN = {};
 
   toast("🏵️ Fábrica reiniciada! Você ganhou " + ganhos + " selo" + (ganhos>1?"s":"") +
@@ -519,7 +529,7 @@ const CONQUISTAS = [
   {id:"c_ger",  t:"Chefe do Pessoal",   d:"Contratar o gerente mais caro", alvo:1, prog:s=>(s.managerLevel||0)>=3?1:0},
   {id:"c_mec",  t:"Oficina Propria",    d:"Contratar o Mecanico Chefe",    alvo:1, prog:s=>s.hasMechanic?1:0},
 
-  {id:"c_turbo",t:"Pe no Acelerador",   d:"Usar o turbo 50 vezes",         alvo:50,  prog:s=>s.stats.turbos||0},
+  {id:"c_turbo",t:"Pe no Acelerador",   d:"Ligar o overclock 50 vezes",         alvo:50,  prog:s=>s.stats.turbos||0},
   {id:"c_cons", t:"Faz Tudo",           d:"Consertar 100 maquinas",        alvo:100, prog:s=>s.stats.consertos||0},
   {id:"c_contas",t:"Tudo em Dia",       d:"Pagar 100 contas da fabrica",   alvo:100, prog:s=>s.stats.billsPaid||0},
   {id:"c_secreta",t:"Caca ao Tesouro",  d:"Encontrar a maquina secreta",   alvo:1, prog:s=>nivelMaq("mcalebe")>0?1:0}
@@ -597,6 +607,7 @@ function novoJogo(){
     broken: {},
     breakdownTimer: 300,
     turbo: { restante: 0, espera: 0 },
+    oc: { carga: 0 },
     som: true,
     modo: "normal",
     qtd: "1",
@@ -636,6 +647,8 @@ function carregar(){
     S.fusoes = Array.isArray(o.fusoes) ? o.fusoes : []; S.fusaoSeq = Number(o.fusaoSeq) || 0;
     sincronizarFusoes();
     S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
+    S.turbo.restante = Math.min(S.turbo.restante, TURBO_DURACAO); S.turbo.espera = Math.min(S.turbo.espera, TURBO_ESPERA);   // save do turbo antigo (30 s / 5 min)
+    S.oc = Object.assign({ carga: 0 }, o.oc || {});
     S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
     S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
   }catch(e){ console.warn("save invalido", e); }
@@ -699,8 +712,14 @@ const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
 const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && !m.fusao && (m.rebirthReq || 0) <= (S.rebirth || 0));
 const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].quebrada);
 const contaPendente = () => Boolean(S.bill && S.bill.ativa);
-const TURBO_DURACAO = 30;   // segundos ligado
-const TURBO_ESPERA   = 300;  // 5 minutos ate poder de novo
+/* OVERCLOCK (antigo turbo): o jogador ESQUENTA as maquinas clicando em RECOLHER (ou no proprio botao).
+   Cada clique enche o medidor em OC_CLIQUE%, que esfria OC_DECAY%/s se parar de clicar. Cheio, liga: producao
+   x2 por TURBO_DURACAO s. Quando acaba, cada maquina tem OC_RISCO de quebrar (no maximo OC_MAX_QUEBRAS, e so com
+   3 maquinas ou mais) e o botao esfria TURBO_ESPERA s. O conserto e o mesmo de sempre (10 s, mecanico faz sozinho).
+   Os nomes turbo* seguem os mesmos para o save antigo continuar valendo. Nao existe no hardcore. */
+const TURBO_DURACAO = 20;   // segundos ligado
+const TURBO_ESPERA   = 60;   // esfriamento antes de poder esquentar de novo
+const OC_CLIQUE = 4, OC_DECAY = 9, OC_RISCO = 0.2, OC_MAX_QUEBRAS = 3;
 const turboAtivo = () => modoAtual().turbo && Boolean(S.turbo && S.turbo.restante > 0);
 const turboPronto = () => modoAtual().turbo && !turboAtivo() && !(S.turbo && S.turbo.espera > 0);
 
@@ -709,7 +728,8 @@ function ligarTurbo(){
   if(!modoAtual().turbo || !turboPronto()) return;
   S.turbo.restante = TURBO_DURACAO;
   S.stats.turbos = (S.stats.turbos||0) + 1;
-  toast("⚡ TURBO LIGADO! Produção dobrada por " + TURBO_DURACAO + " segundos");
+  toast("🔥 OVERCLOCK! Produção x2 por " + TURBO_DURACAO + " segundos. Depois as máquinas esquentam.");
+  vibrar([30, 40, 30]);
   for(let i=0;i<12;i++) faisca();
   render(); salvar();
 }
@@ -724,10 +744,32 @@ const taxa = () => {
 };
 const cheio = () => S.stored >= cap() - 1e-9;
 
+// esquenta um pouco a cada clique; cheio, liga o overclock
+function esquentar(){
+  if(emMenu || (DUEL && !DUEL.rodando)) return;
+  if(!modoAtual().turbo || turboAtivo() || (S.turbo && S.turbo.espera > 0)) return;
+  if(!S.oc) S.oc = { carga:0 };
+  S.oc.carga = Math.min(100, S.oc.carga + OC_CLIQUE);
+  if(S.oc.carga >= 100){ S.oc.carga = 0; ligarTurbo(); }
+}
+// fim do overclock: cada maquina pode estourar (nao as fundidas, que nao quebram)
+function superaquecer(){
+  const lista = maquinasDoRebirthAtual().filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id));
+  let quebrar = [];
+  if(!S.semQuebras && lista.length >= 3){
+    lista.sort(()=> Math.random() - .5);
+    quebrar = lista.filter(()=> Math.random() < OC_RISCO).slice(0, OC_MAX_QUEBRAS);
+  }
+  toast(quebrar.length ? "🔥 Overclock acabou: " + quebrar.length + (quebrar.length === 1 ? " máquina estourou!" : " máquinas estouraram!")
+                       : "❄️ Overclock acabou. Esfriando " + TURBO_ESPERA + " s.");
+  quebrar.forEach(quebrarMaquina);
+}
 function quebrarMaquinaAleatoria(){
   const possuidas = maquinasDoRebirthAtual().filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id));
   if(possuidas.length === 0) return;
-  const sorteada = possuidas[Math.floor(Math.random() * possuidas.length)];
+  quebrarMaquina(possuidas[Math.floor(Math.random() * possuidas.length)]);
+}
+function quebrarMaquina(sorteada){
   if(!S.broken) S.broken = {};
   S.broken[sorteada.id] = {
     quebrada: true,
@@ -1865,7 +1907,7 @@ function loopDesenho(){
     R(0, 0, neededW, BASE, "#f97316");
     cx.globalAlpha = 1;
     R(0, 0, neededW, 3, "#f97316");
-    const etq = "TURBO x2  " + Math.ceil(S.turbo.restante) + "s";
+    const etq = "OVERCLOCK x2  " + Math.ceil(S.turbo.restante) + "s";
     cx.font = "bold 11px monospace"; cx.textAlign = "left";
     cx.fillStyle = "#7a2e05"; cx.fillRect(7, 6, cx.measureText(etq).width + 10, 15);
     cx.fillStyle = "#ffd9a0"; cx.fillText(etq, 12, 17);
@@ -2155,21 +2197,27 @@ function renderHUD(){
   const bt = $("#turbo");
   if(bt){
     bt.style.display = modoAtual().turbo ? "" : "none";
+    const tx = bt.querySelector(".octxt"), fl = bt.querySelector(".ocfill");
+    const carga = S.oc ? S.oc.carga : 0;
+    let txt, larg;
     if(turboAtivo()){
-      bt.classList.add("active"); bt.disabled = true;
-      bt.textContent = "⚡ x2 — " + Math.ceil(S.turbo.restante) + "s";
+      bt.classList.add("active"); bt.classList.remove("quente"); bt.disabled = true;
+      txt = "🔥 x2 • " + Math.ceil(S.turbo.restante) + "s"; larg = 100;
     } else if(S.turbo && S.turbo.espera > 0){
-      bt.classList.remove("active"); bt.disabled = true;
+      bt.classList.remove("active"); bt.classList.remove("quente"); bt.disabled = true;
       const t = Math.ceil(S.turbo.espera);
-      bt.textContent = "⏳ " + Math.floor(t/60) + ":" + String(t%60).padStart(2,"0");
+      txt = "❄️ " + Math.floor(t/60) + ":" + String(t%60).padStart(2,"0"); larg = 0;
     } else {
       bt.classList.remove("active"); bt.disabled = false;
-      bt.textContent = "⚡ TURBO x2";
+      bt.classList.toggle("quente", carga >= 70);
+      txt = carga >= 1 ? "⚡ " + Math.round(carga) + "%" : "⚡ OVERCLOCK"; larg = carga;
     }
+    if(tx.textContent !== txt) tx.textContent = txt;
+    fl.style.width = larg + "%";
   }
 
   const b = $("#collect");
-  b.disabled = S.stored <= 0;
+  b.classList.toggle("vazio", S.stored <= 0);   // continua clicavel: cada clique tambem esquenta o overclock
   b.textContent = S.stored > 0 ? ("RECOLHER " + moeda(S.stored)) : "RECOLHER DINHEIRO";
 
   renderBanners();
@@ -3011,7 +3059,7 @@ function listaCodigos(){
   add("rebirth +1", ()=> S.rebirth = Math.min(5, (S.rebirth||0)+1));
   add("consertar tudo", ()=> S.broken = {});
   add("quitar conta", ()=>{ if(S.bill) S.bill.ativa = false; });
-  add("turbo pronto", ()=>{ if(!S.turbo) S.turbo={restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; });
+  add("overclock pronto", ()=>{ if(!S.turbo) S.turbo={restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; S.oc={carga:0}; });
   add(((S.semQuebras?"✅":"❌") + " quebras desligadas"), ()=> S.semQuebras = !S.semQuebras);
   add(((S.semContas?"✅":"❌") + " contas desligadas"),  ()=> S.semContas  = !S.semContas);
   box.appendChild(grade);
@@ -3057,8 +3105,8 @@ function toast(msg){
 }
 
 /* ---------------- EVENTOS ---------------- */
-$("#collect").onclick = recolher;
-$("#turbo").onclick = ligarTurbo;
+$("#collect").onclick = ()=>{ esquentar(); recolher(); };
+$("#turbo").onclick = esquentar;
 $("#abast").onclick = abastecerTudo;
 $("#som").onclick = ()=>{
   S.som = !S.som;
@@ -3067,7 +3115,7 @@ $("#som").onclick = ()=>{
   render(); salvar();
 };
 document.addEventListener("keydown", e=>{
-  if(e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT"){ e.preventDefault(); recolher(); }
+  if(e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT"){ e.preventDefault(); esquentar(); recolher(); }
 });
 /* 4 abas, cada uma com sub-chips. Os paineis antigos continuam os mesmos; so muda quem aparece. */
 const ABAS = {
@@ -3288,20 +3336,23 @@ setInterval(()=>{
     }
   }
 
-  // 4. Turbo
+  // 4. Overclock
   if(!S.turbo) S.turbo = { restante:0, espera:0 };
+  if(!S.oc) S.oc = { carga:0 };
   if(S.turbo.restante > 0){
     S.turbo.restante -= dt;
     if(S.turbo.restante <= 0){
       S.turbo.restante = 0;
       S.turbo.espera = TURBO_ESPERA;
-      toast("Turbo acabou. Volta em 5 minutos.");
+      superaquecer();
     }
+  } else if(S.turbo.espera <= 0 && S.oc.carga > 0){
+    S.oc.carga = Math.max(0, S.oc.carga - OC_DECAY * dt);      // parou de clicar: esfria
   } else if(S.turbo.espera > 0){
     S.turbo.espera -= dt;
     if(S.turbo.espera <= 0){
       S.turbo.espera = 0;
-      toast("⚡ O TURBO ESTÁ PRONTO DE NOVO!");
+      toast("⚡ Overclock pronto: clique para esquentar de novo.");
     }
   }
 
@@ -3381,7 +3432,7 @@ function telaInicio(qual, extra){
          '<button class="bigbtn normal" data-m="normal">NORMAL' + (at==="normal"?" ✓":"") +
            '<small>O jogo como ele é.</small></button>' +
          '<button class="bigbtn hardcore" data-m="hardcore">HARDCORE' + (at==="hardcore"?" ✓":"") +
-           '<small>Você abastece as máquinas (sem combustível elas param). Tudo 80% mais caro, máquinas dão 30% a menos, contas em dobro, quebras mais frequentes e SEM turbo.</small></button>' +
+           '<small>Você abastece as máquinas (sem combustível elas param). Tudo 80% mais caro, máquinas dão 30% a menos, contas em dobro, quebras mais frequentes e SEM overclock.</small></button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
   } else if(qual === "login"){
     h += '<div class="note" style="text-align:left;margin:0 0 12px">Para duelar você precisa de uma conta: escolha um <strong>nome</strong> e uma <strong>senha</strong>. ' +
@@ -3497,7 +3548,7 @@ function escolherModo(k){
   S.modo = k;
   if(mudou){
     S.fuel = {};                          // tanques cheios ao entrar no hardcore
-    if(k === "hardcore") S.turbo = { restante:0, espera:0 };
+    if(k === "hardcore"){ S.turbo = { restante:0, espera:0 }; S.oc = { carga:0 }; }
   }
   assinatura = ""; bannerKey = null;
   fecharInicio();
