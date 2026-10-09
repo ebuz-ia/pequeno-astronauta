@@ -1711,12 +1711,82 @@ function desenhaSilo(x){
 
 /* moedas na esteira */
 let coins = [];
+/* ---------------- ESTEIRA COM PRODUTOS ----------------
+   Cada maquina que esta produzindo solta caixas na cor dela por um cano no chao; as caixas caem na
+   esteira e viajam ate o armazenador. A esteira e as caixas param quando o armazenador enche ou ha
+   conta pendente. Puramente visual: o dinheiro continua vindo de taxa().
+   Taxa de caixas por maquina = 0,3 + renda/70 por segundo, no maximo 1,4 (2,8 no turbo), para a esteira
+   ficar viva no comeco e nunca virar um borrao no fim. Teto de 60 caixas na tela. */
+const velBelt = () => turboAtivo() ? 4.5 : 2.2;
+const MAX_CAIXAS = 60;
+let produtos = [];
+const acumCaixa = {}, pulsoCano = {};
+function tom(hex, f){                                   // clareia (f>0) ou escurece (f<0) uma cor #rrggbb
+  const c = [1,3,5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  return "#" + c.map(v => Math.max(0, Math.min(255, Math.round(f > 0 ? v + (255 - v) * f : v * (1 + f)))).toString(16).padStart(2, "0")).join("");
+}
+function corProduto(m){
+  if(m.fusao) return misturaCor(COR_MAQ[m.a] || "#35e0d8", COR_MAQ[m.b] || "#ffd24a");
+  return COR_MAQ[m.id] || "#ffd24a";
+}
+function rendaMaq(m){
+  return m.ps * nivelMaq(m.id) * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * (turboAtivo() ? 2 : 1);
+}
+const esteiraParada = () => cheio() || contaPendente();
+function passoProdutos(siloX, pos){
+  const parada = esteiraParada();
+  if(!parada){
+    // comeca por uma maquina diferente a cada quadro: com o teto de 60 caixas, as primeiras da fila nao podem
+    // monopolizar as vagas (a fundida, sempre a ultima, nunca soltaria nada)
+    for(let k = 0; k < pos.length; k++){
+      const q = pos[(k + F) % pos.length], m = q.m;
+      if(maquinaQuebrada(m.id) || semFuel(m.id)) continue;
+      const taxaCx = Math.min(turboAtivo() ? 2.8 : 1.4, 0.3 + rendaMaq(m) / 70);
+      acumCaixa[m.id] = (acumCaixa[m.id] || 0) + taxaCx / 60;
+      if(acumCaixa[m.id] >= 1 && produtos.length < MAX_CAIXAS){
+        acumCaixa[m.id] -= 1;
+        const cor = corProduto(m);
+        produtos.push({ x: q.cx, y: BASE + 4, vy: 0, cor, clara: tom(cor, .45), escura: tom(cor, -.45), ouro: Boolean(m.fusao) });
+        pulsoCano[m.id] = 7;
+      } else if(acumCaixa[m.id] > 1.5) acumCaixa[m.id] = 1.5;   // nao acumula fila infinita quando ha teto
+    }
+    produtos.forEach(p=>{
+      if(p.y < BASE + 27){ p.vy += .4; p.y = Math.min(BASE + 27, p.y + p.vy); }    // cai do cano para a esteira
+      else p.x += velBelt();
+    });
+    produtos = produtos.filter(p => p.x < siloX + 2);
+  }
+  produtos.forEach(p=>{
+    cx.globalAlpha = .35; R(p.x - 4, BASE + 28, 9, 1, "#000"); cx.globalAlpha = 1;      // sombra na esteira
+    R(p.x - 5, p.y - 10, 11, 11, MP.out);
+    R(p.x - 4, p.y - 9, 9, 9, p.cor);
+    R(p.x - 4, p.y - 9, 9, 1, p.clara); R(p.x - 4, p.y - 9, 1, 9, p.clara);
+    R(p.x - 4, p.y - 1, 9, 1, p.escura); R(p.x + 4, p.y - 9, 1, 9, p.escura);
+    R(p.x - 4, p.y - 5, 9, 2, p.ouro ? "#ffd24a" : p.escura);                            // cinta da caixa
+    R(p.x - 1, p.y - 5, 2, 2, p.ouro ? "#fff3c4" : p.clara);                              // fecho
+  });
+}
+// cano por onde a maquina solta o produto; acende na cor dela quando solta
+function desenhaCanos(pos){
+  pos.forEach(q=>{
+    const x0 = q.cx;
+    R(x0 - 4, BASE + 1, 8, 17, MP.out);
+    R(x0 - 3, BASE + 1, 6, 16, MP.mid);
+    R(x0 - 2, BASE + 1, 1, 16, MP.hi); R(x0 + 2, BASE + 1, 1, 16, MP.dark);
+    R(x0 - 4, BASE + 15, 8, 3, MP.lit); R(x0 - 4, BASE + 15, 8, 1, MP.hi);
+    const pl = pulsoCano[q.m.id] || 0;
+    if(pl > 0){
+      cx.globalAlpha = pl / 7; R(x0 - 2, BASE + 16, 4, 2, corProduto(q.m));
+      cx.globalAlpha = pl / 14; R(x0 - 5, BASE + 14, 10, 6, corProduto(q.m)); cx.globalAlpha = 1;
+      pulsoCano[q.m.id] = pl - 1;
+    }
+  });
+}
 function faisca(){
-  coins.push({x: 30 + Math.random()*60, y: BASE+24, v: 1.6 + Math.random()});
+  coins.push({x: 30 + Math.random()*60, y: BASE+24, v: velBelt() + Math.random() * .8});
 }
 function passoMoedas(limiteX){
   const tx = limiteX || 560;
-  if(taxa()>0 && !cheio() && !contaPendente() && F % (turboAtivo() ? 5 : 14) === 0) coins.push({x:20, y:BASE+24, v: turboAtivo() ? 3 : 1.3});
   coins.forEach(c => c.x += c.v);
   coins = coins.filter(c => c.x < tx);
 }
@@ -1724,7 +1794,7 @@ function desenhaEsteira(largura){
   const w = largura || 640;
   R(0, BASE+18, w, 14, "#232a36");
   R(0, BASE+18, w, 2,  "#39404c");
-  const off = cheio() || contaPendente() ? 0 : (F * (turboAtivo() ? 5 : 2)) % 12;
+  const off = esteiraParada() ? 0 : (F * velBelt()) % 12;
   for(let x=-12; x<w+10; x+=12) R(x+off, BASE+22, 6, 6, "#2f3947");
   coins.forEach(c=>{
     R(c.x-3, c.y-3, 6, 6, "#ffd24a");
@@ -1782,10 +1852,13 @@ function loopDesenho(){
   cx.clearRect(0,0,neededW,200);
   desenhaFundo(neededW);
   let x = 8;
-  MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); x += m.fusao ? 140 : 70; } });
+  const pos = [];
+  MACHINES.forEach(m=>{ if(nivelMaq(m.id) > 0){ desenhaMaquina(m.id, x); pos.push({ m, cx: x + (m.fusao ? 70 : 32) }); x += m.fusao ? 140 : 70; } });
+  desenhaCanos(pos);
   desenhaSilo(siloX);
   passoMoedas(siloX);
   desenhaEsteira(neededW);
+  passoProdutos(siloX, pos);
 
   if(turboAtivo()){
     cx.globalAlpha = .05 + .03*Math.sin(F/6);
