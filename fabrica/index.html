@@ -260,7 +260,7 @@ const MISSOES = [
 /* ---------------- SELOS (recomecar a fabrica) ----------------
    Os Selos vem da raiz quadrada de tudo que o jogador ja ganhou na vida,
    dividido por mil. Nunca se perdem e cada um vale +2% de producao. */
-const SELO_LIBERA = 25000000;   // carteira precisa passar disso para liberar
+const SELO_LIBERA = 50000000;   // carteira precisa passar disso para liberar
 
 const multSelos = () => 1 + 0.02 * (S.selos || 0);
 const selosPossiveis = () => Math.floor(Math.sqrt((S.stats.totalGanho || 0) / 1000));
@@ -318,8 +318,11 @@ function modalReiniciar(){
         '<div class="lab">Você vai ganhar</div>' +
         '<div class="val gold" style="font-size:22px;margin-top:4px">' +
           '+ ' + ganhos + ' selo' + (ganhos>1?'s':'') + '</div>' +
-        '<div class="sub" style="margin-top:4px">produção +' + (ganhos*2) + '% para sempre, ' +
-          'ficando com ' + ((S.selos||0) + ganhos) + ' selos no total</div>' +
+        '<div class="sub" style="margin-top:4px">Ficando com ' + ((S.selos||0) + ganhos) +
+          ' selos no total. Como cada selo vale +2%, isso e +' + (((S.selos||0)+ganhos)*2) +
+          '% de producao, ou seja a fabrica fica <strong style="color:var(--txt)">' +
+          (1 + ((S.selos||0)+ganhos)*0.02).toFixed(2).replace(".", ",") +
+          ' vezes mais rapida</strong> para sempre.</div>' +
       '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="collect" id="btn-reinic-sim" style="margin:0;flex:1;background:#ef5350;' +
@@ -1866,11 +1869,13 @@ function cardSelos(){
         '<div><div class="lab">Selos</div>' +
           '<div class="val gold" style="font-size:20px;margin-top:2px">🏵️ ' + fmt(tem) + '</div></div>' +
         '<div style="text-align:right"><div class="lab">Bonus dos selos</div>' +
-          '<div class="val cy" style="font-size:20px;margin-top:2px">+' + (tem*2) + '%</div></div>' +
+          '<div class="val cy" style="font-size:20px;margin-top:2px">+' + (tem*2) + '%</div>' +
+          '<div class="sub">producao x' + multSelos().toFixed(2).replace(".", ",") + '</div></div>' +
       '</div>' +
       '<div class="sub" style="margin-top:8px;line-height:1.6">' +
         'Reiniciar a fabrica apaga maquinas, dinheiro e armazenador, mas rende selos. ' +
-        'Cada selo vale +2% de producao <strong>para sempre</strong> e nunca se perde.' +
+        'Cada selo vale <strong>+2% de producao para sempre</strong> e nunca se perde. ' +
+        'Entao 100 selos deixam a fabrica <strong>3 vezes mais rapida</strong> (+200%).' +
       '</div>' +
       '<div class="sub" style="margin-top:6px">Total ja ganho na vida: <strong>' +
         moeda(S.stats.totalGanho || 0) + '</strong> — hoje isso valeria <strong>' +
