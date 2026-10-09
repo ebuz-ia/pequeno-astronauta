@@ -121,6 +121,9 @@
     border-top:1px dashed var(--line);padding-top:6px}
   .row.open .det{display:block}
   .mact{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+  .vender{font:inherit;font-size:12px;font-weight:bold;margin-top:6px;min-height:40px;padding:8px 12px;cursor:pointer;
+    border:2px solid #7f1d1d;border-radius:5px;background:#3a1414;color:#ffb4b4}
+  .vender:hover{background:#4a1a1a}
   .cbuy{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;
     min-width:74px;padding:6px 10px;min-height:44px}
   .cbuy .q{font-size:10px;opacity:.75}
@@ -409,6 +412,7 @@ function reiniciarFabrica(){
   S.broken = {};
   S.bill = { ativa:false, valor:0, tempoRestante:0, atrasada:false, proximaEm:180 };
   S.turbo = { restante:0, espera:0 };
+  S.gasto = {}; S.gastoN = {};
 
   toast("🏵️ Fábrica reiniciada! Você ganhou " + ganhos + " selo" + (ganhos>1?"s":"") +
         "  (+" + (ganhos*2) + "% de produção para sempre)");
@@ -579,6 +583,7 @@ function novoJogo(){
     som: true,
     modo: "normal",
     qtd: "1",
+    gasto: {}, gastoN: {},          // quanto se pagou (e em quantos niveis) por maquina, base do valor de venda
     fuel: {},
     selos: 0,
     bill: { ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 },
@@ -609,6 +614,7 @@ function carregar(){
     S.broken = o.broken || {};
     S.modo = MODOS[o.modo] ? o.modo : "normal";
     S.fuel = o.fuel || {};
+    S.gasto = o.gasto || {}; S.gastoN = o.gastoN || {};
     S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
     S.breakdownTimer = typeof o.breakdownTimer === "number" ? o.breakdownTimer : 300;
     S.bill = Object.assign({ ativa: false, valor: 0, tempoRestante: 0, atrasada: false, proximaEm: 180 }, o.bill || {});
@@ -852,6 +858,65 @@ function recolher(){
   for(let i=0;i<10;i++) faisca();
   render();
 }
+/* ---------------- VENDER MAQUINA ----------------
+   Devolve 50% do que foi pago pela maquina e ela volta ao nivel 0: comprar de novo recomeca do
+   preco inicial. Como o preco de cada nivel sobe 15% sobre o anterior, quanto mais evoluida a
+   maquina, mais caro foi chegar la e mais ela vale na venda.
+   O valor usa o dinheiro realmente pago (S.gasto). Niveis sem registro (save antigo, codigo de nivel
+   gratis) valem pelo modo mais barato, os niveis mais baixos primeiro: assim trocar de modo ou usar
+   codigo nunca da lucro vendendo. */
+const VENDA_PCT = 0.5;
+function totalGasto(m){
+  const lvl = nivelMaq(m.id);
+  const rastreados = Math.min(lvl, (S.gastoN && S.gastoN[m.id]) || 0);
+  let g = (S.gasto && S.gasto[m.id]) || 0;
+  if(rastreados < (S.gastoN && S.gastoN[m.id] || 0)) g = g * lvl / (S.gastoN[m.id]);   // nivel perdido por outra via
+  for(let i = 0; i < lvl - rastreados; i++) g += Math.round((m.custo || 25) * Math.pow(1.15, i) * MODOS.facil.custo);
+  return g;
+}
+const valorVenda = m => Math.floor(totalGasto(m) * VENDA_PCT);
+
+function venderMaquina(m){
+  const lvl = nivelMaq(m.id);
+  if(lvl <= 0 || m.secreta) return;
+  const v = valorVenda(m);
+  S.wallet += v;                      // nao entra em "ganho": venda nao conta para missao, conquista nem placar do duelo
+  S.machines[m.id] = 0;
+  if(S.gasto) S.gasto[m.id] = 0;
+  if(S.gastoN) S.gastoN[m.id] = 0;
+  if(S.broken) delete S.broken[m.id];
+  if(S.fuel) delete S.fuel[m.id];
+  ABERTAS.delete(m.id);
+  tocar("moeda");
+  toast("💸 " + m.nome + " vendida por " + moeda(v) + ". Pode comprar de novo no nível 0.");
+  render(); salvar();
+  flutuar("+" + moeda(v), $("#wallet"), "#ffd24a"); vibrar(20);
+}
+function confirmarVenda(m){
+  const lvl = nivelMaq(m.id);
+  if(lvl <= 0 || m.secreta) return;
+  const v = valorVenda(m), nova = Math.round((m.custo || 25) * modoAtual().custo);
+  const bg = document.createElement("div");
+  bg.className = "modal-bg"; bg.style.zIndex = 150;
+  bg.innerHTML = '<div class="modal-box" style="text-align:center" role="dialog" aria-label="Vender máquina">' +
+    '<div style="font-size:30px">💸</div>' +
+    '<div class="lab" style="color:var(--gold);letter-spacing:2px">VENDER MÁQUINA</div>' +
+    '<div style="font-size:18px;font-weight:bold;margin:8px 0">' + esc(m.nome) + ' <span style="color:var(--dim);font-size:13px">nível ' + lvl + '</span></div>' +
+    '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;padding:12px;margin:10px 0;text-align:left;line-height:1.7;font-size:12px">' +
+      '<div>Você recebe: <strong style="color:var(--gold)">' + moedaExata(v) + '</strong> <span style="color:var(--dim)">(50% do que gastou nela)</span></div>' +
+      '<div>A máquina volta ao <strong>nível 0</strong>.</div>' +
+      '<div>Para ter de novo: <strong>' + moedaExata(nova) + '</strong>, começando do nível 1. Cada nível seguinte custa 15% a mais que o anterior.</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px"><button class="buy" id="vd-sim" style="flex:1;min-height:44px;background:#ef5350;border-color:#7f1d1d;color:#fff">VENDER</button>' +
+    '<button id="vd-nao" style="flex:1;font:inherit;min-height:44px;cursor:pointer;border:2px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--txt)">CANCELAR</button></div></div>';
+  document.body.appendChild(bg);
+  const fechar = ()=> bg.remove();
+  bg.querySelector("#vd-sim").onclick = ()=>{ fechar(); venderMaquina(m); };
+  bg.querySelector("#vd-nao").onclick = fechar;
+  bg.onclick = e=>{ if(e.target === bg) fechar(); };
+  bg.querySelector("#vd-nao").focus();
+}
+
 const QTD_OPCOES = ["1","10","100","max"];
 const qtdSel = () => QTD_OPCOES.includes(String(S.qtd)) ? String(S.qtd) : "1";
 // quantos niveis o seletor pede e quanto custam, somando nivel por nivel (mesmo arredondamento da compra)
@@ -873,6 +938,9 @@ function comprarMaquina(m){
   const lvl = nivelMaq(m.id);
   S.wallet -= plano.custo;
   S.machines[m.id] = lvl + plano.n;
+  if(!S.gasto) S.gasto = {}; if(!S.gastoN) S.gastoN = {};
+  S.gasto[m.id] = (S.gasto[m.id] || 0) + plano.custo;      // o que foi PAGO de verdade, no preco do modo da hora
+  S.gastoN[m.id] = (S.gastoN[m.id] || 0) + plano.n;
   tocar("compra");
   S.stats.niveisComprados = (S.stats.niveisComprados||0) + plano.n;
   toast("Maquina " + m.nome + (plano.n > 1 ? " +" + plano.n + " niveis" : "") + " (nivel " + (lvl + plano.n) + ")");
@@ -2106,7 +2174,8 @@ function listaMaquinas(){
     detTxt = "Rende R$ " + fmt(porNivel) + " por segundo em cada nível." +
       (lvl > 0 ? "<br>Neste nível: R$ " + fmt(porNivel * lvl) + "/s no total." : "") +
       (modoAtual().prod !== 1 ? "<br>Modo " + modoAtual().nome + ": produção x" + modoAtual().prod + "." : "") +
-      (quebrada ? "<br>Parada até ser consertada." : "");
+      (quebrada ? "<br>Parada até ser consertada." : "") +
+      (lvl > 0 && !m.secreta ? '<br><button class="vender" data-vender="' + m.id + '">💸 VENDER por ' + moeda(valorVenda(m)) + '</button>' : "");
     const mostraFuel = comCombustivel() && lvl > 0 && !m.secreta;
 
     let btnHtml = mostraFuel ? '<button class="buy btn-fuel" aria-label="Abastecer ' + m.nome + '">⛽</button>' : "";
@@ -2145,6 +2214,8 @@ function listaMaquinas(){
 
     const btnBuy = row.querySelector(".cbuy");
     btnBuy.onclick = ()=>comprarMaquina(m);
+    const bv = row.querySelector(".vender");
+    if(bv) bv.onclick = ()=> confirmarVenda(m);
     refsMaq.push({m, btn: btnBuy, q: btnBuy.querySelector(".q"), p: btnBuy.querySelector(".p"),
       fbtn: row.querySelector(".btn-fuel"), fbar: row.querySelector(".fuelbar")});
     const fb = row.querySelector(".btn-fuel");
