@@ -241,6 +241,7 @@
   .bigbtn small{display:block;font-size:11px;font-weight:normal;letter-spacing:0;color:var(--dim);
     margin-top:5px;line-height:1.5}
   .bigbtn.jogar{background:#16452c;border-color:#4ade80;color:#d1fae5}
+  .bigbtn.rank{background:#3b2f0b;border-color:#ffd24a;color:#fff3c4}
   .bigbtn.duelo{background:#2d1b4e;border-color:#a855f7;color:#f3e8ff}
   .bigbtn.facil{background:#16452c;border-color:#4ade80;color:#d1fae5}
   .bigbtn.normal{background:#123c3a;border-color:#35e0d8;color:#ccfbf1}
@@ -257,6 +258,16 @@
   #inicio .dot.online{background:#4ade80;box-shadow:0 0 6px #4ade80}
   #inicio .dot.ocupado{background:#f59e0b}
   #inicio .destaque{border-color:#4ade80 !important;color:#d1fae5 !important;animation:pulseTurbo .8s infinite alternate}
+  #inicio .rk{display:flex;align-items:center;gap:10px;background:var(--panel);border:2px solid var(--line);border-radius:8px;padding:9px 12px;margin:0 0 6px;text-align:left}
+  #inicio .rk .pos{width:30px;font-weight:bold;font-size:15px;text-align:center;flex:none;color:var(--dim)}
+  #inicio .rk .nm{flex:1;min-width:0;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #inicio .rk .val{font-weight:bold;color:var(--gold);white-space:nowrap}
+  #inicio .rk .val small{display:block;font-weight:normal;font-size:10px;color:var(--dim);text-align:right}
+  #inicio .rk.p1{border-color:#ffd24a;background:#2b2410} #inicio .rk.p2{border-color:#cbd5e1} #inicio .rk.p3{border-color:#c2853a}
+  #inicio .rk.voce{box-shadow:0 0 0 2px #4ade80 inset}
+  #inicio .abas{display:flex;gap:6px;margin:0 0 10px}
+  #inicio .abas button{flex:1;font:inherit;font-size:12px;font-weight:bold;padding:10px 6px;min-height:42px;cursor:pointer;border:2px solid var(--line);border-radius:8px;background:rgba(11,14,20,.78);color:var(--dim)}
+  #inicio .abas button.on{border-color:#ffd24a;color:#fff3c4;background:#2b2410}
   #inicio .vinc{border:2px solid #c79a21;background:#1c1a10;border-radius:8px;padding:12px;margin:10px 0 12px;text-align:left}
   #inicio input{font:inherit;width:100%;padding:11px;margin:0 0 10px;border-radius:6px;
     border:2px solid var(--line);background:var(--panel);color:var(--txt);font-size:15px}
@@ -3540,6 +3551,16 @@ function msg(texto, tipo){
 
 let timerReenvio = null, reenvioEm = 0, ultimoEmail = "", tokenPendente = null, ticketPendente = null, AUTH_CLIENTE = "ambos";
 let conviteAtual = null, urlConvite = "", amigosConhecidos = null, ultimoAmigos = 0, SENHA_ATE_CLIENTE = null;
+let rankingAba = "vit", rankingDados = null, rankingErro = "";
+async function abrirRanking(){
+  rankingDados = null; rankingErro = "";
+  telaInicio("ranking");
+  const r = await api("/ranking");
+  if(ultimaTela !== "ranking") return;
+  if(r.rede || !r.vitorias){ rankingErro = r.msg || "Não consegui carregar o ranking."; }
+  else rankingDados = r;
+  telaInicio("ranking");
+}
 // botao da entrada antiga por nome e senha. No modo "link" so existe como ponte para conta antiga sem email.
 const botaoSenha = ()=> AUTH_CLIENTE !== "link" ? '<button class="bigbtn voltar" data-a="senha">Tenho conta com nome e senha</button>' :
   (SENHA_ATE_CLIENTE ? '<button class="bigbtn voltar" data-a="senha">Tenho conta antiga, sem email</button>' : "");
@@ -3560,7 +3581,8 @@ function telaInicio(qual, extra){
     (qual === "main" || qual === "modos" ? "escolha como quer jogar" : "duelo 1x1 online") + '</div>';
   if(qual === "main"){
     h += '<button class="bigbtn jogar" data-a="jogar">JOGAR<small>Sua fábrica, no seu ritmo. Escolha fácil, normal ou hardcore.</small></button>' +
-         '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Desafie um amigo pelo nome. Os dois jogam 5 minutos ao mesmo tempo, cada um no seu computador.</small></button>';
+         '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Desafie um amigo pelo nome. Os dois jogam 5 minutos ao mesmo tempo, cada um no seu computador.</small></button>' +
+         '<button class="bigbtn rank" data-a="ranking">🏆 RANKING<small>Os 10 melhores de todos os tempos no duelo.</small></button>';
   } else if(qual === "modos"){
     const at = S.modo || "normal";
     h += '<button class="bigbtn facil" data-m="facil">FÁCIL' + (at==="facil"?" ✓":"") +
@@ -3579,6 +3601,27 @@ function telaInicio(qual, extra){
          '<button class="bigbtn duelo" data-a="pedirlink">RECEBER LINK</button>' +
          botaoSenha() +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "ranking"){
+    const d = rankingDados, aba = rankingAba;
+    h += '<div class="lab" style="color:#ffd24a;letter-spacing:2px;margin-bottom:8px">🏆 OS 10 MELHORES DE TODOS OS TEMPOS</div>' +
+         '<div class="abas"><button type="button" data-r="vit" class="' + (aba === "vit" ? "on" : "") + '">MAIS DUELOS GANHOS</button>' +
+         '<button type="button" data-r="rec" class="' + (aba === "rec" ? "on" : "") + '">MAIOR PONTUAÇÃO</button></div>';
+    if(!d) h += '<div class="note" style="margin:16px 0">' + (rankingErro ? esc(rankingErro) : "Carregando…") + '</div>';
+    else {
+      const bloco = aba === "vit" ? d.vitorias : d.recordes;
+      const linha = x => '<div class="rk ' + (x.pos <= 3 ? "p" + x.pos : "") + (x.voce ? " voce" : "") + '">' +
+        '<div class="pos">' + (x.pos === 1 ? "🥇" : x.pos === 2 ? "🥈" : x.pos === 3 ? "🥉" : x.pos + "º") + '</div>' +
+        '<div class="nm">' + esc(x.apelido) + (x.voce ? ' <span style="color:var(--ok);font-size:11px">(você)</span>' : '') + '</div>' +
+        '<div class="val" title="' + (aba === "vit" ? x.vitorias + " vitórias" : moedaExata(x.valor)) + '">' +
+          (aba === "vit" ? x.vitorias + (x.vitorias === 1 ? " vitória" : " vitórias") + '<small>' + x.derrotas + (x.derrotas === 1 ? " derrota" : " derrotas") + '</small>'
+                         : moeda(x.valor) + '<small>em um duelo</small>') + '</div></div>';
+      if(!bloco.top.length) h += '<div class="note" style="margin:16px 0">Ainda ninguém completou um duelo valendo. Seja o primeiro!</div>';
+      else h += bloco.top.map(linha).join("");
+      if(bloco.voce && bloco.voce.pos > 10) h += '<div class="note" style="margin:2px 0 6px">…</div>' + linha(bloco.voce);
+      else if(CONTA && !bloco.voce) h += '<div class="note" style="margin:8px 0">Você ainda não aparece aqui. Ganhe um duelo para entrar na lista!</div>';
+      h += '<div class="note" style="margin:8px 0 4px;font-size:10px">Só contam duelos em que os dois jogaram até o fim.</div>';
+    }
+    h += '<button class="bigbtn voltar" data-a="voltar" style="margin-top:6px">VOLTAR</button>';
   } else if(qual === "convite"){
     h += '<div style="font-size:34px;margin:4px 0">🎮</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px"><span style="color:var(--gold)">' + esc(extra) + '</span> te chamou para jogar!</div>' +
          '<div class="note" style="margin:0 0 14px;line-height:1.7">Na Fábrica de Pixel vocês fazem um duelo de 5 minutos, cada um no seu aparelho, ao mesmo tempo. ' +
@@ -3679,6 +3722,7 @@ function telaInicio(qual, extra){
   box.innerHTML = h + '</div>';
   box.querySelectorAll("[data-a]").forEach(b=> b.onclick = ()=> acaoInicio(b.dataset.a));
   box.querySelectorAll("[data-m]").forEach(b=> b.onclick = ()=> escolherModo(b.dataset.m));
+  box.querySelectorAll("[data-r]").forEach(b=> b.onclick = ()=>{ rankingAba = b.dataset.r; telaInicio("ranking"); });
   box.querySelectorAll("input").forEach(i=> i.onkeydown = e=>{
     if(e.key === "Enter" && e.target.type !== "checkbox"){
       e.preventDefault();
@@ -3700,6 +3744,7 @@ function telaInicio(qual, extra){
 
 async function acaoInicio(a){
   if(a === "jogar") return telaInicio("modos");
+  if(a === "ranking") return abrirRanking();
   if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "login"); if(CONTA) atualizarPerfil(); return; }
   if(a === "voltar") return telaInicio("main");
   if(a === "senha") return telaInicio("senha");
