@@ -259,6 +259,17 @@
     padding:8px 12px;border-radius:6px;border:2px solid #a855f7;background:#1e1530;color:#e9d5ff}
   #duelbar .t{font-size:20px;font-weight:bold;color:#fff;letter-spacing:1px}
   #duelbar .t.fim{color:#ef5350}
+  #cartasbar{display:none;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 8px;
+    padding:8px 12px;border-radius:6px;border:2px solid #c2410c;background:#241307}
+  #cartasbar .rot{font-size:10px;letter-spacing:1px;color:#fdba74}
+  #cartasmao{display:flex;gap:8px;flex-wrap:wrap}
+  .carta{font:inherit;font-size:12px;font-weight:bold;cursor:pointer;padding:8px 12px;
+    border-radius:6px;border:2px solid #b45309;background:#f59e0b;color:#1a1004;white-space:nowrap}
+  .carta:hover{filter:brightness(1.12)}
+  .carta:active{transform:translateY(2px)}
+  .carta:disabled{opacity:.5;cursor:default}
+  .vazio{font-size:11px;color:#9a8878}
+  body.duelo.comcartas #cartasbar{display:flex}
   body.duelo #duelbar{display:flex}
   body.duelo #topbar{display:none}
   body.duelo [data-t=mais]{display:none}
@@ -332,6 +343,7 @@
     <div class="t" id="dueltime">5:00</div>
     <button class="menubtn" id="duelsair">SAIR DO DUELO</button>
   </div>
+  <div id="cartasbar"><span class="rot">SUAS CARTAS</span><div id="cartasmao"></div></div>
   <div class="topbar" id="topbar">
     <span class="modotag normal" id="modotag">MODO NORMAL</span>
     <button class="menubtn" id="menubtn" aria-label="Voltar ao menu inicial">☰ MENU INICIAL</button>
@@ -841,7 +853,9 @@ const taxa = () => {
     if(maquinaQuebrada(m.id) || semFuel(m.id)) return a;
     return a + m.ps * nivelMaq(m.id);
   }, 0);
-  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost());
+  if(curtoAtivo()) return 0;                       // carta CURTO: fabrica desligada
+  const cartaTurbo = turboCartaAtivo() ? 2 : 1;    // carta TURBO: dobra sem risco
+  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost() * cartaTurbo);
 };
 const cheio = () => S.stored >= cap() - 1e-9;
 
@@ -1894,7 +1908,7 @@ let coins = [];
    conta pendente. Puramente visual: o dinheiro continua vindo de taxa().
    Taxa de caixas por maquina = 0,3 + renda/70 por segundo, no maximo 1,4 (2,8 no turbo), para a esteira
    ficar viva no comeco e nunca virar um borrao no fim. Teto de 60 caixas na tela. */
-const velBelt = () => turboAtivo() ? 4.5 : 2.2;
+const velBelt = () => (turboAtivo() || turboCartaAtivo()) ? 4.5 : 2.2;
 const MAX_CAIXAS = 60;
 let produtos = [];
 const acumCaixa = {}, pulsoCano = {};
@@ -1913,7 +1927,7 @@ function corProduto(m){
 function rendaMaq(m){
   return m.ps * nivelMaq(m.id) * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost();
 }
-const esteiraParada = () => cheio() || contaPendente();
+const esteiraParada = () => cheio() || contaPendente() || curtoAtivo();
 function passoProdutos(siloX, pos){
   const parada = esteiraParada();
   if(!parada){
@@ -2302,7 +2316,13 @@ function renderHUD(){
 
   let st = "produzindo";
   let stCor = "var(--dim)";
-  if(contaPendente()){
+  if(curtoAtivo()){
+    st = "🔌 LUZ CORTADA — sabotagem! volta em " + Math.ceil((curtoAte - Date.now())/1000) + "s";
+    stCor = "#ef5350";
+  } else if(turboCartaAtivo()){
+    st = "⚡ TURBO DA CARTA — produção dobrada por " + Math.ceil((turboCartaAte - Date.now())/1000) + "s";
+    stCor = "#f59e0b";
+  } else if(contaPendente()){
     st = "⚡ PARADA — pague a conta da fábrica!";
     stCor = "var(--no)";
   } else if(cheio()){
@@ -3639,6 +3659,73 @@ async function enviarRelatorio(){
   await api("/fabrica/relatorio", { producao, totalGanho: S.stats.totalGanho || 0, rebirth: S.rebirth || 0, selos: S.selos || 0 });
 }
 
+/* ---------------- cartas de sabotagem (duelo) ----------------
+   Quem da e valida as cartas e o servidor. Aqui so mostramos a mao e aplicamos
+   o que chega como efeito. */
+const DESC_CARTA = {
+  quebrar: { rot: "💥 QUEBRAR",  dica: "Quebra uma máquina do seu adversário" },
+  curto:   { rot: "🔌 CURTO",    dica: "Desliga a fábrica dele por 5 segundos" },
+  turbo:   { rot: "⚡ TURBO",    dica: "Dobra a SUA produção por 10 segundos, sem risco" }
+};
+let maoCartas = [], jogandoCarta = false;
+let curtoAte = 0, turboCartaAte = 0;
+
+const curtoAtivo = () => Date.now() < curtoAte;
+const turboCartaAtivo = () => Date.now() < turboCartaAte;
+
+function aplicarEfeitos(lista){
+  if(!Array.isArray(lista) || !lista.length) return;
+  lista.forEach(e=>{
+    if(e.carta === "quebrar"){
+      const alvos = MACHINES.filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id) && !m.secreta);
+      if(alvos.length) quebrarMaquina(alvos[Math.floor(Math.random()*alvos.length)]);
+      toast("💥 " + e.de + " quebrou uma máquina sua!");
+    } else if(e.carta === "curto"){
+      curtoAte = Date.now() + 5000;
+      toast("🔌 " + e.de + " cortou a sua luz por 5 segundos!");
+    } else if(e.carta === "turbo"){
+      turboCartaAte = Date.now() + 10000;
+      toast("⚡ Turbo da carta: produção dobrada por 10 segundos!");
+    }
+  });
+  render();
+}
+
+function mostrarCartas(lista){
+  maoCartas = Array.isArray(lista) ? lista : [];
+  document.body.classList.toggle("comcartas", Boolean(DUEL && DUEL.rodando));
+  const box = document.getElementById("cartasmao");
+  if(!box) return;
+  const chave = maoCartas.join(",") + "|" + jogandoCarta;
+  if(box.dataset.k === chave) return;
+  box.dataset.k = chave;
+  box.innerHTML = "";
+  if(!maoCartas.length){
+    box.appendChild(el('<span class="vazio">A próxima carta chega em instantes…</span>'));
+    return;
+  }
+  maoCartas.forEach((c, i)=>{
+    const d = DESC_CARTA[c]; if(!d) return;
+    const b = el('<button class="carta" title="' + d.dica + '">' + d.rot + '</button>');
+    b.disabled = jogandoCarta;
+    b.onclick = ()=> jogarCarta(c, i);
+    box.appendChild(b);
+  });
+}
+
+async function jogarCarta(carta, i){
+  if(jogandoCarta || !DUEL || !DUEL.rodando) return;
+  jogandoCarta = true;
+  maoCartas.splice(i, 1);          // tira da mao na hora, o servidor confirma depois
+  mostrarCartas(maoCartas);
+  const r = await api("/duelo/carta", { carta });
+  jogandoCarta = false;
+  if(r.rede){ toast("Sem internet agora. A carta voltou para a sua mão."); return; }
+  if(r.erro){ toast(r.msg || "Não deu para jogar essa carta."); return; }
+  if(carta !== "turbo") toast("Carta enviada para o seu adversário!");
+  mostrarCartas(r.cartas || []);
+}
+
 /* ---------------- TELA INICIAL, MODOS E DUELO 1x1 ONLINE ---------------- */
 const API = "https://api.ebuz.com.br/fabrica-game";
 const CONTA_KEY = "fabrica-pixel-conta";
@@ -4273,6 +4360,8 @@ async function pollar(){
     if(r.rede) return;
     if(DUEL && r.duelo) DUEL.ganhoAdv = r.duelo.ganhoAdversario || 0;
     aplicarEstado(r.duelo);
+    if(DUEL && DUEL.rodando){ aplicarEfeitos(r.efeitos); mostrarCartas(r.cartas); }
+    else document.body.classList.remove("comcartas");
   } finally { pollando = false; }
 }
 setInterval(pollar, 1500);
@@ -4301,6 +4390,8 @@ function tickDuelo(){
 }
 
 function sairDuelo(manterMenu){
+  curtoAte = 0; turboCartaAte = 0; maoCartas = [];
+  document.body.classList.remove("comcartas");
   if(!DUEL) { if(!manterMenu) telaInicio("main"); return; }
   const salvo = JSON.parse(STASH);
   DUEL = null; STASH = null;
