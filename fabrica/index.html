@@ -3607,6 +3607,18 @@ function telaInicio(qual, extra){
          '<button class="bigbtn hardcore" data-m="hardcore">HARDCORE' + (at==="hardcore"?" ✓":"") +
            '<small>Você abastece as máquinas (sem combustível elas param). Tudo 80% mais caro, máquinas dão 30% a menos, contas em dobro, quebras mais frequentes e SEM overclock.</small></button>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "nome"){
+    h = '<div class="box"><h2>FÁBRICA DE PIXEL</h2><div class="sub2">como voce quer ser chamado?</div>' +
+        '<div class="note" style="text-align:left;margin:0 0 12px">Escreva o seu nome. E so isso: sem email, sem senha. ' +
+        'O seu amigo escreve o nome dele no computador dele, e dai voces dois podem se desafiar ' +
+        '<strong>digitando o nome um do outro</strong>.</div>' +
+        '<input id="cnome" maxlength="14" autocomplete="off" spellcheck="false" placeholder="seu nome" value="' + esc(extra||"") + '">' +
+        '<div id="msg" class="msgbox"></div>' +
+        '<button class="bigbtn jogar" data-a="salvarnome">COMECAR</button>' +
+        '<button type="button" data-a="temconta" style="font:inherit;font-size:11px;padding:6px;margin-top:10px;cursor:pointer;' +
+          'border:none;background:none;color:var(--dim);text-decoration:underline">ja tenho conta com email</button>' +
+        '<button type="button" data-a="semnome" style="font:inherit;font-size:11px;padding:6px;cursor:pointer;' +
+          'border:none;background:none;color:var(--dim);text-decoration:underline">so quero jogar sozinho</button>';
   } else if(qual === "login"){
     h += '<div class="note" style="text-align:left;margin:0 0 12px">Entre com o seu <strong>email</strong>. Mandamos um link para você tocar: não tem senha para decorar. ' +
          'Se ainda não tem conta, o mesmo link cria uma. O email é <strong>do responsável ou de quem tem 18 anos ou mais</strong> e ninguém vê. ' +
@@ -3695,24 +3707,27 @@ function telaInicio(qual, extra){
          '<button class="bigbtn duelo" data-a="entrar">ENTRAR</button>' +
          '<button class="bigbtn voltar" data-a="outroemail">ENTRAR COM EMAIL</button>';
   } else if(qual === "desafio"){
-    h += '<div class="note" style="margin:0 0 4px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' +
+    h += '<div class="note" style="margin:0 0 10px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' +
          (CONTA.vit !== undefined ? ' &nbsp;•&nbsp; ' + CONTA.vit + ' vitória' + (CONTA.vit===1?"":"s") + ' / ' + CONTA.der + ' derrota' + (CONTA.der===1?"":"s") : '') + '</div>' +
-         (CONTA.codigo ? '<div class="note" style="margin:2px 0 0">Seu ID: <strong style="color:var(--gold);letter-spacing:1px">#' + esc(CONTA.codigo) + '</strong> ' +
-            '<button type="button" data-a="copiarid" style="font:inherit;font-size:11px;padding:4px 8px;margin-left:4px;cursor:pointer;border:2px solid var(--line);border-radius:5px;background:var(--panel2);color:var(--dim)">COPIAR</button>' +
-            '<div style="font-size:11px;margin-top:3px">É só seu e não muda. Quem souber o ID acha você mesmo sem saber o apelido.</div></div>' : '') +
-         (CONTA.semEmail ? '<div class="vinc"><div style="font-size:13px;font-weight:bold;color:var(--gold);margin-bottom:6px">Vincule um email à sua conta</div>' +
-            '<div class="note" style="margin:0 0 8px">Assim você entra por link, sem senha, e não perde a conta. Use o email do responsável ou de quem tem 18 anos ou mais.</div>' +
-            '<input id="vemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" style="margin-bottom:8px">' +
-            '<button class="bigbtn jogar" data-a="vincular" style="font-size:14px;padding:10px;margin:0">ENVIAR LINK DE CONFIRMAÇÃO</button></div>' : '') +
-         '<div id="amigos" style="margin:10px 0 4px"></div>' +
-         '<div class="note" style="text-align:left;margin:10px 0 8px">Ou digite o apelido de um amigo. Ele precisa estar com o menu aberto neste jogo para aceitar. ' +
-         'Quando ele aceitar, a partida começa <strong>ao mesmo tempo</strong> nos dois aparelhos.</div>' +
-         '<input id="camigo" maxlength="14" placeholder="Apelido ou ID do amigo (#K7M2Q9)" value="' + esc(extra||"") + '">' +
+         '<div class="note" style="text-align:left;margin:0 0 8px">Escreva o nome do seu amigo e toque em DESAFIAR. ' +
+         'Ele precisa estar com o jogo aberto no menu para ver o convite e aceitar.</div>' +
+         '<input id="camigo" maxlength="14" placeholder="nome do seu amigo" value="' + esc(extra||"") + '">' +
          '<div id="msg" class="msgbox"></div>' +
          '<button class="bigbtn duelo" data-a="desafiar">DESAFIAR</button>' +
+         '<div id="amigos" style="margin:12px 0 4px"></div>' +
          '<button class="bigbtn jogar" id="bconvite" data-a="convidar" style="font-size:14px;padding:11px">CONVIDAR AMIGO POR LINK</button>' +
-         '<button class="bigbtn voltar" data-a="trocar">TROCAR DE CONTA</button>' +
-         '<button class="bigbtn voltar" data-a="sairtodos">SAIR DE TODOS OS APARELHOS</button>' +
+         '<details style="margin-top:14px;text-align:left">' +
+           '<summary style="cursor:pointer;color:var(--dim);font-size:12px;padding:6px 0">mais opções da conta</summary>' +
+           (CONTA.codigo ? '<div class="note" style="margin:8px 0 0">Seu ID: <strong style="color:var(--gold);letter-spacing:1px">#' + esc(CONTA.codigo) + '</strong> ' +
+              '<button type="button" data-a="copiarid" style="font:inherit;font-size:11px;padding:4px 8px;margin-left:4px;cursor:pointer;border:2px solid var(--line);border-radius:5px;background:var(--panel2);color:var(--dim)">COPIAR</button>' +
+              '<div style="font-size:11px;margin-top:3px">Quem souber o seu ID acha você mesmo sem saber o nome. Dá para desafiar pelo ID também.</div></div>' : '') +
+           (CONTA.semEmail ? '<div class="vinc" style="margin-top:10px"><div style="font-size:13px;font-weight:bold;color:var(--gold);margin-bottom:6px">Guardar a conta com um email</div>' +
+              '<div class="note" style="margin:0 0 8px">Só se quiser. Serve para não perder a conta se trocar de computador. Use o email do responsável ou de quem tem 18 anos ou mais.</div>' +
+              '<input id="vemail" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="seu@email.com" style="margin-bottom:8px">' +
+              '<button class="bigbtn jogar" data-a="vincular" style="font-size:14px;padding:10px;margin:0">ENVIAR LINK DE CONFIRMAÇÃO</button></div>' : '') +
+           '<button class="bigbtn voltar" data-a="trocar" style="margin-top:10px">TROCAR DE NOME</button>' +
+           '<button class="bigbtn voltar" data-a="sairtodos">SAIR DE TODOS OS APARELHOS</button>' +
+         '</details>' +
          '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
   } else if(qual === "espera"){
     h += '<div style="font-size:30px;margin:6px 0">⏳</div><div style="font-size:18px;font-weight:bold;margin-bottom:6px">Aguardando ' + esc(extra) + ' aceitar…</div>' +
@@ -3746,7 +3761,7 @@ function telaInicio(qual, extra){
   box.querySelectorAll("input").forEach(i=> i.onkeydown = e=>{
     if(e.key === "Enter" && e.target.type !== "checkbox"){
       e.preventDefault();
-      acaoInicio({ login:"pedirlink", senha:"entrar", apelido:"criarconta", convite: CONTA ? "aceitarconvite" : "pedirlink" }[qual] || "desafiar");
+      acaoInicio({ nome:"salvarnome", login:"pedirlink", senha:"entrar", apelido:"criarconta", convite: CONTA ? "aceitarconvite" : "pedirlink" }[qual] || "desafiar");
     }
   });
   const prim = box.querySelector("input"); if(prim && !prim.value && prim.type !== "checkbox") prim.focus();
@@ -3765,8 +3780,22 @@ function telaInicio(qual, extra){
 async function acaoInicio(a){
   if(a === "jogar") return telaInicio("modos");
   if(a === "ranking") return abrirRanking();
-  if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "login"); if(CONTA) atualizarPerfil(); return; }
-  if(a === "voltar") return telaInicio("main");
+  if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "nome"); if(CONTA) atualizarPerfil(); return; }
+  if(a === "salvarnome"){
+    const el = document.getElementById("cnome");
+    const nome = (el ? el.value : "").trim();
+    if(nome.length < 3) return msg("Escreva um nome com pelo menos 3 letras.");
+    msg("Guardando o nome…", "ok");
+    const r = await api("/conta/nome", { nome });
+    if(r.rede) return msg(r.msg);
+    if(r.erro) return msg(r.msg || "Nao deu para usar esse nome.");
+    guardarConta({ token: r.token, nome: r.nome, codigo: r.codigo, vit: r.vitorias, der: r.derrotas, semEmail: true });
+    toast("Prazer, " + r.nome + "!");
+    return telaInicio("main");
+  }
+  if(a === "temconta") return telaInicio("login");
+  if(a === "semnome") return telaInicio("main");
+  if(a === "voltar") return telaInicio(CONTA ? "main" : "nome");
   if(a === "senha") return telaInicio("senha");
   if(a === "outroemail") return telaInicio("login");
   if(a === "entrar"){
@@ -3852,8 +3881,8 @@ async function acaoInicio(a){
   }
   if(a === "aceitarconvite"){ msg("Aceitando…", "ok"); await aceitarConvite(); return telaInicio("desafio"); }
   if(a === "semconvite"){ guardarConvite(null); return telaInicio(CONTA ? "desafio" : "main"); }
-  if(a === "trocar"){ await api("/sair", {}); guardarConta(null); amigosConhecidos = null; return telaInicio("login"); }
-  if(a === "sairtodos"){ await api("/conta/sair", { todos: true }); guardarConta(null); amigosConhecidos = null; return telaInicio("login"); }
+  if(a === "trocar"){ await api("/sair", {}); guardarConta(null); amigosConhecidos = null; return telaInicio("nome"); }
+  if(a === "sairtodos"){ await api("/conta/sair", { todos: true }); guardarConta(null); amigosConhecidos = null; return telaInicio("nome"); }
   if(a === "desafiar") return desafiar($("#camigo").value.trim());
   if(a === "cancelar"){ await api("/duelo/cancelar", {}); esperandoId = null; return telaInicio("desafio"); }
   if(a === "revanche"){
@@ -4170,7 +4199,7 @@ function loopMenu(){
 }
 window.addEventListener("resize", ajustaFundoMenu);
 
-abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio("main");
+abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome");
 api("/hora").then(r => { if(r && r.authMode){ AUTH_CLIENTE = r.authMode; SENHA_ATE_CLIENTE = r.senhaAte || null; } });
 // link de convite (?convite=CODIGO): guarda o codigo (some da barra de endereco) e mostra quem convidou
 async function mostrarConviteAmizade(){
