@@ -842,9 +842,17 @@ function superaquecer(){
   quebrar.forEach(quebrarMaquina);
 }
 function quebrarMaquinaAleatoria(){
-  const possuidas = maquinasDoRebirthAtual().filter(m => nivelMaq(m.id) > 0 && !maquinaQuebrada(m.id));
-  if(possuidas.length === 0) return;
-  quebrarMaquina(possuidas[Math.floor(Math.random() * possuidas.length)]);
+  // sorteio com peso: GELO nunca entra, FOGO entra com o dobro de chance
+  const pool = [];
+  MACHINES.forEach(m=>{
+    if(m.secreta || nivelMaq(m.id) <= 0 || maquinaQuebrada(m.id)) return;
+    if(!m.fusao && (m.rebirthReq || 0) > (S.rebirth || 0)) return;
+    const el = elemDaMaquina(m);
+    const peso = el ? el.peso : 1;
+    for(let i = 0; i < peso; i++) pool.push(m);
+  });
+  if(pool.length === 0) return;
+  quebrarMaquina(pool[Math.floor(Math.random() * pool.length)]);
 }
 function quebrarMaquina(sorteada){
   if(!S.broken) S.broken = {};
@@ -1845,7 +1853,11 @@ function tom(hex, f){                                   // clareia (f>0) ou escu
   return "#" + c.map(v => Math.max(0, Math.min(255, Math.round(f > 0 ? v + (255 - v) * f : v * (1 + f)))).toString(16).padStart(2, "0")).join("");
 }
 function corProduto(m){
-  if(m.fusao) return misturaCor(COR_MAQ[m.a] || "#35e0d8", COR_MAQ[m.b] || "#ffd24a");
+  if(m.fusao){
+    const base = misturaCor(COR_MAQ[m.a] || "#35e0d8", COR_MAQ[m.b] || "#ffd24a");
+    const el = elemDaMaquina(m);
+    return el ? misturaCor(base, el.cor) : base;
+  }
   return COR_MAQ[m.id] || "#ffd24a";
 }
 function rendaMaq(m){
@@ -2405,21 +2417,53 @@ let fusKey = "";
 const chaveFusoes = () => (S.fusoes || []).map(f => f.id).join(",");
 // as fundidas viram entradas de MACHINES: producao, preco, combustivel, venda e lista funcionam sem codigo extra
 function sincronizarFusoes(){
+  // fusao feita antes dos elementos existirem recebe o seu, calculado do mesmo par
+  (S.fusoes || []).forEach(f=>{ if(!f.elemento) f.elemento = elementoDe(f.a, f.b); });
   for(let i = MACHINES.length - 1; i >= 0; i--) if(MACHINES[i].fusao) MACHINES.splice(i, 1);
   (S.fusoes || []).forEach(f => MACHINES.push(Object.assign({ rebirthReq:0, fusao:true }, f)));
   fusKey = chaveFusoes();
 }
 const elegiveisFusao = () => MACHINES.filter(m => !m.fusao && !m.secreta && (m.rebirthReq || 0) <= (S.rebirth || 0) &&
   nivelMaq(m.id) >= FUSAO_NIVEL_MIN);
+/* ---------------- ELEMENTOS DA FUSAO ----------------
+   Cada maquina base tem uma natureza. Fundir duas da MESMA natureza da o
+   elemento puro, que e forte mas tem contrapartida. Naturezas diferentes dao
+   MISTO, mais fraco e sem risco. Isso faz a fusao virar escolha, nao sorteio. */
+const NATUREZA = {
+  m1265xv:"raio",  m4555tr:"fogo", m900:"raio",     m6000:"raio",
+  m9000:"fogo",    m700:"gelo",    m500067:"fogo",
+  m8800:"raio",    mcyber:"raio",  mplasma:"fogo",  mtitan:"fogo",
+  mfusion:"fogo",  mlaser:"fogo",  mneutron:"gelo", mdark:"gelo",
+  msingularity:"fogo", minfinity:"raio"
+};
+
+const ELEMENTOS = {
+  fogo:  { nome:"FOGO",  icone:"🔥", cor:"#ff8c1a", prod:1.30, peso:2,
+           resumo:"Produz 30% a mais, mas quebra duas vezes mais." },
+  gelo:  { nome:"GELO",  icone:"❄️", cor:"#7dd3fc", prod:0.85, peso:0,
+           resumo:"Nunca quebra, mas produz 15% a menos." },
+  raio:  { nome:"RAIO",  icone:"⚡", cor:"#ffd24a", prod:1.00, peso:1, surto:0.12,
+           resumo:"Produz normal, mas a cada segundo tem 12% de chance de produzir o dobro." },
+  misto: { nome:"MISTO", icone:"🧪", cor:"#c084fc", prod:1.10, peso:1,
+           resumo:"Produz 10% a mais e quebra como qualquer outra." }
+};
+
+const elementoDe = (a, b) => {
+  const na = NATUREZA[a], nb = NATUREZA[b];
+  return (na && nb && na === nb) ? na : "misto";
+};
+const elemDaMaquina = m => (m && m.fusao && m.elemento) ? ELEMENTOS[m.elemento] : null;
+
 function planoFusao(a, b){
   const la = nivelMaq(a.id), lb = nivelMaq(b.id), soma = a.ps + b.ps;
   const nivel = Math.max(1, Math.floor((a.ps * la + b.ps * lb) / soma));
-  const ps = Math.ceil(soma * FUSAO_BONUS);
+  const elemento = elementoDe(a.id, b.id);
+  const ps = Math.max(1, Math.ceil(soma * FUSAO_BONUS * ELEMENTOS[elemento].prod));
   const gasto = totalGasto(a) + totalGasto(b);
   const mult = modoAtual().prod * multRebirth() * multConquistas() * multSelos();
-  return { nivel, ps, custo: Math.round((a.custo + b.custo) * FUSAO_PRECO), gasto, taxa: Math.round(gasto * FUSAO_TAXA),
+  return { nivel, ps, elemento, custo: Math.round((a.custo + b.custo) * FUSAO_PRECO), gasto, taxa: Math.round(gasto * FUSAO_TAXA),
     antes: (a.ps * la + b.ps * lb) * mult, depois: ps * nivel * mult,
-    nome: "Fusão " + (CURTO[a.id] || a.nome) + "+" + (CURTO[b.id] || b.nome) };
+    nome: ELEMENTOS[elemento].icone + " " + (CURTO[a.id] || a.nome) + "+" + (CURTO[b.id] || b.nome) };
 }
 const podeFundir = (a, b) => !DUEL && a && b && a.id !== b.id && elegiveisFusao().some(m => m.id === a.id) &&
   elegiveisFusao().some(m => m.id === b.id) && (S.fusoes || []).length < FUSAO_MAX;
@@ -2440,7 +2484,7 @@ function fundir(a, b){
   S.fusaoSeq = (S.fusaoSeq || 0) + 1;
   const id = "fu_" + S.fusaoSeq;
   if(!S.fusoes) S.fusoes = [];
-  S.fusoes.push({ id, nome: pl.nome, ps: pl.ps, custo: pl.custo, a: a.id, b: b.id });
+  S.fusoes.push({ id, nome: pl.nome, ps: pl.ps, custo: pl.custo, a: a.id, b: b.id, elemento: pl.elemento });
   S.machines[id] = pl.nivel;
   if(!S.gasto) S.gasto = {}; if(!S.gastoN) S.gastoN = {};
   S.gasto[id] = pl.gasto + pl.taxa;           // o que valeu as duas + a taxa: base do valor de venda
@@ -2601,7 +2645,13 @@ function atualizarFusao(){
   if(a && b){
     pl = planoFusao(a, b);
     const ganho = pl.antes > 0 ? Math.round((pl.depois / pl.antes - 1) * 100) : 0;
+    const E = ELEMENTOS[pl.elemento];
     const t = '<div class="nm" style="font-size:15px">' + esc(pl.nome) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin:8px 0;padding:8px 10px;' +
+        'border:2px solid ' + E.cor + '55;background:' + E.cor + '14;border-radius:6px">' +
+        '<span style="font-size:17px">' + E.icone + '</span>' +
+        '<span><b style="color:' + E.cor + ';letter-spacing:1px">' + E.nome + '</b>' +
+        '<span class="sub" style="display:block">' + E.resumo + '</span></span></div>' +
       '<div class="sub">Nasce no <b>nível ' + pl.nivel + '</b> • evoluir custa bem mais que nas originais</div>' +
       '<div class="fus-prod">R$ ' + fmt(pl.antes) + '/s &rarr; <b>R$ ' + fmt(pl.depois) + '/s</b> <span>(+' + ganho + '%)</span></div>' +
       '<div class="sub">Taxa de fusão: <b>' + moeda(pl.taxa) + '</b> (25% do que você gastou nas duas)</div>';
@@ -2609,7 +2659,9 @@ function atualizarFusao(){
     if((S.fusoes || []).length >= FUSAO_MAX) aviso = "Limite de " + FUSAO_MAX + " máquinas fundidas. Venda uma para fazer outra.";
     else if(S.wallet < pl.taxa) aviso = "Faltam " + moeda(pl.taxa - S.wallet) + " para a taxa de fusão.";
   } else {
-    const t = '<div class="sub">Escolha duas máquinas para ver como a fundida fica.</div>';
+    const t = '<div class="sub">Escolha duas máquinas para ver como a fundida fica.</div>' +
+      '<div class="sub" style="margin-top:6px">Duas máquinas da <b>mesma natureza</b> dão um elemento puro, ' +
+      'que é mais forte mas tem contrapartida. Naturezas diferentes dão MISTO.</div>';
     if(r.info.dataset.k !== t){ r.info.innerHTML = t; r.info.dataset.k = t; }
   }
   r.go.textContent = pl ? "FUNDIR • " + moeda(pl.taxa) : "FUNDIR";
@@ -2749,7 +2801,9 @@ function listaMaquinas(){
     const row = el(
       '<div class="row card ' + (lvl > 0 ? "owned" : "") + (quebrada ? " broken" : "") + (m.fusao ? " fusao" : "") + '" data-mid="' + m.id + '">' +
         '<canvas class="mini" width="56" height="44"></canvas>' +
-        '<div class="info"><div class="nm">' + m.nome + (lvl > 0 ? '<span class="nvl">Nv ' + lvl + '</span>' : '') + '</div>' +
+        '<div class="info"><div class="nm">' + m.nome + (lvl > 0 ? '<span class="nvl">Nv ' + lvl + '</span>' : '') +
+          (elemDaMaquina(m) ? '<span class="nvl" style="color:' + elemDaMaquina(m).cor + ';border-color:' +
+            elemDaMaquina(m).cor + '55">' + elemDaMaquina(m).nome + '</span>' : '') + '</div>' +
         '<div class="sub">' + subTxt + '</div>' +
         (mostraFuel ? '<div class="fuelbar"><i></i></div>' : '') + '</div>' +
         btnHtml +
@@ -3496,6 +3550,21 @@ setInterval(()=>{
   const agoraCheio = cheio();
   if(agoraCheio && !estavaCheio && !(S.managerLevel > 0)) tocar("alerta");
   estavaCheio = agoraCheio;
+
+  // surto das maquinas de RAIO: chance por segundo de render o dobro naquele segundo
+  if(!contaPendente() && !cheio()){
+    const multTudo = modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost();
+    MACHINES.forEach(m=>{
+      const el = elemDaMaquina(m);
+      if(!el || !el.surto) return;
+      if(nivelMaq(m.id) <= 0 || maquinaQuebrada(m.id) || semFuel(m.id)) return;
+      if(Math.random() < el.surto * dt){
+        const extra = m.ps * nivelMaq(m.id) * multTudo;
+        S.stored = Math.min(cap(), S.stored + extra);
+        for(let i = 0; i < 3; i++) faisca();
+      }
+    });
+  }
 
   checarConquistas();
 
