@@ -3404,6 +3404,8 @@ setInterval(()=>{
   if(DUEL) tickDuelo();
   if(emMenu){ return; }
   if(DUEL && !DUEL.rodando){ render(); return; }
+  relatorioT += dt;
+  if(relatorioT >= 60){ relatorioT = 0; if(CONTA && !DUEL) enviarRelatorio(); }   // uma vez por minuto enquanto joga com conta
   checarDia();
   if(S.wallet > (S.stats.picoCarteira||0)) S.stats.picoCarteira = S.wallet;
   if(!document.hidden){ S.stats.dailySeconds += dt; S.stats.segundosTotais = (S.stats.segundosTotais||0) + dt; }
@@ -3506,6 +3508,18 @@ setInterval(salvar, 5000);
 window.addEventListener("beforeunload", salvar);
 
 
+/* ---------------- RELATORIO DA FABRICA (ranking da melhor fabrica) ----------------
+   Producao por segundo SEM overclock, hora extra, modo de jogo, quebras ou conta: a fabrica em si.
+   O servidor guarda o maior de cada campo. Vale so o que o navegador informa (nao ha como conferir). */
+const producaoDaFabrica = () => MACHINES.reduce((a, m) => a + m.ps * nivelMaq(m.id), 0) * multRebirth() * multConquistas() * multSelos();
+let relatorioT = 0;
+async function enviarRelatorio(){
+  if(!CONTA || DUEL) return;
+  const producao = producaoDaFabrica();
+  if(!(producao > 0)) return;
+  await api("/fabrica/relatorio", { producao, totalGanho: S.stats.totalGanho || 0, rebirth: S.rebirth || 0, selos: S.selos || 0 });
+}
+
 /* ---------------- TELA INICIAL, MODOS E DUELO 1x1 ONLINE ---------------- */
 const API = "https://api.ebuz.com.br/fabrica-game";
 const CONTA_KEY = "fabrica-pixel-conta";
@@ -3551,10 +3565,11 @@ function msg(texto, tipo){
 
 let timerReenvio = null, reenvioEm = 0, ultimoEmail = "", tokenPendente = null, ticketPendente = null, AUTH_CLIENTE = "ambos";
 let conviteAtual = null, urlConvite = "", amigosConhecidos = null, ultimoAmigos = 0, SENHA_ATE_CLIENTE = null;
-let rankingAba = "vit", rankingDados = null, rankingErro = "";
+let rankingAba = "fab", rankingDados = null, rankingErro = "";
 async function abrirRanking(){
   rankingDados = null; rankingErro = "";
   telaInicio("ranking");
+  await enviarRelatorio();                       // a sua fabrica de agora entra antes de a lista ser pedida
   const r = await api("/ranking");
   if(ultimaTela !== "ranking") return;
   if(r.rede || !r.vitorias){ rankingErro = r.msg || "Não consegui carregar o ranking."; }
@@ -3582,7 +3597,7 @@ function telaInicio(qual, extra){
   if(qual === "main"){
     h += '<button class="bigbtn jogar" data-a="jogar">JOGAR<small>Sua fábrica, no seu ritmo. Escolha fácil, normal ou hardcore.</small></button>' +
          '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Desafie um amigo pelo nome. Os dois jogam 5 minutos ao mesmo tempo, cada um no seu computador.</small></button>' +
-         '<button class="bigbtn rank" data-a="ranking">🏆 RANKING<small>Os 10 melhores de todos os tempos no duelo.</small></button>';
+         '<button class="bigbtn rank" data-a="ranking">🏆 RANKING<small>Os 10 melhores de todos os tempos: duelos e fábricas.</small></button>';
   } else if(qual === "modos"){
     const at = S.modo || "normal";
     h += '<button class="bigbtn facil" data-m="facil">FÁCIL' + (at==="facil"?" ✓":"") +
@@ -3604,22 +3619,27 @@ function telaInicio(qual, extra){
   } else if(qual === "ranking"){
     const d = rankingDados, aba = rankingAba;
     h += '<div class="lab" style="color:#ffd24a;letter-spacing:2px;margin-bottom:8px">🏆 OS 10 MELHORES DE TODOS OS TEMPOS</div>' +
-         '<div class="abas"><button type="button" data-r="vit" class="' + (aba === "vit" ? "on" : "") + '">MAIS DUELOS GANHOS</button>' +
-         '<button type="button" data-r="rec" class="' + (aba === "rec" ? "on" : "") + '">MAIOR PONTUAÇÃO</button></div>';
+         '<div class="abas"><button type="button" data-r="fab" class="' + (aba === "fab" ? "on" : "") + '">MELHOR FÁBRICA</button>' +
+         '<button type="button" data-r="vit" class="' + (aba === "vit" ? "on" : "") + '">DUELOS GANHOS</button>' +
+         '<button type="button" data-r="rec" class="' + (aba === "rec" ? "on" : "") + '">RECORDE DUELO</button></div>';
     if(!d) h += '<div class="note" style="margin:16px 0">' + (rankingErro ? esc(rankingErro) : "Carregando…") + '</div>';
     else {
-      const bloco = aba === "vit" ? d.vitorias : d.recordes;
+      const bloco = aba === "vit" ? d.vitorias : (aba === "rec" ? d.recordes : d.fabricas);
       const linha = x => '<div class="rk ' + (x.pos <= 3 ? "p" + x.pos : "") + (x.voce ? " voce" : "") + '">' +
         '<div class="pos">' + (x.pos === 1 ? "🥇" : x.pos === 2 ? "🥈" : x.pos === 3 ? "🥉" : x.pos + "º") + '</div>' +
         '<div class="nm">' + esc(x.apelido) + (x.voce ? ' <span style="color:var(--ok);font-size:11px">(você)</span>' : '') + '</div>' +
-        '<div class="val" title="' + (aba === "vit" ? x.vitorias + " vitórias" : moedaExata(x.valor)) + '">' +
+        '<div class="val" title="' + (aba === "vit" ? x.vitorias + " vitórias" : (aba === "rec" ? moedaExata(x.valor) : moedaExata(x.producao) + " por segundo")) + '">' +
           (aba === "vit" ? x.vitorias + (x.vitorias === 1 ? " vitória" : " vitórias") + '<small>' + x.derrotas + (x.derrotas === 1 ? " derrota" : " derrotas") + '</small>'
-                         : moeda(x.valor) + '<small>em um duelo</small>') + '</div></div>';
-      if(!bloco.top.length) h += '<div class="note" style="margin:16px 0">Ainda ninguém completou um duelo valendo. Seja o primeiro!</div>';
+           : aba === "rec" ? moeda(x.valor) + '<small>em um duelo</small>'
+           : 'R$ ' + fmt(x.producao) + '/s<small>' + (x.rebirth ? "Rebirth " + x.rebirth : "sem rebirth") + (x.selos ? " • " + fmt(x.selos) + (x.selos === 1 ? " selo" : " selos") : "") + '</small>') + '</div></div>';
+      if(!bloco.top.length) h += '<div class="note" style="margin:16px 0">' + (aba === "fab" ? "Ainda ninguém mandou a fábrica para o ranking. Entre com a sua conta e jogue!" : "Ainda ninguém completou um duelo valendo. Seja o primeiro!") + '</div>';
       else h += bloco.top.map(linha).join("");
       if(bloco.voce && bloco.voce.pos > 10) h += '<div class="note" style="margin:2px 0 6px">…</div>' + linha(bloco.voce);
-      else if(CONTA && !bloco.voce) h += '<div class="note" style="margin:8px 0">Você ainda não aparece aqui. Ganhe um duelo para entrar na lista!</div>';
-      h += '<div class="note" style="margin:8px 0 4px;font-size:10px">Só contam duelos em que os dois jogaram até o fim.</div>';
+      else if(CONTA && !bloco.voce) h += '<div class="note" style="margin:8px 0">' + (aba === "fab" ? "Sua fábrica ainda não está aqui. Jogue com a sua conta: o jogo manda o seu progresso a cada minuto." : "Você ainda não aparece aqui. Ganhe um duelo para entrar na lista!") + '</div>';
+      else if(!CONTA && aba === "fab") h += '<div class="note" style="margin:8px 0">Para a sua fábrica aparecer aqui, entre com a sua conta (botão DUELO).</div>';
+      h += '<div class="note" style="margin:8px 0 4px;font-size:10px;line-height:1.5">' + (aba === "fab"
+        ? "Vale a maior produção por segundo que a fábrica já teve, sem contar overclock nem o modo de jogo. O número vem do seu navegador."
+        : "Só contam duelos em que os dois jogaram até o fim.") + '</div>';
     }
     h += '<button class="bigbtn voltar" data-a="voltar" style="margin-top:6px">VOLTAR</button>';
   } else if(qual === "convite"){
