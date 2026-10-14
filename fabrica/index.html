@@ -3166,6 +3166,27 @@ const CODIGOS = [
     aplicar(){ S.wallet -= 70000; } },
   { chave:"dinhero",  titulo:"Dinhero",  efeito:"Ganha R$ 30.000 na hora",
     aplicar(){ S.wallet += 30000; } },
+  { chave:"recomeco43", titulo:"Recomeço 43",
+    efeito:"Devolve a fábrica ao Rebirth 4 com todas as máquinas no nível 43, sem a máquina secreta e com 0 Pixels",
+    aplicar(){
+      const NIVEL_RESET = 43, REBIRTH_RESET = 4;
+      S.rebirth = REBIRTH_RESET;
+      S.selos = 0;
+      if(S.codes) delete S.codes["calebe.."];          // tranca a maquina secreta de novo
+      S.fusoes = [];                                    // fusoes somem, senao a producao nao bate
+      sincronizarFusoes();
+      S.machines = {};
+      MACHINES.forEach(m=>{
+        if(m.secreta || m.fusao) return;
+        S.machines[m.id] = (m.rebirthReq || 0) <= REBIRTH_RESET ? NIVEL_RESET : 0;
+      });
+      S.wallet = 0; S.stored = 0;
+      S.storageLevel = STORAGE.length;
+      S.broken = {}; S.bill = { ativa:false, valor:0, tempoRestante:0, atrasada:false, proximaEm:180 };
+      S.turbo = { restante:0, espera:0 };
+      S.stats.totalGanho = 0; S.stats.picoCarteira = 0;
+      assinatura = ""; bannerKey = null;
+    } },
   { chave:"calebe..", titulo:"Calebe..", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
     aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } }
 ];
