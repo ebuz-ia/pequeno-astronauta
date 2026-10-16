@@ -388,6 +388,7 @@
   <div id="arm" class="list hide"></div>
   <div id="fus" class="hide"></div>
   <div id="ger" class="list hide"></div>
+  <div id="pre" class="hide"></div>
   <div id="reb" class="list hide"></div>
   <div id="conq" class="hide"></div>
   <div id="cod" class="hide"></div>
@@ -449,6 +450,12 @@ const MACHINES = [
   // Rebirth 5 (+2 máquinas)
   {id:"msingularity",nome:"Singularidade",custo:200000,ps:520,rebirthReq:5},
   {id:"minfinity",   nome:"Pixel Infinito",custo:350000,ps:800,rebirthReq:5},
+
+  // A segunda melhor do jogo: comeca forte mas subir de nivel custa muito mais que nas outras
+  {id:"mOmega", nome:"Ômega", custo:2000000, ps:10000, rebirthReq:5, cresc:1.35},
+
+  // Premio de 7 dias seguidos: nao e das melhores nem das piores
+  {id:"mConstante", nome:"Constante 7", custo:150000, ps:400, rebirthReq:0, premio:true},
 
   // Maquina secreta: so aparece com o codigo do Calebe
   {id:"mcalebe", nome:"Calebe ∞", custo:0, ps:1500000, rebirthReq:0, secreta:true}
@@ -606,6 +613,109 @@ function modalReiniciar(){
   m.onclick = e => { if(e.target === m) fechar(); };
 }
 
+/* ---------------- ROLETA ----------------
+   1 giro por hora, guardando ate 5. Os numeros que o Jonathan passou (90, 76, 70, 63, 50)
+   somam mais de 100%, entao entram como PESO: quanto maior, mais provavel. A ordem que
+   ele queria fica de pe — 1 minuto e o mais comum, 5 minutos o mais raro. */
+const PREMIOS_ROLETA = [
+  { min: 1, peso: 90 },
+  { min: 2, peso: 76 },
+  { min: 3, peso: 70 },
+  { min: 4, peso: 63 },
+  { min: 5, peso: 50 }
+];
+const ROLETA_FATOR  = 2;            // multiplica a producao por 2
+const ROLETA_MAX    = 5;            // giros guardados
+const ROLETA_HORA   = 3600000;
+
+const roletaAtiva = () => Boolean(S.roleta && Date.now() < (S.roleta.ate || 0));
+const multRoleta  = () => roletaAtiva() ? ROLETA_FATOR : 1;
+const roletaFalta = () => Math.max(0, Math.ceil(((S.roleta && S.roleta.ate || 0) - Date.now())/1000));
+
+function creditarGiros(){
+  if(!S.roleta) S.roleta = { giros: 1, ultimo: Date.now(), ate: 0 };
+  if(!S.roleta.ultimo) S.roleta.ultimo = Date.now();
+  const passou = Date.now() - S.roleta.ultimo;
+  if(passou < ROLETA_HORA) return;
+  const ganhos = Math.floor(passou / ROLETA_HORA);
+  const antes = S.roleta.giros || 0;
+  S.roleta.giros = Math.min(ROLETA_MAX, antes + ganhos);
+  S.roleta.ultimo += ganhos * ROLETA_HORA;
+  if(S.roleta.giros > antes){ assinatura = ""; }
+}
+
+function girarRoleta(){
+  if(!S.roleta || (S.roleta.giros || 0) <= 0) return;
+  S.roleta.giros -= 1;
+  const total = PREMIOS_ROLETA.reduce((a,p)=> a + p.peso, 0);
+  let r = Math.random() * total, escolhido = PREMIOS_ROLETA[0];
+  for(const pr of PREMIOS_ROLETA){ if(r < pr.peso){ escolhido = pr; break; } r -= pr.peso; }
+  const agora = Date.now();
+  const base = Math.max(agora, S.roleta.ate || 0);     // se ja estava rolando, soma o tempo
+  S.roleta.ate = base + escolhido.min * 60000;
+  toast("🎰 " + escolhido.min + " minuto" + (escolhido.min>1?"s":"") + " de produção x" + ROLETA_FATOR + "!");
+  for(let i=0;i<12;i++) faisca();
+  assinatura = "";
+  render(); salvar();
+  return escolhido;
+}
+
+/* ---------------- PREMIO DE DIAS SEGUIDOS ----------------
+   Um premio por dia. Faltou um dia, a sequencia volta para 1.
+   No setimo dia seguido vem a maquina Constante 7. */
+const PREMIOS_DIA = [
+  { dia:1, tipo:"dinheiro", valor:60,  texto:"60 segundos de produção em dinheiro" },
+  { dia:2, tipo:"niveis",   valor:3,   texto:"todas as máquinas sobem 3 níveis" },
+  { dia:3, tipo:"dinheiro", valor:180, texto:"3 minutos de produção em dinheiro" },
+  { dia:4, tipo:"niveis",   valor:4,   texto:"todas as máquinas sobem 4 níveis" },
+  { dia:5, tipo:"dinheiro", valor:420, texto:"7 minutos de produção em dinheiro" },
+  { dia:6, tipo:"niveis",   valor:5,   texto:"todas as máquinas sobem 5 níveis" },
+  { dia:7, tipo:"maquina",  valor:1,   texto:"a máquina Constante 7" }
+];
+const premioDoDia = d => PREMIOS_DIA[Math.min(6, Math.max(0, d - 1))];
+
+function diaAnterior(){
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0,10);
+}
+function checarSequencia(){
+  if(!S.diaria) S.diaria = { dia: "", seq: 0, pego: "" };
+  const h = hoje();
+  if(S.diaria.dia === h) return;
+  if(S.diaria.dia === diaAnterior()) S.diaria.seq = Math.min(7, (S.diaria.seq || 0) + 1);
+  else S.diaria.seq = 1;                      // faltou um dia: recomeca
+  S.diaria.dia = h;
+  assinatura = "";
+}
+const premioPendente = () => Boolean(S.diaria && S.diaria.pego !== hoje());
+
+function pegarPremioDia(){
+  checarSequencia();
+  if(!premioPendente()) return;
+  const pr = premioDoDia(S.diaria.seq || 1);
+  S.diaria.pego = hoje();
+  if(pr.tipo === "dinheiro"){
+    const v = Math.max(100, Math.round(producaoBruta() * pr.valor));
+    ganhar(v);
+    toast("🎁 Dia " + S.diaria.seq + ": + " + moeda(v));
+  } else if(pr.tipo === "niveis"){
+    maquinasDoRebirthAtual().forEach(m=>{ if(nivelMaq(m.id) > 0) S.machines[m.id] = nivelMaq(m.id) + pr.valor; });
+    toast("🎁 Dia " + S.diaria.seq + ": todas as máquinas +" + pr.valor + " níveis!");
+  } else {
+    if(!S.ganhouSemanal){
+      S.ganhouSemanal = true;
+      S.machines.mConstante = Math.max(1, nivelMaq("mConstante"));
+      toast("🏅 Sete dias seguidos! Você ganhou a máquina Constante 7.");
+    } else {
+      S.machines.mConstante = nivelMaq("mConstante") + 1;
+      toast("🏅 Mais uma semana seguida! Constante 7 subiu para o nível " + nivelMaq("mConstante") + ".");
+    }
+    S.diaria.seq = 0;                          // a proxima semana comeca do dia 1
+  }
+  for(let i=0;i<10;i++) faisca();
+  assinatura = ""; render(); salvar();
+}
+
 /* ---------------- CONQUISTAS ----------------
    Metas permanentes, feitas uma vez so. Cada uma vale +1% de producao para sempre. */
 const maiorNivel = () => MACHINES.reduce((a,m)=> Math.max(a, nivelMaq(m.id)), 0);
@@ -719,6 +829,9 @@ function novoJogo(){
     oc: { carga: 0 },
     hab: novoHab(),
     som: true,
+    roleta: { giros: 1, ultimo: Date.now(), ate: 0 },
+    diaria: { dia: "", seq: 0, pego: "" },
+    ganhouSemanal: false,
     modo: "normal",
     qtd: "1",
     fusoes: [], fusaoSeq: 0,        // maquinas fundidas (entram em MACHINES por sincronizarFusoes)
@@ -757,6 +870,9 @@ function carregar(){
     S.fusoes = Array.isArray(o.fusoes) ? o.fusoes : []; S.fusaoSeq = Number(o.fusaoSeq) || 0;
     sincronizarFusoes();
     S.turbo = Object.assign({ restante: 0, espera: 0 }, o.turbo || {});
+    S.roleta = Object.assign({ giros: 1, ultimo: Date.now(), ate: 0 }, o.roleta || {});
+    S.diaria = Object.assign({ dia: "", seq: 0, pego: "" }, o.diaria || {});
+    S.ganhouSemanal = Boolean(o.ganhouSemanal);
     S.turbo.restante = Math.min(S.turbo.restante, TURBO_DURACAO); S.turbo.espera = Math.min(S.turbo.espera, TURBO_ESPERA);   // save do turbo antigo (30 s / 5 min)
     S.oc = Object.assign({ carga: 0 }, o.oc || {});
     S.hab = novoHab(); for(const k in S.hab) S.hab[k] = Object.assign(S.hab[k], (o.hab || {})[k] || {});
@@ -817,10 +933,11 @@ const custoAbastecer = m => Math.ceil(custoPorSegFuel(m) * (FUEL_MAX - fuelDe(m.
 const MECANICO_CUSTO = 3000;
 const custoMecanico = () => custoModo(MECANICO_CUSTO);
 
-const precoMaq = m => Math.round((m.custo || 25) * Math.pow(1.15, nivelMaq(m.id)) * modoAtual().custo);
+const crescMaq = m => (m && m.cresc) ? m.cresc : 1.15;   // quanto o preco sobe por nivel
+const precoMaq = m => Math.round((m.custo || 25) * Math.pow(crescMaq(m), nivelMaq(m.id)) * modoAtual().custo);
 const cap  = () => (STORAGE[S.storageLevel-1] || STORAGE[STORAGE.length-1]).cap;
 const multRebirth = () => 1 + (Number(S.rebirth) || 0) * 0.5;
-const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && !m.fusao && (m.rebirthReq || 0) <= (S.rebirth || 0));
+const maquinasDoRebirthAtual = () => MACHINES.filter(m => !m.secreta && !m.premio && !m.fusao && (m.rebirthReq || 0) <= (S.rebirth || 0));
 const maquinaQuebrada = id => Boolean(S.broken && S.broken[id] && S.broken[id].quebrada);
 const contaPendente = () => Boolean(S.bill && S.bill.ativa);
 /* OVERCLOCK (antigo turbo): o jogador ESQUENTA as maquinas clicando em RECOLHER (ou no proprio botao).
@@ -855,7 +972,8 @@ const taxa = () => {
   }, 0);
   if(curtoAtivo()) return 0;                       // carta CURTO: fabrica desligada
   const cartaTurbo = turboCartaAtivo() ? 2 : 1;    // carta TURBO: dobra sem risco
-  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost() * cartaTurbo);
+  const roleta = multRoleta();                    // premio da roleta
+  return Math.round(base * modoAtual().prod * multRebirth() * multConquistas() * multSelos() * multBoost() * cartaTurbo * roleta);
 };
 const cheio = () => S.stored >= cap() - 1e-9;
 
@@ -1082,7 +1200,7 @@ function totalGasto(m){
   const rastreados = Math.min(lvl, (S.gastoN && S.gastoN[m.id]) || 0);
   let g = (S.gasto && S.gasto[m.id]) || 0;
   if(rastreados < (S.gastoN && S.gastoN[m.id] || 0)) g = g * lvl / (S.gastoN[m.id]);   // nivel perdido por outra via
-  for(let i = 0; i < lvl - rastreados; i++) g += Math.round((m.custo || 25) * Math.pow(1.15, i) * MODOS.facil.custo);
+  for(let i = 0; i < lvl - rastreados; i++) g += Math.round((m.custo || 25) * Math.pow(crescMaq(m), i) * MODOS.facil.custo);
   return g;
 }
 const valorVenda = m => Math.floor(totalGasto(m) * VENDA_PCT);
@@ -1142,7 +1260,7 @@ function planoCompra(m){
   const alvo = sel === "max" ? 10000 : Number(sel);
   let n = 0, custo = 0;
   while(n < alvo){
-    const p = Math.round((m.custo || 25) * Math.pow(1.15, lvl + n) * modoAtual().custo);
+    const p = Math.round((m.custo || 25) * Math.pow(crescMaq(m), lvl + n) * modoAtual().custo);
     if(!isFinite(p) || (sel === "max" && custo + p > S.wallet)) break;
     custo += p; n++;
   }
@@ -2157,7 +2275,7 @@ function assinaturaAtual(){
   return MACHINES.map(m=>nivelMaq(m.id)).join(",") + "|" + S.storageLevel + "|" +
     (S.managerLevel||0) + "|" + (S.hasMechanic?1:0) + "|" + (S.rebirth||0) + "|" +
     brokenKeys + "|" + billKey + "|" +
-    MISSOES.map(q=>(S.missoes&&S.missoes[q.id]?S.missoes[q.id].nivel:1)).join(",") + "|" + conquistasFeitas() + "|" + (S.selos||0) + "|" + (podeReiniciar()?1:0) +
+    MISSOES.map(q=>(S.missoes&&S.missoes[q.id]?S.missoes[q.id].nivel:1)).join(",") + "|" + conquistasFeitas() + "|" + ((S.roleta&&S.roleta.giros)||0) + "|" + ((S.diaria&&S.diaria.seq)||0) + ":" + ((S.diaria&&S.diaria.pego)||"") + "|" + (S.ganhouSemanal?1:0) + "|" + (S.selos||0) + "|" + (podeReiniciar()?1:0) +
     "|" + Object.keys(S.art).sort().join(",") + "|" + (S.modo||"normal");
 }
 
@@ -2436,6 +2554,7 @@ function atualizarEstados(){
       r.btn.disabled = (S.managerLevel + 1 !== r.g.nivel) || S.wallet < custoModo(r.g.custo);
     }
   });
+  atualizarRoleta();
   refsMis.forEach(r=>{
     const alvo = alvoMissao(r.q);
     const pr = Math.min(alvo, progMissao(r.q));
@@ -2455,7 +2574,7 @@ function atualizarEstados(){
 
 function construirListas(){
   refsMaq = []; refsArm = []; refsGer = []; refsMis = [];
-  listaMaquinas(); listaArmazenador(); listaFusao(); listaGerentes(); listaRebirth(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes();
+  listaMaquinas(); listaArmazenador(); listaFusao(); listaGerentes(); listaRebirth(); listaPremios(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes();
 }
 
 /* ---------------- FUSAO DE MAQUINAS ----------------
@@ -2821,6 +2940,7 @@ function listaMaquinas(){
   // fundidas primeiro: sao as maquinas de topo e nao podem ficar enterradas no fim da lista
   MACHINES.filter(m => m.fusao).concat(MACHINES.filter(m => !m.fusao)).forEach(m=>{
     if(m.secreta && !(S.codes && S.codes["calebe.."])) return;
+    if(m.premio && !S.ganhouSemanal) return;
     const rbReq = m.rebirthReq || 0;
     const bloqueada = rbReq > (S.rebirth || 0);
     const lvl = nivelMaq(m.id);
@@ -3263,6 +3383,89 @@ function listaConquistas(){
   });
 }
 
+let refRoleta = null;
+
+function listaPremios(){
+  const box = $("#pre"); if(!box) return;
+  box.innerHTML = "";
+  refRoleta = null;
+  creditarGiros(); checarSequencia();
+
+  /* ---- roleta ---- */
+  const giros = (S.roleta && S.roleta.giros) || 0;
+  const total = PREMIOS_ROLETA.reduce((a,x)=> a + x.peso, 0);
+  const linhas = PREMIOS_ROLETA.map(x =>
+    '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line)">' +
+      '<span>' + x.min + ' minuto' + (x.min>1?'s':'') + ' de produção x' + ROLETA_FATOR + '</span>' +
+      '<strong style="color:var(--cy,var(--cyan))">' + Math.round(x.peso/total*100) + '%</strong>' +
+    '</div>').join("");
+
+  const card = el(
+    '<div class="card" style="border-color:var(--gold);margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">' +
+        '<div><div class="lab">Roleta</div>' +
+          '<div class="val gold" style="font-size:20px;margin-top:2px">🎰 ' + giros + ' giro' + (giros===1?'':'s') + '</div></div>' +
+        '<div style="text-align:right"><div class="lab">Agora</div>' +
+          '<div class="val cy rstatus" style="font-size:16px;margin-top:2px"></div></div>' +
+      '</div>' +
+      '<div class="sub" style="margin-top:8px">Você ganha <strong>1 giro por hora</strong> de jogo, guardando até ' +
+        ROLETA_MAX + '. O prêmio multiplica <strong>toda a sua produção por ' + ROLETA_FATOR + '</strong> ' +
+        'pelo tempo sorteado. Se girar de novo com o prêmio valendo, o tempo soma.</div>' +
+      '<button class="collect rgirar" style="margin:10px 0 0">GIRAR A ROLETA</button>' +
+      '<div class="sub rprox" style="margin-top:6px"></div>' +
+      '<div class="lab" style="margin:12px 0 4px">O que pode sair</div>' + linhas +
+    '</div>');
+  box.appendChild(card);
+  const bt = card.querySelector(".rgirar");
+  bt.onclick = ()=>{ girarRoleta(); };
+  refRoleta = { btn: bt, status: card.querySelector(".rstatus"), prox: card.querySelector(".rprox") };
+
+  /* ---- premio por dias seguidos ---- */
+  const seq = Math.max(1, (S.diaria && S.diaria.seq) || 1);
+  const pend = premioPendente();
+  const pr = premioDoDia(seq);
+  const bolinhas = PREMIOS_DIA.map(d=>{
+    const feito = d.dia < seq || (d.dia === seq && !pend);
+    const hoje_ = d.dia === seq;
+    const cor = feito ? "var(--ok)" : (hoje_ ? "var(--gold)" : "var(--line)");
+    const fundo = feito ? "#16211a" : (hoje_ ? "#241d05" : "var(--panel2)");
+    return '<div style="flex:1;min-width:38px;text-align:center;border:2px solid ' + cor + ';background:' + fundo +
+      ';border-radius:6px;padding:6px 2px">' +
+      '<div style="font-size:10px;color:var(--dim)">dia</div>' +
+      '<div style="font-weight:bold;color:' + cor + '">' + d.dia + (d.dia===7?' 🏅':'') + '</div></div>';
+  }).join("");
+
+  box.appendChild(el(
+    '<div class="card" style="border-color:' + (pend ? "var(--ok)" : "var(--line)") + '">' +
+      '<div class="lab">Prêmio por dias seguidos</div>' +
+      '<div class="val gold" style="font-size:20px;margin:2px 0 10px">Dia ' + seq + ' de 7</div>' +
+      '<div style="display:flex;gap:5px;margin-bottom:10px">' + bolinhas + '</div>' +
+      '<div class="sub" style="line-height:1.6">Prêmio de hoje: <strong>' + pr.texto + '</strong><br>' +
+        'Se você passar um dia sem entrar, a contagem volta para o dia 1.</div>' +
+      (pend ? '<button class="collect dpegar" style="margin:10px 0 0">PEGAR O PRÊMIO DE HOJE</button>'
+            : '<div style="background:var(--panel2);border:2px solid var(--line);border-radius:6px;' +
+              'padding:10px;margin-top:10px;font-size:12px;color:var(--dim)">' +
+              '✓ Prêmio de hoje já pego. Volte amanhã para continuar a sequência.</div>') +
+    '</div>'));
+  const bd = box.querySelector(".dpegar");
+  if(bd) bd.onclick = ()=> pegarPremioDia();
+}
+
+function atualizarRoleta(){
+  if(!refRoleta) return;
+  const giros = (S.roleta && S.roleta.giros) || 0;
+  refRoleta.btn.disabled = giros <= 0;
+  refRoleta.btn.textContent = giros > 0 ? ("GIRAR A ROLETA (" + giros + ")") : "SEM GIROS AGORA";
+  refRoleta.status.textContent = roletaAtiva() ? ("x" + ROLETA_FATOR + " por " + mmss(roletaFalta())) : "produção normal";
+  refRoleta.status.style.color = roletaAtiva() ? "var(--gold)" : "var(--dim)";
+  if(S.roleta){
+    const falta = Math.max(0, ROLETA_HORA - (Date.now() - (S.roleta.ultimo || Date.now())));
+    refRoleta.prox.textContent = giros >= ROLETA_MAX
+      ? "Você está com o máximo de giros guardados."
+      : "Próximo giro em " + mmss(Math.ceil(falta/1000)) + ".";
+  }
+}
+
 function listaCodigos(){
   const box = $("#cod"); if(!box) return;
   box.innerHTML = "";
@@ -3392,10 +3595,10 @@ document.addEventListener("keydown", e=>{
 const ABAS = {
   fab:  { subs:[["maq","Máquinas"],["arm","Armazenador"],["fus","Fusão"]] },
   eq:   { subs:[["ger","Gerentes e mecânico"]] },
-  prog: { subs:[["mis","Missões"],["conq","Conquistas"],["reb","Rebirth e selos"]] },
+  prog: { subs:[["pre","Prêmios"],["mis","Missões"],["conq","Conquistas"],["reb","Rebirth e selos"]] },
   mais: { subs:[["sv","Salvar"],["cod","Códigos"],["art","Minhas artes"]] }
 };
-const PAINEIS = ["maq","arm","fus","ger","reb","conq","cod","mis","art","sv"];
+const PAINEIS = ["maq","arm","fus","ger","reb","conq","cod","mis","art","sv","pre"];
 const subSel = { fab:"maq", eq:"ger", prog:"mis", mais:"sv" };
 let abaAtual = "fab";
 function abrirAba(a, sub){
@@ -3657,6 +3860,8 @@ setInterval(()=>{
     });
   }
 
+  creditarGiros();
+  checarSequencia();
   checarConquistas();
 
   const espaco = cap() - S.stored;
