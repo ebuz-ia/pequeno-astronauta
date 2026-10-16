@@ -452,7 +452,7 @@ const MACHINES = [
   {id:"minfinity",   nome:"Pixel Infinito",custo:350000,ps:800,rebirthReq:5},
 
   // A segunda melhor do jogo: comeca forte mas subir de nivel custa muito mais que nas outras
-  {id:"mOmega", nome:"Ômega", custo:2000000, ps:10000, rebirthReq:5, cresc:1.35},
+  {id:"mOmega", nome:"Ômega", custo:2000000, ps:10000, rebirthReq:0, cresc:1.35, premio:true},
 
   // Premio de 7 dias seguidos: nao e das melhores nem das piores
   {id:"mConstante", nome:"Constante 7", custo:150000, ps:400, rebirthReq:0, premio:true},
@@ -622,7 +622,8 @@ const PREMIOS_ROLETA = [
   { min: 2, peso: 76 },
   { min: 3, peso: 70 },
   { min: 4, peso: 63 },
-  { min: 5, peso: 50 }
+  { min: 5, peso: 50 },
+  { omega: true, peso: 6 }          // raro: ~1,7% — e o UNICO jeito de conseguir a Omega
 ];
 const ROLETA_FATOR  = 2;            // multiplica a producao por 2
 const ROLETA_MAX    = 5;            // giros guardados
@@ -650,6 +651,17 @@ function girarRoleta(){
   const total = PREMIOS_ROLETA.reduce((a,p)=> a + p.peso, 0);
   let r = Math.random() * total, escolhido = PREMIOS_ROLETA[0];
   for(const pr of PREMIOS_ROLETA){ if(r < pr.peso){ escolhido = pr; break; } r -= pr.peso; }
+  if(escolhido.omega){
+    const tinha = nivelMaq("mOmega");
+    S.machines.mOmega = tinha + 1;
+    toast(tinha > 0
+      ? "🎰 A Ômega subiu para o nível " + (tinha + 1) + "!"
+      : "🎰 VOCÊ GANHOU A MÁQUINA ÔMEGA! 10.000 por segundo.");
+    for(let i=0;i<20;i++) faisca();
+    assinatura = "";
+    render(); salvar();
+    return escolhido;
+  }
   const agora = Date.now();
   const base = Math.max(agora, S.roleta.ate || 0);     // se ja estava rolando, soma o tempo
   S.roleta.ate = base + escolhido.min * 60000;
@@ -2940,7 +2952,7 @@ function listaMaquinas(){
   // fundidas primeiro: sao as maquinas de topo e nao podem ficar enterradas no fim da lista
   MACHINES.filter(m => m.fusao).concat(MACHINES.filter(m => !m.fusao)).forEach(m=>{
     if(m.secreta && !(S.codes && S.codes["calebe.."])) return;
-    if(m.premio && !S.ganhouSemanal) return;
+    if(m.premio && nivelMaq(m.id) <= 0) return;   // so aparece depois de ganha
     const rbReq = m.rebirthReq || 0;
     const bloqueada = rbReq > (S.rebirth || 0);
     const lvl = nivelMaq(m.id);
@@ -3394,10 +3406,15 @@ function listaPremios(){
   /* ---- roleta ---- */
   const giros = (S.roleta && S.roleta.giros) || 0;
   const total = PREMIOS_ROLETA.reduce((a,x)=> a + x.peso, 0);
+  const temOmega = nivelMaq("mOmega") > 0;
   const linhas = PREMIOS_ROLETA.map(x =>
-    '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line)">' +
-      '<span>' + x.min + ' minuto' + (x.min>1?'s':'') + ' de produção x' + ROLETA_FATOR + '</span>' +
-      '<strong style="color:var(--cy,var(--cyan))">' + Math.round(x.peso/total*100) + '%</strong>' +
+    '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line)' +
+      (x.omega ? ';color:var(--gold);font-weight:bold' : '') + '">' +
+      '<span>' + (x.omega
+        ? ('🏆 ' + (temOmega ? 'a Ômega sobe 1 nível' : 'a máquina ÔMEGA, 10.000/s'))
+        : (x.min + ' minuto' + (x.min>1?'s':'') + ' de produção x' + ROLETA_FATOR)) + '</span>' +
+      '<strong style="color:' + (x.omega ? 'var(--gold)' : 'var(--cyan)') + '">' +
+        (x.peso/total*100).toFixed(x.omega ? 1 : 0) + '%</strong>' +
     '</div>').join("");
 
   const card = el(
