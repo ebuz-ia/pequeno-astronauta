@@ -642,6 +642,23 @@ function entregarPendente(){
   if(real) aplicarPremioRoleta(real);
 }
 
+/* Limpeza de uma vez so: a maquina Calebe sai de todo mundo e o codigo volta a ficar
+   trancado. Roda no primeiro carregamento depois desta versao, em cada aparelho. */
+function limparCalebe(){
+  if(S.limpouCalebe) return;
+  S.limpouCalebe = true;
+  const tinha = nivelMaq("mcalebe") > 0;
+  delete S.machines.mcalebe;
+  if(S.codes){ delete S.codes["calebe.."]; delete S.codes["calebe..."]; }
+  if(S.gasto) delete S.gasto.mcalebe;
+  if(S.gastoN) delete S.gastoN.mcalebe;
+  if(S.broken) delete S.broken.mcalebe;
+  if(S.fuel) delete S.fuel.mcalebe;
+  if(tinha) toast("A máquina Calebe foi retirada do jogo.");
+  assinatura = "";
+  salvar();
+}
+
 function creditarGiros(){
   if(!S.roleta) S.roleta = { giros: 1, ultimo: Date.now(), ate: 0 };
   if(!S.roleta.ultimo) S.roleta.ultimo = Date.now();
@@ -3048,7 +3065,7 @@ function listaMaquinas(){
   box.appendChild(barra);
   // fundidas primeiro: sao as maquinas de topo e nao podem ficar enterradas no fim da lista
   MACHINES.filter(m => m.fusao).concat(MACHINES.filter(m => !m.fusao)).forEach(m=>{
-    if(m.secreta && !(S.codes && S.codes["calebe.."])) return;
+    if(m.secreta && !(S.codes && S.codes["calebe..."])) return;
     if(m.premio && nivelMaq(m.id) <= 0) return;   // so aparece depois de ganha
     const rbReq = m.rebirthReq || 0;
     const bloqueada = rbReq > (S.rebirth || 0);
@@ -3401,7 +3418,7 @@ const CODIGOS = [
       const NIVEL_RESET = 43, REBIRTH_RESET = 4;
       S.rebirth = REBIRTH_RESET;
       S.selos = 0;
-      if(S.codes) delete S.codes["calebe.."];          // tranca a maquina secreta de novo
+      if(S.codes){ delete S.codes["calebe.."]; delete S.codes["calebe..."]; }   // tranca a secreta de novo
       S.fusoes = [];                                    // fusoes somem, senao a producao nao bate
       sincronizarFusoes();
       S.machines = {};
@@ -3416,7 +3433,7 @@ const CODIGOS = [
       S.stats.totalGanho = 0; S.stats.picoCarteira = 0;
       assinatura = ""; bannerKey = null;
     } },
-  { chave:"calebe..", titulo:"Calebe..", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
+  { chave:"calebe...", titulo:"Calebe...", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
     aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } }
 ];
 
@@ -3425,7 +3442,7 @@ let codTexto = "";
 function resgatarCodigo(txt){
   if(DUEL) return false;
   let k = String(txt||"").trim().toLowerCase().replace(/\s+/g,"");
-  if(k === "calebe" || k === "calebe.") k = "calebe..";
+  // sem atalhos: so o codigo exato funciona
   const c = CODIGOS.find(o => o.chave === k);
   if(!c){ toast("❌ Esse código não existe"); return false; }
   if(!S.codes) S.codes = {};
@@ -4802,7 +4819,7 @@ function loopMenu(){
 }
 window.addEventListener("resize", ajustaFundoMenu);
 
-abrirAba("fab"); testarArmazenamento(); carregar(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome"); if(CONTA) atualizarPerfil();   // confere a sessao guardada e se a conta tem senha
+abrirAba("fab"); testarArmazenamento(); carregar(); limparCalebe(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome"); if(CONTA) atualizarPerfil();   // confere a sessao guardada e se a conta tem senha
 api("/hora").then(r => { if(r && r.authMode){ AUTH_CLIENTE = r.authMode; SENHA_ATE_CLIENTE = r.senhaAte || null; } });
 // link de convite (?convite=CODIGO): guarda o codigo (some da barra de endereco) e mostra quem convidou
 async function mostrarConviteAmizade(){
