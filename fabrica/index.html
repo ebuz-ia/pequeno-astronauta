@@ -986,7 +986,10 @@ function resgatarMissao(q){
 }
 
 /* ---------------- ESTADO ---------------- */
-const KEY = "fabrica-pixel-save-v1";
+const KEY = "fabrica-pixel-save-v1";          // chave de quem joga sem conta
+let contaDoSave = null;                       // de qual conta e a fabrica que esta aberta
+const chaveSave = cod => cod ? (KEY + "::" + cod) : KEY;
+const codigoDaConta = c => (c && (c.codigo || c.nome)) ? String(c.codigo || c.nome) : null;
 const hoje = () => new Date().toISOString().slice(0,10);
 
 function novoJogo(){
@@ -1018,9 +1021,52 @@ function novoJogo(){
 }
 let S = novoJogo();
 
+/* ---------------- UMA FABRICA POR CONTA ----------------
+   Cada conta tem a sua fabrica guardada separada. Trocou de conta, a fabrica troca junto.
+   Quem jogava sem conta e entra pela primeira vez leva a fabrica consigo. */
+function salvarForcado(){
+  if(DUEL) return;                      // em duelo o save real esta guardado na memoria
+  const m = emMenu, pd = podeSalvar;
+  emMenu = false; podeSalvar = true;
+  salvar();
+  emMenu = m; podeSalvar = pd;
+}
+
+function prepararFabricaDaConta(){
+  const cod = codigoDaConta(CONTA);
+  // conta nova neste aparelho adota a fabrica que estava sem dono
+  if(cod && !localStorage.getItem(chaveSave(cod))){
+    const solta = localStorage.getItem(chaveSave(null));
+    if(solta){
+      try{ localStorage.setItem(chaveSave(cod), solta); localStorage.removeItem(chaveSave(null)); }catch(e){}
+    }
+  }
+  contaDoSave = cod;
+}
+
+function trocarFabricaDaConta(novaConta){
+  if(DUEL) return;                      // nunca troca no meio de um duelo
+  const novo = codigoDaConta(novaConta);
+  if(novo === contaDoSave) return;
+  salvarForcado();                      // guarda a fabrica de quem estava aqui
+  if(novo && !localStorage.getItem(chaveSave(novo))){
+    const solta = localStorage.getItem(chaveSave(null));
+    if(solta && contaDoSave === null){   // vinha jogando sem conta: leva a fabrica junto
+      try{ localStorage.setItem(chaveSave(novo), solta); localStorage.removeItem(chaveSave(null)); }catch(e){}
+    }
+  }
+  contaDoSave = novo;
+  S = novoJogo();
+  carregar();
+  limparCalebe(); checarDia();
+  coins = []; assinatura = ""; bannerKey = null;
+  render();
+  toast(novo ? ("Fábrica de " + (novaConta.nome || novo)) : "Fábrica de quem joga sem conta");
+}
+
 function carregar(){
   try{
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(chaveSave(contaDoSave));
     if(!raw) return;
     const o = JSON.parse(raw);
     S = Object.assign(novoJogo(), o);
@@ -1067,7 +1113,7 @@ function testarArmazenamento(){
 function salvar(){
   if(!podeSalvar || emMenu || DUEL) return;   // menu e duelo nunca gravam por cima do save real
   S.lastSave = Date.now();
-  try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+  try{ localStorage.setItem(chaveSave(contaDoSave), JSON.stringify(S)); }
   catch(e){ podeSalvar = false; }
 }
 function checarDia(){
@@ -4149,7 +4195,9 @@ const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">"
 
 try{ const c = JSON.parse(localStorage.getItem(CONTA_KEY) || "null"); if(c && c.token && c.nome) CONTA = c; }catch(e){}
 function guardarConta(c){
+  const mudou = codigoDaConta(c) !== contaDoSave;
   CONTA = c;
+  if(mudou && typeof trocarFabricaDaConta === "function") trocarFabricaDaConta(c);
   try{ if(c) localStorage.setItem(CONTA_KEY, JSON.stringify(c)); else localStorage.removeItem(CONTA_KEY); }catch(e){}
 }
 
@@ -4810,6 +4858,7 @@ function sairDuelo(manterMenu){
   coins = []; assinatura = ""; bannerKey = null;
   document.body.classList.remove("duelo");
   document.querySelectorAll(".modal-bg").forEach(x=>x.remove());
+  trocarFabricaDaConta(CONTA);   // se trocou de conta durante o duelo, a fabrica certa volta agora
   render();
   if(!manterMenu) telaInicio("main");
 }
@@ -4865,7 +4914,7 @@ function loopMenu(){
 }
 window.addEventListener("resize", ajustaFundoMenu);
 
-abrirAba("fab"); testarArmazenamento(); carregar(); limparCalebe(); conferirVersao(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome"); if(CONTA) atualizarPerfil();   // confere a sessao guardada e se a conta tem senha
+abrirAba("fab"); testarArmazenamento(); prepararFabricaDaConta(); carregar(); limparCalebe(); conferirVersao(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome"); if(CONTA) atualizarPerfil();   // confere a sessao guardada e se a conta tem senha
 api("/hora").then(r => { if(r && r.authMode){ AUTH_CLIENTE = r.authMode; SENHA_ATE_CLIENTE = r.senhaAte || null; } });
 // link de convite (?convite=CODIGO): guarda o codigo (some da barra de endereco) e mostra quem convidou
 async function mostrarConviteAmizade(){
