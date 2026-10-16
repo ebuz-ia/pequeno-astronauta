@@ -633,6 +633,15 @@ const roletaAtiva = () => Boolean(S.roleta && Date.now() < (S.roleta.ate || 0));
 const multRoleta  = () => roletaAtiva() ? ROLETA_FATOR : 1;
 const roletaFalta = () => Math.max(0, Math.ceil(((S.roleta && S.roleta.ate || 0) - Date.now())/1000));
 
+function entregarPendente(){
+  if(rodaGirando) return;            // durante a animacao quem entrega e ela, senao sai em dobro
+  const pd = S.roleta && S.roleta.pendente;
+  if(!pd) return;
+  const real = PREMIOS_ROLETA.find(x => pd.omega ? x.omega : x.min === pd.min);
+  S.roleta.pendente = null;
+  if(real) aplicarPremioRoleta(real);
+}
+
 function creditarGiros(){
   if(!S.roleta) S.roleta = { giros: 1, ultimo: Date.now(), ate: 0 };
   if(!S.roleta.ultimo) S.roleta.ultimo = Date.now();
@@ -645,12 +654,100 @@ function creditarGiros(){
   if(S.roleta.giros > antes){ assinatura = ""; }
 }
 
+/* Cada premio vira uma fatia proporcional ao peso: fatia grande = mais provavel.
+   O sorteio acontece ANTES da animacao; a roda e girada ate parar na fatia sorteada. */
+const CORES_RODA = ["#2f9e44", "#e03131", "#1971c2", "#f08c00", "#6741d9", "#0c8599"];
+let rodaAngulo = 0, rodaGirando = false, rodaSocorro = null;
+
+function fatiasRoda(){
+  const total = PREMIOS_ROLETA.reduce((a,p)=> a + p.peso, 0);
+  let ini = 0;
+  return PREMIOS_ROLETA.map((pr, i)=>{
+    const tam = (pr.peso / total) * Math.PI * 2;
+    const f = { pr, ini, fim: ini + tam, meio: ini + tam/2, tam,
+                cor: pr.omega ? "#ffd24a" : CORES_RODA[i % CORES_RODA.length],
+                texto: pr.omega ? "ÔMEGA" : (pr.min + " min") };
+    ini += tam;
+    return f;
+  });
+}
+
+function desenhaRoda(cv2){
+  if(!cv2) return;
+  const g = cv2.getContext("2d");
+  const L = cv2.width, R = L/2 - 6, cxr = L/2, cyr = L/2;
+  g.clearRect(0,0,L,L);
+  g.save(); g.translate(cxr, cyr); g.rotate(rodaAngulo);
+  fatiasRoda().forEach(f=>{
+    g.beginPath(); g.moveTo(0,0); g.arc(0,0,R,f.ini,f.fim); g.closePath();
+    g.fillStyle = f.cor; g.fill();
+    g.strokeStyle = "#0b0e13"; g.lineWidth = 2; g.stroke();
+    if(f.tam > 0.22){                       // fatia fina nao cabe texto
+      g.save(); g.rotate(f.meio);
+      // na metade esquerda o texto sairia de cabeca para baixo: gira mais meia volta
+      const virado = Math.cos(f.meio + rodaAngulo) < 0;
+      if(virado){ g.rotate(Math.PI); g.textAlign = "left"; }
+      else { g.textAlign = "right"; }
+      g.textBaseline = "middle";
+      g.fillStyle = f.pr.omega ? "#241d00" : "#ffffff";
+      g.font = "bold " + Math.round(L/16) + "px ui-monospace, monospace";
+      g.fillText(f.texto, virado ? -(R - 10) : (R - 10), 0);
+      g.restore();
+    }
+  });
+  g.restore();
+  // miolo
+  g.beginPath(); g.arc(cxr, cyr, R*0.26, 0, Math.PI*2);
+  g.fillStyle = "#0e1116"; g.fill();
+  g.strokeStyle = "#39404c"; g.lineWidth = 3; g.stroke();
+  // ponteiro em cima
+  g.beginPath(); g.moveTo(cxr - 11, 2); g.lineTo(cxr + 11, 2); g.lineTo(cxr, 26); g.closePath();
+  g.fillStyle = "#ffd24a"; g.fill();
+  g.strokeStyle = "#0b0e13"; g.lineWidth = 2; g.stroke();
+}
+
 function girarRoleta(){
+  if(rodaGirando) return;
   if(!S.roleta || (S.roleta.giros || 0) <= 0) return;
   S.roleta.giros -= 1;
   const total = PREMIOS_ROLETA.reduce((a,p)=> a + p.peso, 0);
   let r = Math.random() * total, escolhido = PREMIOS_ROLETA[0];
   for(const pr of PREMIOS_ROLETA){ if(r < pr.peso){ escolhido = pr; break; } r -= pr.peso; }
+  S.roleta.pendente = escolhido;      // se a pagina fechar no meio do giro, o premio nao se perde
+  salvar();
+  const cv2 = document.getElementById("roda");
+  if(cv2) { animarRoda(escolhido, cv2); return escolhido; }
+  aplicarPremioRoleta(escolhido);
+  return escolhido;
+}
+
+function animarRoda(escolhido, cv2){
+  const f = fatiasRoda().find(x => x.pr === escolhido);
+  const alvo = -Math.PI/2 - f.meio;                  // leva o meio da fatia ate o ponteiro
+  const voltas = 5 * Math.PI * 2;
+  const ini = rodaAngulo;
+  const fim = alvo + voltas + Math.ceil((ini - alvo) / (Math.PI*2)) * Math.PI * 2;
+  const dur = matchMedia("(prefers-reduced-motion: reduce)").matches ? 300 : 4200;
+  const t0 = performance.now();
+  rodaGirando = true;
+  clearTimeout(rodaSocorro);
+  rodaSocorro = setTimeout(()=>{            // aba em segundo plano nao anima: entrega do mesmo jeito
+    if(rodaGirando){ rodaGirando = false; rodaAngulo = fim; aplicarPremioRoleta(escolhido); }
+  }, dur + 2500);
+  if(S.som) tocar("moeda");
+  (function passo(t){
+    const k = Math.min(1, (t - t0) / dur);
+    const suave = 1 - Math.pow(1 - k, 4);            // comeca rapido e vai parando
+    rodaAngulo = ini + (fim - ini) * suave;
+    desenhaRoda(cv2);
+    if(k < 1) requestAnimationFrame(passo);
+    else { rodaGirando = false; clearTimeout(rodaSocorro); aplicarPremioRoleta(escolhido); }
+  })(t0);
+}
+
+function aplicarPremioRoleta(escolhido){
+  if(!escolhido) return;
+  if(S.roleta) S.roleta.pendente = null;
   if(escolhido.omega){
     const tinha = nivelMaq("mOmega");
     S.machines.mOmega = tinha + 1;
@@ -3428,11 +3525,15 @@ function listaPremios(){
       '<div class="sub" style="margin-top:8px">Você ganha <strong>1 giro por hora</strong> de jogo, guardando até ' +
         ROLETA_MAX + '. O prêmio multiplica <strong>toda a sua produção por ' + ROLETA_FATOR + '</strong> ' +
         'pelo tempo sorteado. Se girar de novo com o prêmio valendo, o tempo soma.</div>' +
+      '<div style="display:flex;justify-content:center;margin:12px 0 4px">' +
+        '<canvas id="roda" width="250" height="250" style="max-width:100%;height:auto"></canvas>' +
+      '</div>' +
       '<button class="collect rgirar" style="margin:10px 0 0">GIRAR A ROLETA</button>' +
       '<div class="sub rprox" style="margin-top:6px"></div>' +
       '<div class="lab" style="margin:12px 0 4px">O que pode sair</div>' + linhas +
     '</div>');
   box.appendChild(card);
+  desenhaRoda(card.querySelector("#roda"));
   const bt = card.querySelector(".rgirar");
   bt.onclick = ()=>{ girarRoleta(); };
   refRoleta = { btn: bt, status: card.querySelector(".rstatus"), prox: card.querySelector(".rprox") };
@@ -3471,8 +3572,9 @@ function listaPremios(){
 function atualizarRoleta(){
   if(!refRoleta) return;
   const giros = (S.roleta && S.roleta.giros) || 0;
-  refRoleta.btn.disabled = giros <= 0;
-  refRoleta.btn.textContent = giros > 0 ? ("GIRAR A ROLETA (" + giros + ")") : "SEM GIROS AGORA";
+  refRoleta.btn.disabled = giros <= 0 || rodaGirando;
+  refRoleta.btn.textContent = rodaGirando ? "GIRANDO…"
+    : (giros > 0 ? ("GIRAR A ROLETA (" + giros + ")") : "SEM GIROS AGORA");
   refRoleta.status.textContent = roletaAtiva() ? ("x" + ROLETA_FATOR + " por " + mmss(roletaFalta())) : "produção normal";
   refRoleta.status.style.color = roletaAtiva() ? "var(--gold)" : "var(--dim)";
   if(S.roleta){
@@ -3878,6 +3980,7 @@ setInterval(()=>{
   }
 
   creditarGiros();
+  entregarPendente();
   checarSequencia();
   checarConquistas();
 
