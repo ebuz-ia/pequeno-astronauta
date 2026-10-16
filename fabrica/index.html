@@ -269,6 +269,12 @@
   .carta:active{transform:translateY(2px)}
   .carta:disabled{opacity:.5;cursor:default}
   .vazio{font-size:11px;color:#9a8878}
+  #novaversao{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:40;
+    align-items:center;gap:12px;padding:10px 14px;border-radius:8px;border:2px solid #2f5a3a;
+    background:#16211a;color:#86efac;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+  #novaversao.ver{display:flex}
+  #novaversao button{font:inherit;font-size:12px;font-weight:bold;cursor:pointer;padding:7px 11px;
+    border-radius:6px;border:2px solid #14532d;background:#4ade80;color:#06240f}
   body.duelo.comcartas #cartasbar{display:flex}
   body.duelo #duelbar{display:flex}
   body.duelo #topbar{display:none}
@@ -344,6 +350,7 @@
     <button class="menubtn" id="duelsair">SAIR DO DUELO</button>
   </div>
   <div id="cartasbar"><span class="rot">SUAS CARTAS</span><div id="cartasmao"></div></div>
+  <div id="novaversao"><span>Saiu uma versão nova do jogo.</span><button id="btnatualizar">ATUALIZAR AGORA</button></div>
   <div class="topbar" id="topbar">
     <span class="modotag normal" id="modotag">MODO NORMAL</span>
     <button class="menubtn" id="menubtn" aria-label="Voltar ao menu inicial">☰ MENU INICIAL</button>
@@ -612,6 +619,44 @@ function modalReiniciar(){
   m.querySelector("#btn-reinic-nao").onclick = fechar;
   m.onclick = e => { if(e.target === m) fechar(); };
 }
+
+/* ---------------- ATUALIZACAO SOZINHA ----------------
+   O site devolve um ETag que muda toda vez que o arquivo do jogo muda. O jogo compara de
+   tempos em tempos com o que tinha quando abriu. Mudou, e porque saiu versao nova.
+   No menu ele troca sozinho; jogando, pergunta antes; em duelo, nunca interrompe. */
+let marcaVersao = null, jaAvisouVersao = false;
+
+async function lerMarcaVersao(){
+  try{
+    const r = await fetch(location.pathname + "?v=" + Date.now(), { method: "HEAD", cache: "no-store" });
+    return r.headers.get("etag") || r.headers.get("last-modified") || null;
+  }catch(e){ return null; }
+}
+
+function recarregarJogo(){
+  try{ salvar(); }catch(e){}
+  location.reload();
+}
+
+async function conferirVersao(){
+  if(jaAvisouVersao) return;
+  const m = await lerMarcaVersao();
+  if(!m) return;
+  if(!marcaVersao){ marcaVersao = m; return; }    // primeira leitura: so guarda
+  if(m === marcaVersao) return;
+  jaAvisouVersao = true;
+  if(DUEL){ mostrarAvisoVersao(); return; }       // no meio do duelo nunca corta
+  if(emMenu){ recarregarJogo(); return; }         // no menu troca na hora, ninguem perde nada
+  mostrarAvisoVersao();
+}
+
+function mostrarAvisoVersao(){
+  const b = document.getElementById("novaversao");
+  if(b) b.classList.add("ver");
+}
+
+setInterval(conferirVersao, 180000);              // confere a cada 3 minutos
+window.addEventListener("focus", conferirVersao); // e quando a pessoa volta para a aba
 
 /* ---------------- ROLETA ----------------
    1 giro por hora, guardando ate 5. Os numeros que o Jonathan passou (90, 76, 70, 63, 50)
@@ -3717,6 +3762,7 @@ function toast(msg){
 /* ---------------- EVENTOS ---------------- */
 $("#collect").onclick = ()=>{ esquentar(); recolher(); };
 $("#turbo").onclick = esquentar;
+if($("#btnatualizar")) $("#btnatualizar").onclick = recarregarJogo;
 $("#abast").onclick = abastecerTudo;
 $("#som").onclick = ()=>{
   S.som = !S.som;
@@ -4819,7 +4865,7 @@ function loopMenu(){
 }
 window.addEventListener("resize", ajustaFundoMenu);
 
-abrirAba("fab"); testarArmazenamento(); carregar(); limparCalebe(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome"); if(CONTA) atualizarPerfil();   // confere a sessao guardada e se a conta tem senha
+abrirAba("fab"); testarArmazenamento(); carregar(); limparCalebe(); conferirVersao(); checarDia(); render(); loopDesenho(); ajustaFundoMenu(); loopMenu(); telaInicio(CONTA ? "main" : "nome"); if(CONTA) atualizarPerfil();   // confere a sessao guardada e se a conta tem senha
 api("/hora").then(r => { if(r && r.authMode){ AUTH_CLIENTE = r.authMode; SENHA_ATE_CLIENTE = r.senhaAte || null; } });
 // link de convite (?convite=CODIGO): guarda o codigo (some da barra de endereco) e mostra quem convidou
 async function mostrarConviteAmizade(){
