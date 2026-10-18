@@ -462,7 +462,10 @@ const MACHINES = [
   {id:"mOmega", nome:"Ômega", custo:2000000, ps:10000, rebirthReq:0, cresc:1.35, premio:true},
 
   // Premio de 7 dias seguidos: nao e das melhores nem das piores
-  {id:"mConstante", nome:"Constante 7", custo:150000, ps:400, rebirthReq:0, premio:true}
+  {id:"mConstante", nome:"Constante 7", custo:150000, ps:400, rebirthReq:0, premio:true},
+
+  // Maquina secreta: so aparece com o codigo do Calebe (devolvida em 19/10/2026)
+  {id:"mcalebe", nome:"Calebe ∞", custo:0, ps:1500000, rebirthReq:0, secreta:true}
 ];
 
 const REBIRTH_REQS = [
@@ -945,7 +948,8 @@ const CONQUISTAS = [
 
   {id:"c_turbo",t:"Pe no Acelerador",   d:"Ligar o overclock 50 vezes",         alvo:50,  prog:s=>s.stats.turbos||0},
   {id:"c_cons", t:"Faz Tudo",           d:"Consertar 100 maquinas",        alvo:100, prog:s=>s.stats.consertos||0},
-  {id:"c_contas",t:"Tudo em Dia",       d:"Pagar 100 contas da fabrica",   alvo:100, prog:s=>s.stats.billsPaid||0}
+  {id:"c_contas",t:"Tudo em Dia",       d:"Pagar 100 contas da fabrica",   alvo:100, prog:s=>s.stats.billsPaid||0},
+  {id:"c_secreta",t:"Caca ao Tesouro",  d:"Encontrar a maquina secreta",   alvo:1, prog:s=>nivelMaq("mcalebe")>0?1:0}
 ];
 
 const conquistasFeitas = () => CONQUISTAS.filter(c => S.conquistas && S.conquistas[c.id]).length;
@@ -3520,17 +3524,27 @@ function missaoRow(q){
 }
 
 /* ---------------- CODIGOS ---------------- */
+/* Pistas (campo "pista"): aparecem na aba CODIGOS para quem ainda nao achou aquele
+   codigo. O "tier" so decide a cor/etiqueta da pista:
+     "impossivel" = codigo muito bom, pista quase inutil de proposito
+     "hardcore"   = codigo bom, pista mais concreta
+   sucesso#100 e calebe... NAO TEM pista nem tier: ficam de fora de qualquer lista,
+   ninguem fica sabendo nem que eles existem por uma pista. */
 const CODIGOS = [
   { chave:"daniel",   titulo:"Daniel",   efeito:"Todas as máquinas sobem 5 níveis",
+    tier:"hardcore", pista:"Um nome bem comum no Brasil. Pode ser o nome de um amigo seu.",
     aplicar(){ maquinasDoRebirthAtual().forEach(m => S.machines[m.id] = nivelMaq(m.id) + 5); } },
   { chave:"sucesso#100", titulo:"Sucesso#100", efeito:"Libera o Painel de Administrador",
     aplicar(){ S.admin = true; } },
   { chave:"vitor",    titulo:"VITOR",    efeito:"Você fica devendo R$ 70.000",
+    tier:"hardcore", pista:"Outro nome comum, só que esse deixa a carteira no vermelho.",
     aplicar(){ S.wallet -= 70000; } },
   { chave:"dinhero",  titulo:"Dinhero",  efeito:"Ganha R$ 30.000 na hora",
+    tier:"hardcore", pista:"É a palavra do dinheiro, só que escrita tipo quem errou no teclado de propósito.",
     aplicar(){ S.wallet += 30000; } },
   { chave:"recomeco43", titulo:"Recomeço 43",
     efeito:"Devolve a fábrica ao Rebirth 4 com todas as máquinas no nível 43, sem a máquina secreta e com 0 Pixels",
+    tier:"impossivel", pista:"Um número que te leva de volta pro nível em que a fábrica era mais simples, só que bem mais alto.",
     aplicar(){
       const NIVEL_RESET = 43, REBIRTH_RESET = 4;
       S.rebirth = REBIRTH_RESET;
@@ -3549,7 +3563,81 @@ const CODIGOS = [
       S.turbo = { restante:0, espera:0 };
       S.stats.totalGanho = 0; S.stats.picoCarteira = 0;
       assinatura = ""; bannerKey = null;
-    } }
+    } },
+  { chave:"calebe...", titulo:"Calebe...", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
+    aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } },
+
+  /* ---- 20 codigos novos (19/10/2026), nenhum tao forte quanto o Sucesso#100
+     ou o Calebe... - 10 "muito bom" (pista impossivel) e 10 "bom" (pista hardcore) ---- */
+  { chave:"jackpot", titulo:"Jackpot", efeito:"Ganha R$ 5.000.000 na hora",
+    tier:"impossivel", pista:"Quem acerta tudo de uma vez só chama isso por uma palavra em inglês.",
+    aplicar(){ S.wallet += 5000000; } },
+  { chave:"megaboost", titulo:"Mega Boost", efeito:"Todas as máquinas sobem 15 níveis",
+    tier:"impossivel", pista:"Um impulso bem maior que o normal, descomunal mesmo.",
+    aplicar(){ maquinasDoRebirthAtual().forEach(m => S.machines[m.id] = nivelMaq(m.id) + 15); } },
+  { chave:"selosgratis", titulo:"Selos Grátis", efeito:"Ganha 3 selos na hora (+6% de produção para sempre)",
+    tier:"impossivel", pista:"Aquilo que você ganha de graça e nunca precisou colar em carta nenhuma.",
+    aplicar(){ S.selos = (S.selos||0) + 3; } },
+  { chave:"giroduplo", titulo:"Giro Duplo", efeito:"Ganha 3 giros da roleta na hora",
+    tier:"impossivel", pista:"A roda vira bem mais vezes do que você pediu.",
+    aplicar(){ S.roleta = S.roleta || {}; S.roleta.giros = Math.min(ROLETA_MAX + 3, (S.roleta.giros||0) + 3); } },
+  { chave:"rebirthextra", titulo:"Rebirth Extra", efeito:"Rebirth +1 na hora",
+    tier:"impossivel", pista:"Nascer de novo, sem precisar merecer dessa vez.",
+    aplicar(){ S.rebirth = Math.min(5, (S.rebirth||0)+1); } },
+  { chave:"tanquecheio", titulo:"Tanque Cheio", efeito:"Enche o combustível de todas as máquinas (modo hardcore) e deixa o overclock pronto",
+    tier:"impossivel", pista:"O carro não anda sem isso, e a fábrica no modo difícil também não.",
+    aplicar(){ S.fuel = {}; MACHINES.forEach(m=>{ if(nivelMaq(m.id)>0) S.fuel[m.id] = FUEL_MAX; });
+      if(!S.turbo) S.turbo = {restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; S.oc = {carga:0}; } },
+  { chave:"fabricanova", titulo:"Fábrica Nova", efeito:"Armazenador no nível máximo",
+    tier:"impossivel", pista:"Tudo que acabou de ser construído já guarda o máximo que pode.",
+    aplicar(){ S.storageLevel = STORAGE.length; } },
+  { chave:"dividazero", titulo:"Dívida Zero", efeito:"Quita a conta de luz na hora",
+    tier:"impossivel", pista:"É o contrário de dever alguma coisa pra alguém.",
+    aplicar(){ if(S.bill) S.bill.ativa = false; } },
+  { chave:"mecanicovip", titulo:"Mecânico VIP", efeito:"Contrata o mecânico e sobe o gerente um nível",
+    tier:"impossivel", pista:"Quem conserta de graça pra você, e de primeira classe.",
+    aplicar(){ S.hasMechanic = true; S.managerLevel = Math.min(MANAGERS.length, (S.managerLevel||0)+1); } },
+  { chave:"energiainfinita", titulo:"Energia Infinita", efeito:"Habilidades especiais e overclock ficam prontos na hora",
+    tier:"impossivel", pista:"Aquilo que nunca acaba, nem quando você usa o tanto que quiser.",
+    aplicar(){ S.hab = novoHab(); if(!S.turbo) S.turbo = {restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; S.oc = {carga:0}; } },
+
+  { chave:"parafuso", titulo:"Parafuso", efeito:"Ganha R$ 5.000",
+    tier:"hardcore", pista:"Peça pequena de metal, tem rosca e cabeça, e prende tudo na fábrica.",
+    aplicar(){ S.wallet += 5000; } },
+  { chave:"engrenagem", titulo:"Engrenagem", efeito:"Ganha R$ 15.000",
+    tier:"hardcore", pista:"Dentes de metal que giram juntos pra fazer a fábrica funcionar.",
+    aplicar(){ S.wallet += 15000; } },
+  { chave:"robozinho", titulo:"Robozinho", efeito:"Uma máquina à sua escolha sobe 3 níveis (a mais fraca que você já tem)",
+    tier:"hardcore", pista:"Pequeno, de metal, e ajuda a máquina mais fraca que você tem.",
+    aplicar(){
+      // a mais fraca de verdade: qualquer maquina que o jogador tenha, nao so as
+      // elegiveis pra fusao (essas exigem nivel 10+, deixaria passar a mais fraca)
+      const minhas = MACHINES.filter(m => !m.secreta && !m.fusao && !m.premio && nivelMaq(m.id) > 0)
+        .sort((a,b)=>nivelMaq(a.id)-nivelMaq(b.id));
+      const alvo = minhas[0] || MACHINES.find(m=>m.id==="m1265xv");
+      S.machines[alvo.id] = nivelMaq(alvo.id) + 3;
+    } },
+  { chave:"esteira", titulo:"Esteira", efeito:"Conserta todas as máquinas quebradas",
+    tier:"hardcore", pista:"Onde as caixas andam sozinhas, do início ao fim da linha.",
+    aplicar(){ S.broken = {}; } },
+  { chave:"ferrugem", titulo:"Ferrugem", efeito:"Ganha 1 giro da roleta",
+    tier:"hardcore", pista:"O que aparece no metal depois de tempo demais na chuva.",
+    aplicar(){ S.roleta = S.roleta || {}; S.roleta.giros = Math.min(ROLETA_MAX + 1, (S.roleta.giros||0) + 1); } },
+  { chave:"cafezinho", titulo:"Cafezinho", efeito:"Overclock pronto na hora",
+    tier:"hardcore", pista:"Pequeno, quente, e deixa qualquer um mais rápido.",
+    aplicar(){ if(!S.turbo) S.turbo = {restante:0,espera:0}; S.turbo.restante=0; S.turbo.espera=0; S.oc = {carga:0}; } },
+  { chave:"sucata", titulo:"Sucata", efeito:"Ganha 1 selo (+2% de produção para sempre)",
+    tier:"hardcore", pista:"Metal velho que ainda vale alguma coisa.",
+    aplicar(){ S.selos = (S.selos||0) + 1; } },
+  { chave:"trabalhador", titulo:"Trabalhador", efeito:"Todas as máquinas sobem 1 nível",
+    tier:"hardcore", pista:"Quem toca a fábrica todo santo dia.",
+    aplicar(){ maquinasDoRebirthAtual().forEach(m => S.machines[m.id] = nivelMaq(m.id) + 1); } },
+  { chave:"lampada", titulo:"Lâmpada", efeito:"Ganha R$ 10.000",
+    tier:"hardcore", pista:"Acende quando a ideia boa chega.",
+    aplicar(){ S.wallet += 10000; } },
+  { chave:"foguete", titulo:"Foguete", efeito:"Ganha R$ 25.000",
+    tier:"hardcore", pista:"Vai rápido, faz barulho, e sobe que nem a produção.",
+    aplicar(){ S.wallet += 25000; } }
 ];
 
 let codTexto = "";
@@ -3755,12 +3843,29 @@ function listaCodigos(){
         '</div>'));
     });
   }
-  const faltam = CODIGOS.length - usados.length;
-  if(faltam > 0){
+  // Pistas: so de quem tem o campo "pista" (sucesso#100 e calebe... nunca tem -
+  // ficam escondidos junto com qualquer outro codigo sem pista, no monte generico).
+  const TIER_COR = { impossivel: {bg:"#3a2416", cor:"#ffb37a", borda:"#6b3f1f", rotulo:"PISTA IMPOSSÍVEL"},
+                     hardcore:   {bg:"#2a2416", cor:"#ffd24a", borda:"#5a4a1f", rotulo:"PISTA HARDCORE"} };
+  const comPista = CODIGOS.filter(c => !(S.codes && S.codes[c.chave]) && c.pista);
+  const semPista = CODIGOS.filter(c => !(S.codes && S.codes[c.chave]) && !c.pista);
+  if(comPista.length){
+    box.appendChild(el('<div class="lab" style="margin:10px 0 6px">Pistas dos códigos que faltam</div>'));
+    comPista.forEach(c=>{
+      const t = TIER_COR[c.tier] || TIER_COR.hardcore;
+      box.appendChild(el(
+        '<div class="row" style="margin-bottom:8px">' +
+          '<div class="info"><div class="nm">???</div>' +
+          '<div class="sub">' + esc(c.pista) + '</div></div>' +
+          '<div class="sp"></div><span class="tag" style="background:' + t.bg + ';color:' + t.cor + ';border-color:' + t.borda + '">' + t.rotulo + '</span>' +
+        '</div>'));
+    });
+  }
+  if(semPista.length){
     box.appendChild(el(
       '<div class="row" style="margin-top:8px">' +
-        '<div class="info"><div class="nm">' + faltam + ' código' + (faltam>1?'s':'') + ' escondido' + (faltam>1?'s':'') + '</div>' +
-        '<div class="sub">Peça para quem fez o jogo</div></div>' +
+        '<div class="info"><div class="nm">' + semPista.length + ' código' + (semPista.length>1?'s':'') + ' escondido' + (semPista.length>1?'s':'') + '</div>' +
+        '<div class="sub">Sem pista nenhuma. Peça para quem fez o jogo</div></div>' +
         '<div class="sp"></div><span class="tag" style="background:#2a303b;color:#8b97a8;border-color:#3b4556">???</span>' +
       '</div>'));
   }
