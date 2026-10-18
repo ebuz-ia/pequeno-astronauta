@@ -486,7 +486,14 @@ const STORAGE = [
   {nivel:7, cap:250000,   custo:80000  },
   {nivel:8, cap:1000000,  custo:250000 },
   {nivel:9, cap:5000000,  custo:800000 },
-  {nivel:10,cap:25000000, custo:2500000}
+  {nivel:10,cap:25000000,     custo:2500000  },
+  // a partir daqui: quem tem Omega ou selos empilhados produz mais que isso por
+  // SEGUNDO, entao o nivel 10 virou decoracao. Esses niveis dao folego de verdade.
+  {nivel:11,cap:100000000,    custo:6000000  },
+  {nivel:12,cap:500000000,    custo:15000000 },
+  {nivel:13,cap:2500000000,   custo:40000000 },
+  {nivel:14,cap:12500000000,  custo:100000000},
+  {nivel:15,cap:60000000000,  custo:250000000}
 ];
 const MANAGERS = [
   {nivel:1, nome:"Gerente Júnior", taxa:0.10, desc:"Recolhe sozinho ao encher e fica com 10%", custo:1000},
