@@ -3567,6 +3567,23 @@ const CODIGOS = [
   { chave:"calebe...", titulo:"Calebe...", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
     aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } },
 
+  // Codigo de correcao (19/10/2026): tira o painel de admin e deixa a fabrica em
+  // R$ 2.000.000/s com exatamente 10.000 selos. Sem pista de proposito - nao e
+  // premio, e um ajuste. Calcula o nivel na hora, usando o rebirth e as conquistas
+  // de quem usa, pra a producao final bater certo em qualquer conta.
+  { chave:"correcao", titulo:"Correção", efeito:"Tira o Painel de Administrador, trava a máquina secreta de novo, zera as máquinas e deixa a fábrica em R$ 2.000.000/s com 10.000 selos",
+    aplicar(){
+      S.admin = false;
+      S.selos = 10000;
+      if(S.codes){ delete S.codes["calebe.."]; delete S.codes["calebe..."]; }   // tranca a secreta de novo
+      S.fusoes = []; sincronizarFusoes();
+      S.broken = {}; S.fuel = {}; S.gasto = {}; S.gastoN = {};
+      const base = MACHINES.find(m=>m.id==="m1265xv");
+      const mult = multRebirth() * multConquistas() * multSelos();
+      const nivel = Math.max(1, Math.round(2000000 / (base.ps * mult)));
+      S.machines = { m1265xv: nivel };
+    } },
+
   /* ---- 20 codigos novos (19/10/2026), nenhum tao forte quanto o 1234565743kkkk
      ou o Calebe... - 10 "muito bom" (pista impossivel) e 10 "bom" (pista hardcore) ---- */
   { chave:"jackpot", titulo:"Jackpot", efeito:"Ganha R$ 5.000.000 na hora",
