@@ -3528,13 +3528,13 @@ function missaoRow(q){
    codigo. O "tier" so decide a cor/etiqueta da pista:
      "impossivel" = codigo muito bom, pista quase inutil de proposito
      "hardcore"   = codigo bom, pista mais concreta
-   sucesso#100 e calebe... NAO TEM pista nem tier: ficam de fora de qualquer lista,
-   ninguem fica sabendo nem que eles existem por uma pista. */
+   1234565743kkkk e calebe... NAO TEM pista nem tier: ficam de fora de qualquer
+   lista, ninguem fica sabendo nem que eles existem por uma pista. */
 const CODIGOS = [
   { chave:"daniel",   titulo:"Daniel",   efeito:"Todas as máquinas sobem 5 níveis",
     tier:"hardcore", pista:"Um nome bem comum no Brasil. Pode ser o nome de um amigo seu.",
     aplicar(){ maquinasDoRebirthAtual().forEach(m => S.machines[m.id] = nivelMaq(m.id) + 5); } },
-  { chave:"sucesso#100", titulo:"Sucesso#100", efeito:"Libera o Painel de Administrador",
+  { chave:"1234565743kkkk", titulo:"1234565743kkkk", efeito:"Libera o Painel de Administrador",
     aplicar(){ S.admin = true; } },
   { chave:"vitor",    titulo:"VITOR",    efeito:"Você fica devendo R$ 70.000",
     tier:"hardcore", pista:"Outro nome comum, só que esse deixa a carteira no vermelho.",
@@ -3567,7 +3567,7 @@ const CODIGOS = [
   { chave:"calebe...", titulo:"Calebe...", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
     aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } },
 
-  /* ---- 20 codigos novos (19/10/2026), nenhum tao forte quanto o Sucesso#100
+  /* ---- 20 codigos novos (19/10/2026), nenhum tao forte quanto o 1234565743kkkk
      ou o Calebe... - 10 "muito bom" (pista impossivel) e 10 "bom" (pista hardcore) ---- */
   { chave:"jackpot", titulo:"Jackpot", efeito:"Ganha R$ 5.000.000 na hora",
     tier:"impossivel", pista:"Quem acerta tudo de uma vez só chama isso por uma palavra em inglês.",
@@ -3843,7 +3843,7 @@ function listaCodigos(){
         '</div>'));
     });
   }
-  // Pistas: so de quem tem o campo "pista" (sucesso#100 e calebe... nunca tem -
+  // Pistas: so de quem tem o campo "pista" (1234565743kkkk e calebe... nunca tem -
   // ficam escondidos junto com qualquer outro codigo sem pista, no monte generico).
   const TIER_COR = { impossivel: {bg:"#3a2416", cor:"#ffb37a", borda:"#6b3f1f", rotulo:"PISTA IMPOSSÍVEL"},
                      hardcore:   {bg:"#2a2416", cor:"#ffd24a", borda:"#5a4a1f", rotulo:"PISTA HARDCORE"} };
