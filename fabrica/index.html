@@ -462,10 +462,7 @@ const MACHINES = [
   {id:"mOmega", nome:"Ômega", custo:2000000, ps:10000, rebirthReq:0, cresc:1.35, premio:true},
 
   // Premio de 7 dias seguidos: nao e das melhores nem das piores
-  {id:"mConstante", nome:"Constante 7", custo:150000, ps:400, rebirthReq:0, premio:true},
-
-  // Maquina secreta: so aparece com o codigo do Calebe
-  {id:"mcalebe", nome:"Calebe ∞", custo:0, ps:1500000, rebirthReq:0, secreta:true}
+  {id:"mConstante", nome:"Constante 7", custo:150000, ps:400, rebirthReq:0, premio:true}
 ];
 
 const REBIRTH_REQS = [
@@ -948,8 +945,7 @@ const CONQUISTAS = [
 
   {id:"c_turbo",t:"Pe no Acelerador",   d:"Ligar o overclock 50 vezes",         alvo:50,  prog:s=>s.stats.turbos||0},
   {id:"c_cons", t:"Faz Tudo",           d:"Consertar 100 maquinas",        alvo:100, prog:s=>s.stats.consertos||0},
-  {id:"c_contas",t:"Tudo em Dia",       d:"Pagar 100 contas da fabrica",   alvo:100, prog:s=>s.stats.billsPaid||0},
-  {id:"c_secreta",t:"Caca ao Tesouro",  d:"Encontrar a maquina secreta",   alvo:1, prog:s=>nivelMaq("mcalebe")>0?1:0}
+  {id:"c_contas",t:"Tudo em Dia",       d:"Pagar 100 contas da fabrica",   alvo:100, prog:s=>s.stats.billsPaid||0}
 ];
 
 const conquistasFeitas = () => CONQUISTAS.filter(c => S.conquistas && S.conquistas[c.id]).length;
@@ -3553,9 +3549,7 @@ const CODIGOS = [
       S.turbo = { restante:0, espera:0 };
       S.stats.totalGanho = 0; S.stats.picoCarteira = 0;
       assinatura = ""; bannerKey = null;
-    } },
-  { chave:"calebe...", titulo:"Calebe...", efeito:"Máquina secreta Calebe ∞, R$ 1.500.000 por segundo",
-    aplicar(){ S.machines.mcalebe = Math.max(1, nivelMaq("mcalebe")); } }
+    } }
 ];
 
 let codTexto = "";
