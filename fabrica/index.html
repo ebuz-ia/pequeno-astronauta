@@ -476,24 +476,28 @@ const REBIRTH_REQS = [
   {rebirth:5, nivelReq:55, novas:["Singularidade", "Pixel Infinito"]}
 ];
 
+// Custos 4x mais caros que a versao original (19/10/2026: "os armazenadores tao muito
+// baratos"), mantendo a mesma proporcao entre os niveis (cada nivel custa ~x3,16 o
+// anterior - e so continuar o padrao original, corrigindo os niveis 11-15 que eu
+// tinha colocado crescendo mais devagar do que deveriam).
 const STORAGE = [
-  {nivel:1, cap:25,       custo:0      },
-  {nivel:2, cap:150,      custo:200    },
-  {nivel:3, cap:500,      custo:600    },
-  {nivel:4, cap:2000,     custo:2500   },
-  {nivel:5, cap:10000,    custo:8000   },
-  {nivel:6, cap:50000,    custo:25000  },
-  {nivel:7, cap:250000,   custo:80000  },
-  {nivel:8, cap:1000000,  custo:250000 },
-  {nivel:9, cap:5000000,  custo:800000 },
-  {nivel:10,cap:25000000,     custo:2500000  },
+  {nivel:1, cap:25,       custo:0        },
+  {nivel:2, cap:150,      custo:800      },
+  {nivel:3, cap:500,      custo:2400     },
+  {nivel:4, cap:2000,     custo:10000    },
+  {nivel:5, cap:10000,    custo:32000    },
+  {nivel:6, cap:50000,    custo:100000   },
+  {nivel:7, cap:250000,   custo:320000   },
+  {nivel:8, cap:1000000,  custo:1000000  },
+  {nivel:9, cap:5000000,  custo:3200000  },
+  {nivel:10,cap:25000000,     custo:10000000   },
   // a partir daqui: quem tem Omega ou selos empilhados produz mais que isso por
   // SEGUNDO, entao o nivel 10 virou decoracao. Esses niveis dao folego de verdade.
-  {nivel:11,cap:100000000,    custo:6000000  },
-  {nivel:12,cap:500000000,    custo:15000000 },
-  {nivel:13,cap:2500000000,   custo:40000000 },
-  {nivel:14,cap:12500000000,  custo:100000000},
-  {nivel:15,cap:60000000000,  custo:250000000}
+  {nivel:11,cap:100000000,    custo:32000000   },
+  {nivel:12,cap:500000000,    custo:100000000  },
+  {nivel:13,cap:2500000000,   custo:320000000  },
+  {nivel:14,cap:12500000000,  custo:1000000000 },
+  {nivel:15,cap:60000000000,  custo:3200000000 }
 ];
 const MANAGERS = [
   {nivel:1, nome:"Gerente Júnior", taxa:0.10, desc:"Recolhe sozinho ao encher e fica com 10%", custo:1000},
@@ -2829,7 +2833,10 @@ function construirListas(){
    - taxa: 25% do que foi gasto nas duas. Vender a fundida devolve 50% do gasto total (inclui a taxa),
      entao fundir e vender nunca da lucro.
    - fundida nao quebra e, no hardcore, gasta combustivel como as outras. Nao conta para o rebirth. */
-const FUSAO_NIVEL_MIN = 10, FUSAO_BONUS = 1.4, FUSAO_TAXA = 0.25, FUSAO_MAX = 8, FUSAO_PRECO = 2.5;
+// FUSAO_TAXA e FUSAO_PRECO 4x mais caros (19/10/2026: "a fusao ta muito barata" -
+// a primeira fusao possivel custava so 6 segundos de producao, virou 25s; o preco
+// base da maquina fundida tambem sobe, entao evoluir ela depois nao fica de graca).
+const FUSAO_NIVEL_MIN = 10, FUSAO_BONUS = 1.4, FUSAO_TAXA = 1.0, FUSAO_MAX = 8, FUSAO_PRECO = 10;
 const CURTO = { m1265xv:"1265xv", m4555tr:"4555tr", m900:"900", m6000:"6000", m9000:"9000", m700:"700", m500067:"5000",
   m8800:"Quantum", mcyber:"Cyber", mplasma:"Plasma", mtitan:"Titan", mfusion:"Atômica", mlaser:"Laser",
   mneutron:"Nêutron", mdark:"Escura", msingularity:"Singular", minfinity:"Infinito" };
@@ -3083,7 +3090,7 @@ function atualizarFusao(){
         '<span class="sub" style="display:block">' + E.resumo + '</span></span></div>' +
       '<div class="sub">Nasce no <b>nível ' + pl.nivel + '</b> • evoluir custa bem mais que nas originais</div>' +
       '<div class="fus-prod">R$ ' + fmt(pl.antes) + '/s &rarr; <b>R$ ' + fmt(pl.depois) + '/s</b> <span>(+' + ganho + '%)</span></div>' +
-      '<div class="sub">Taxa de fusão: <b>' + moeda(pl.taxa) + '</b> (25% do que você gastou nas duas)</div>';
+      '<div class="sub">Taxa de fusão: <b>' + moeda(pl.taxa) + '</b> (' + Math.round(FUSAO_TAXA*100) + '% do que você gastou nas duas)</div>';
     if(r.info.dataset.k !== t){ r.info.innerHTML = t; r.info.dataset.k = t; }
     if((S.fusoes || []).length >= FUSAO_MAX) aviso = "Limite de " + FUSAO_MAX + " máquinas fundidas. Venda uma para fazer outra.";
     else if(S.wallet < pl.taxa) aviso = "Faltam " + moeda(pl.taxa - S.wallet) + " para a taxa de fusão.";
