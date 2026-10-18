@@ -4135,7 +4135,10 @@ window.addEventListener("beforeunload", salvar);
 /* ---------------- RELATORIO DA FABRICA (ranking da melhor fabrica) ----------------
    Producao por segundo SEM overclock, hora extra, modo de jogo, quebras ou conta: a fabrica em si.
    O servidor guarda o maior de cada campo. Vale so o que o navegador informa (nao ha como conferir). */
-const producaoDaFabrica = () => MACHINES.reduce((a, m) => a + m.ps * nivelMaq(m.id), 0) * multRebirth() * multConquistas() * multSelos();
+// O que vai pro ranking publico nao conta a maquina secreta (19/10/2026: "o dinheiro
+// onde voce ganha com a maquina secreta nao vai valer no ranque"). Ela continua rendendo
+// pixels de verdade pra quem tem o codigo - so nao entra na comparacao com os outros.
+const producaoDaFabrica = () => MACHINES.reduce((a, m) => m.secreta ? a : a + m.ps * nivelMaq(m.id), 0) * multRebirth() * multConquistas() * multSelos();
 let relatorioT = 0;
 async function enviarRelatorio(){
   if(!CONTA || DUEL) return;
