@@ -401,6 +401,15 @@
   <div id="cod" class="hide"></div>
   <div id="mis" class="list hide"></div>
   <div id="art" class="hide">
+    <div class="lab" style="margin-bottom:6px">🎨 Fundo da fábrica</div>
+    <div class="note">Repinta a parede, as vigas e as luzes. Vale pra fábrica inteira.</div>
+    <div class="list" id="skinFundoList" style="margin-top:8px;margin-bottom:16px"></div>
+
+    <div class="lab" style="margin-bottom:6px">🎨 Pintura das máquinas</div>
+    <div class="note">Cada máquina pode usar uma pintura diferente. Comprou uma vez, pode trocar de máquina à vontade sem pagar de novo.</div>
+    <div class="list" id="skinMaqList" style="margin-top:8px;margin-bottom:16px"></div>
+
+    <div class="lab" style="margin-bottom:6px">Minhas artes</div>
     <div class="note">Aqui voce troca o desenho de cada maquina pelo seu proprio PNG.
       Clique em TROCAR e escolha a imagem. Fundo transparente fica melhor.
       As artes ficam salvas junto com o jogo.</div>
@@ -1021,6 +1030,7 @@ const hoje = () => new Date().toISOString().slice(0,10);
 
 function novoJogo(){
   return {
+    skinsMaq: {}, skinPorMaq: {}, skinsFundo: {}, skinFundoAtual: "padrao",
     wallet:0, stored:0, storageLevel:1, managerLevel:0,
     hasMechanic: false,
     rebirth: 0,
@@ -1103,6 +1113,8 @@ function carregar(){
       if(S.machines[k] === true) S.machines[k] = 1;
     }
     S.art = o.art||{}; S.done = o.done||{}; S.dailyDone = o.dailyDone||{};
+    S.skinsMaq = o.skinsMaq||{}; S.skinPorMaq = o.skinPorMaq||{};
+    S.skinsFundo = o.skinsFundo||{}; S.skinFundoAtual = o.skinFundoAtual || "padrao";
     if(o.lastSave) S.lastSave = o.lastSave;
     S.managerLevel = o.managerLevel || 0;
     S.hasMechanic = Boolean(o.hasMechanic);
@@ -1703,8 +1715,79 @@ function fumaca(x, y, seed, cor){
    brilho no topo e sombra embaixo. Caixa de 64x64 apoiada em y=BASE. */
 const BASE = 150;
 
-const MP = { out:"#080a0f", dark:"#283040", mid:"#434c5d", lit:"#5e697b",
+const MP_PADRAO = { out:"#080a0f", dark:"#283040", mid:"#434c5d", lit:"#5e697b",
              hi:"#8d99ab", spec:"#c6d0dd", glass:"#0a0e15" };
+let MP = MP_PADRAO;   // trocada por desenhaMaquina() de acordo com a skin equipada
+
+/* ---------------- SKINS (19/10/2026) ----------------
+   Skin = repintar a mesma maquina/fundo que ja existe, nao desenhar de novo do
+   zero. Cada skin de maquina e so UMA cor-semente; paletaMaquina() estica essa
+   cor pros 7 tons que MP usa (contorno, sombra, meio, brilho, especular), na
+   mesma proporcao de luz/sombra do desenho padrao - por isso qualquer maquina
+   fica bem com qualquer skin sem precisar redesenhar nada.
+   Skin de fundo usa DUAS sementes (parede e luz), porque a cor da luminaria
+   nao deriva bem da cor da parede (uma e estrutura, a outra e brilho quente).
+
+   Uma skin, depois de comprada, fica liberada pra sempre e pode ser trocada
+   de maquina pra maquina sem custar de novo - so a PRIMEIRA vez que aquela
+   skin aparece em qualquer maquina custa dinheiro. O fundo tem o catalogo
+   dele, separado, valendo pra fabrica inteira de uma vez. */
+const MAQUINA_SKINS = [
+  { id:"padrao",   nome:"Padrão",              custo:0,       seed:"#434c5d" },
+  { id:"aco",      nome:"Aço Azul",            custo:500,     seed:"#3b5a7a" },
+  { id:"verde",    nome:"Verde Oficina",       custo:1500,    seed:"#3d5c42" },
+  { id:"vermelho", nome:"Vermelho Industrial", custo:5000,    seed:"#6b3a3a" },
+  { id:"roxo",     nome:"Roxo Real",           custo:15000,   seed:"#5a3d6b" },
+  { id:"dourado",  nome:"Dourado",             custo:50000,   seed:"#8a6b2e" },
+  { id:"rosa",     nome:"Rosa Choque",         custo:150000,  seed:"#8a3d6b" },
+  { id:"preto",    nome:"Preto Fosco",         custo:400000,  seed:"#20232a" },
+  { id:"gelo",     nome:"Branco Gelo",         custo:1000000, seed:"#93a0ad" },
+  { id:"alerta",   nome:"Vermelho Alerta",     custo:3000000, seed:"#7a2e2e" }
+];
+const FUNDO_SKINS = [
+  { id:"padrao",   nome:"Padrão",         custo:0,       parede:"#11151d", luz:"#ffe3b0" },
+  { id:"noturno",  nome:"Noturno Azul",   custo:500,     parede:"#0d1a2e", luz:"#8fd4ff" },
+  { id:"floresta", nome:"Floresta",       custo:1500,    parede:"#0f1f16", luz:"#baff8a" },
+  { id:"vulcao",   nome:"Vulcão",         custo:5000,    parede:"#241012", luz:"#ff8a4a" },
+  { id:"gelo",     nome:"Gelo",           custo:15000,   parede:"#0f1c22", luz:"#aef2ff" },
+  { id:"neon",     nome:"Neon Roxo",      custo:50000,   parede:"#180f26", luz:"#d88aff" },
+  { id:"dourado",  nome:"Dourado",        custo:150000,  parede:"#1d1708", luz:"#ffe066" },
+  { id:"rosa",     nome:"Rosa Choque",    custo:400000,  parede:"#210f1a", luz:"#ff8ad1" },
+  { id:"alerta",   nome:"Alerta Vermelho",custo:1000000, parede:"#1f0c0c", luz:"#ff4d4d" },
+  { id:"artico",   nome:"Ártico",         custo:3000000, parede:"#161a1f", luz:"#ffffff" }
+];
+
+const _cachePaletaMaq = {}, _cachePaletaFundo = {};
+function paletaMaquina(seed){
+  if(_cachePaletaMaq[seed]) return _cachePaletaMaq[seed];
+  const p = { out: tom(seed,-0.86), dark: tom(seed,-0.36), mid: seed, lit: tom(seed,0.37),
+              hi: tom(seed,0.43), spec: tom(seed,0.74), glass: tom(seed,-0.81) };
+  _cachePaletaMaq[seed] = p;
+  return p;
+}
+function skinMaqEquipada(id){
+  const sk = (S.skinPorMaq && S.skinPorMaq[id]) || "padrao";
+  return MAQUINA_SKINS.find(s => s.id === sk) || MAQUINA_SKINS[0];
+}
+function paletaFundo(parede, luz){
+  const chave = parede + luz;
+  if(_cachePaletaFundo[chave]) return _cachePaletaFundo[chave];
+  const p = {
+    paredeA: tom(parede,-0.24), paredeB: parede,
+    tijoloA: tom(parede,0.02),  tijoloB: tom(parede,0.037),
+    vigaA: tom(parede,0.035), vigaB: tom(parede,0.077), vigaC: tom(parede,-0.285), vigaD: tom(parede,-0.15),
+    tuboA: tom(parede,0.06), tuboB: tom(parede,0.144), tuboC: tom(parede,-0.33), tuboD: tom(parede,0.098),
+    lampCorpo: tom(parede,0.077), lampBrilho: tom(parede,0.19),
+    lampLuz: luz, lampGlow: tom(luz,-0.12),
+    chaoA: tom(parede,0.187), chaoB: tom(parede,0.284), chaoC: tom(parede,-0.344)
+  };
+  _cachePaletaFundo[chave] = p;
+  return p;
+}
+function fundoEquipado(){
+  const sk = (S && S.skinFundoAtual) || "padrao";
+  return FUNDO_SKINS.find(s => s.id === sk) || FUNDO_SKINS[0];
+}
 
 function sombraChao(x, w){
   cx.globalAlpha = .5;  R(x, BASE-2, w, 3, "#04060a");
@@ -1821,6 +1904,8 @@ function desenhaMaquina(id, x){
   if(id.startsWith("fu_")) return desenhaFusao(id, x);
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
+  const skin = skinMaqEquipada(id);
+  MP = skin.id === "padrao" ? MP_PADRAO : paletaMaquina(skin.seed);
   const tv = tierVisual(id);
   camadasAtras(x, tv);
   switch(id){
@@ -2196,6 +2281,7 @@ function desenhaMaquina(id, x){
       R(x+11, BASE-79, Math.round(42*pct), 3, "#4ade80");
     }
   }
+  MP = MP_PADRAO;   // devolve a paleta padrao pro resto do desenho (silo, fusao, etc)
 }
 
 function desenhaSilo(x){
@@ -2360,43 +2446,45 @@ function desenhaEsteira(largura){
 }
 
 function desenhaFundo(w){
+  const sk = fundoEquipado();
+  const FP = paletaFundo(sk.parede, sk.luz);
   // parede
-  R(0, 0, w, 200, "#0d1016");
-  R(0, 0, w, BASE, "#11151d");
+  R(0, 0, w, 200, FP.paredeA);
+  R(0, 0, w, BASE, FP.paredeB);
   // tijolos
   for(let y=0; y<BASE; y+=10){
     for(let x=((y/10)%2)*14; x<w; x+=28){
-      R(x, y, 26, 8, "#141924");
-      R(x, y, 26, 1, "#171d29");
+      R(x, y, 26, 8, FP.tijoloA);
+      R(x, y, 26, 1, FP.tijoloB);
     }
   }
   // vigas verticais
   for(let x=24; x<w; x+=112){
-    R(x, 0, 7, BASE, "#171d28");
-    R(x, 0, 1, BASE, "#1e2634");
-    R(x+6, 0, 1, BASE, "#0c0f15");
-    for(let y=14; y<BASE; y+=26) R(x+1, y, 5, 2, "#0e1219");
+    R(x, 0, 7, BASE, FP.vigaA);
+    R(x, 0, 1, BASE, FP.vigaB);
+    R(x+6, 0, 1, BASE, FP.vigaC);
+    for(let y=14; y<BASE; y+=26) R(x+1, y, 5, 2, FP.vigaD);
   }
   // tubulacao no alto
-  R(0, 12, w, 7, "#1b2230");
-  R(0, 12, w, 1, "#2b3547");
-  R(0, 18, w, 1, "#0b0e14");
-  for(let x=18; x<w; x+=64){ R(x, 10, 6, 11, "#222b3a"); R(x, 10, 6, 1, "#33405466"); }
+  R(0, 12, w, 7, FP.tuboA);
+  R(0, 12, w, 1, FP.tuboB);
+  R(0, 18, w, 1, FP.tuboC);
+  for(let x=18; x<w; x+=64){ R(x, 10, 6, 11, FP.tuboD); R(x, 10, 6, 1, FP.tuboD + "66"); }
   // luminarias: so o ponto de luz e uma poca suave no chao
   for(let x=56; x<w; x+=224){
-    R(x-10, 20, 20, 5, "#232c3b");
-    R(x-10, 20, 20, 1, "#38435a");
-    R(x-7, 25, 14, 2, "#ffe3b0");
-    cx.globalAlpha = .10; R(x-9, 27, 18, 3, "#ffcf87");
-    cx.globalAlpha = .05; R(x-14, 30, 28, 4, "#ffcf87");
+    R(x-10, 20, 20, 5, FP.lampCorpo);
+    R(x-10, 20, 20, 1, FP.lampBrilho);
+    R(x-7, 25, 14, 2, FP.lampLuz);
+    cx.globalAlpha = .10; R(x-9, 27, 18, 3, FP.lampGlow);
+    cx.globalAlpha = .05; R(x-14, 30, 28, 4, FP.lampGlow);
     cx.globalAlpha = .045;
-    for(let i=1;i<=4;i++) R(x-10-i*7, BASE-3-i, 20+i*14, 3, "#ffcf87");
+    for(let i=1;i<=4;i++) R(x-10-i*7, BASE-3-i, 20+i*14, 3, FP.lampGlow);
     cx.globalAlpha = 1;
   }
   // chao
-  R(0, BASE, w, 4, "#39404c");
-  R(0, BASE, w, 1, "#4c5667");
-  R(0, BASE+4, w, 200-BASE-4, "#0b0e13");
+  R(0, BASE, w, 4, FP.chaoA);
+  R(0, BASE, w, 1, FP.chaoB);
+  R(0, BASE+4, w, 200-BASE-4, FP.chaoC);
 }
 
 function loopDesenho(){
@@ -2818,7 +2906,7 @@ function atualizarEstados(){
 
 function construirListas(){
   refsMaq = []; refsArm = []; refsGer = []; refsMis = [];
-  listaMaquinas(); listaArmazenador(); listaFusao(); listaGerentes(); listaRebirth(); listaPremios(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes();
+  listaMaquinas(); listaArmazenador(); listaFusao(); listaGerentes(); listaRebirth(); listaPremios(); listaConquistas(); listaCodigos(); listaMissoes(); listaArtes(); listaSkinsFundo(); listaSkinsMaquinas();
 }
 
 /* ---------------- FUSAO DE MAQUINAS ----------------
@@ -3922,6 +4010,91 @@ function listaMissoes(){
 
 
 let alvoArte = null;
+/* ---------------- SKINS: comprar e equipar ----------------
+   Uma skin, depois de comprada uma vez (em qualquer maquina), fica liberada pra
+   sempre - trocar ela de maquina pra maquina e so clicar, sem custar de novo. */
+function comprarEquiparSkinMaq(machineId, skinId){
+  const sk = MAQUINA_SKINS.find(s => s.id === skinId); if(!sk) return;
+  const dono = skinId === "padrao" || (S.skinsMaq && S.skinsMaq[skinId]);
+  if(!dono){
+    if(S.wallet < sk.custo){ toast("❌ Falta " + moeda(sk.custo - S.wallet) + " pra essa skin"); return; }
+    S.wallet -= sk.custo;
+    if(!S.skinsMaq) S.skinsMaq = {};
+    S.skinsMaq[skinId] = true;
+    toast("🎨 Skin " + sk.nome + " comprada e equipada!");
+  }
+  if(!S.skinPorMaq) S.skinPorMaq = {};
+  S.skinPorMaq[machineId] = skinId;
+  assinatura = ""; render(); salvar();
+}
+function comprarEquiparSkinFundo(skinId){
+  const sk = FUNDO_SKINS.find(s => s.id === skinId); if(!sk) return;
+  const dono = skinId === "padrao" || (S.skinsFundo && S.skinsFundo[skinId]);
+  if(!dono){
+    if(S.wallet < sk.custo){ toast("❌ Falta " + moeda(sk.custo - S.wallet) + " pra essa skin"); return; }
+    S.wallet -= sk.custo;
+    if(!S.skinsFundo) S.skinsFundo = {};
+    S.skinsFundo[skinId] = true;
+    toast("🎨 Fundo " + sk.nome + " comprado e equipado!");
+  }
+  S.skinFundoAtual = skinId;
+  assinatura = ""; render(); salvar();
+}
+function listaSkinsFundo(){
+  const box = $("#skinFundoList"); if(!box) return;
+  box.innerHTML = "";
+  FUNDO_SKINS.forEach(sk=>{
+    const dono = sk.id === "padrao" || (S.skinsFundo && S.skinsFundo[sk.id]);
+    const equipado = (S.skinFundoAtual || "padrao") === sk.id;
+    const row = el(
+      '<div class="row' + (equipado ? " owned" : "") + '">' +
+        '<div style="width:56px;height:44px;border-radius:6px;flex:none;position:relative;overflow:hidden;' +
+          'background:' + sk.parede + ';border:2px solid ' + (equipado ? "var(--gold)" : "#2a303b") + '">' +
+          '<div style="position:absolute;left:8px;top:8px;width:16px;height:6px;border-radius:2px;' +
+            'background:' + sk.luz + ';box-shadow:0 0 8px ' + sk.luz + '"></div>' +
+        '</div>' +
+        '<div class="info"><div class="nm">' + sk.nome + '</div>' +
+        '<div class="sub">' + (equipado ? "equipado agora" : dono ? "você já tem" : "toque pra comprar") + '</div></div>' +
+        '<div class="sp"></div>' +
+        (equipado ? '<span class="tag">ATUAL</span>' : '<button class="buy">' + (dono ? "USAR" : moeda(sk.custo)) + '</button>') +
+      '</div>');
+    box.appendChild(row);
+    const btn = row.querySelector("button");
+    if(btn) btn.onclick = ()=> comprarEquiparSkinFundo(sk.id);
+  });
+}
+function listaSkinsMaquinas(){
+  const box = $("#skinMaqList"); if(!box) return;
+  box.innerHTML = "";
+  const minhas = MACHINES.filter(m => !m.fusao && nivelMaq(m.id) > 0);
+  if(!minhas.length){
+    box.appendChild(el('<div class="note">Compre uma máquina pra poder pintar ela.</div>'));
+    return;
+  }
+  minhas.forEach(m=>{
+    const atual = (S.skinPorMaq && S.skinPorMaq[m.id]) || "padrao";
+    const card = el('<div class="row" style="flex-direction:column;align-items:stretch;gap:8px">' +
+      '<div class="nm">' + m.nome + '</div>' +
+      '<div class="skinchips" style="display:flex;gap:6px;flex-wrap:wrap"></div>' +
+    '</div>');
+    const linha = card.querySelector(".skinchips");
+    MAQUINA_SKINS.forEach(sk=>{
+      const dono = sk.id === "padrao" || (S.skinsMaq && S.skinsMaq[sk.id]);
+      const equipado = atual === sk.id;
+      const chip = el(
+        '<div title="' + sk.nome + (dono ? "" : " — " + moeda(sk.custo)) + '" style="width:32px;height:32px;' +
+          'border-radius:7px;cursor:pointer;flex:none;position:relative;background:' + sk.seed + ';' +
+          'border:2px solid ' + (equipado ? "var(--gold)" : "#2a303b") + ';opacity:' + (dono ? "1" : ".4") + '">' +
+          (equipado ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
+            'color:#fff;font-size:14px;text-shadow:0 0 3px #000">✓</div>' : "") +
+        '</div>');
+      chip.onclick = ()=> comprarEquiparSkinMaq(m.id, sk.id);
+      linha.appendChild(chip);
+    });
+    box.appendChild(card);
+  });
+}
+
 function listaArtes(){
   const box = $("#artlist"); box.innerHTML = "";
   const itens = MACHINES.filter(m => !m.fusao).map(m=>({id:m.id, nome:"Maquina " + m.nome}))
