@@ -547,14 +547,27 @@ const selosPossiveis = () => Math.floor(Math.sqrt((S.stats.totalGanho || 0) / 10
 const selosAGanhar = () => Math.max(0, selosPossiveis() - (S.selos || 0));
 const podeReiniciar = () => (S.wallet || 0) >= SELO_LIBERA && selosAGanhar() > 0;
 
+/* As maquinas marcadas premio:true so entram na fabrica por sorte ou por tempo de jogo
+   (Omega na roleta, Constante 7 nos 7 dias seguidos). Dinheiro nao compra nenhuma das
+   duas. Por isso um recomeco nao pode apaga-las: seria tirar algo que nao tem como
+   reaver. Elas ficam, no nivel 1. */
+function maquinasDePremio(){
+  const fica = {};
+  MACHINES.forEach(m => { if(m.premio && nivelMaq(m.id) > 0) fica[m.id] = 1; });
+  return fica;
+}
+
 function reiniciarFabrica(){
   if(!podeReiniciar()) return;
   const ganhos = selosAGanhar();
 
   S.selos = (S.selos || 0) + ganhos;
 
-  // perde so o que foi avisado: maquinas, dinheiro e armazenador
-  S.machines = { m1265xv: 1 };
+  // perde so o que foi avisado: maquinas, dinheiro e armazenador.
+  // As maquinas de PREMIO ficam: nao se compram, so se ganham (roleta, 7 dias seguidos).
+  // Voltam ao nivel 1 — o dinheiro paga para evoluir de novo, que e a regra delas.
+  const guardadas = maquinasDePremio();
+  S.machines = Object.assign({ m1265xv: 1 }, guardadas);
   S.fusoes = [];                       // fundidas sao maquinas: somem no reinicio, como as outras
   S.wallet = 0;
   S.stored = 0;
@@ -584,7 +597,7 @@ function modalReiniciar(){
       '<div style="background:#3a1414;border:2px solid #ef5350;color:#ffb4b4;padding:10px;' +
         'border-radius:6px;margin-bottom:10px;font-size:12px;line-height:1.6">' +
         '<strong>VOCÊ VAI PERDER:</strong><br>' +
-        '• todas as máquinas, voltando só com a 1265xv no nível 1<br>' +
+        '• todas as máquinas compradas, voltando só com a 1265xv no nível 1<br>' +
         '• todo o dinheiro da carteira (' + moeda(S.wallet) + ')<br>' +
         '• o armazenador, voltando para o nível 1' +
       '</div>' +
@@ -592,6 +605,9 @@ function modalReiniciar(){
         'border-radius:6px;margin-bottom:10px;font-size:12px;line-height:1.6">' +
         '<strong>VOCÊ VAI CONTINUAR COM:</strong><br>' +
         '• os selos, que nunca se perdem<br>' +
+        (Object.keys(maquinasDePremio()).length
+          ? '• suas máquinas de prêmio (' + Object.keys(maquinasDePremio()).map(id=>(MACHINES.find(m=>m.id===id)||{}).nome).join(', ') + '), voltando ao nível 1<br>'
+          : '') +
         '• as conquistas, as missões e os códigos<br>' +
         '• o rebirth, os gerentes e o mecânico' +
       '</div>' +
@@ -4256,12 +4272,13 @@ function telaInicio(qual, extra){
   const box = $("#inicio");
   box.style.display = "flex";
   let h = '<div class="box"><h2>FÁBRICA DE PIXEL</h2><div class="sub2">' +
-    (qual === "main" || qual === "modos" ? "escolha como quer jogar" : "duelo 1x1 online") + '</div>';
+    (qual === "main" || qual === "modos" ? "escolha como quer jogar" : (qual === "semana" || qual === "semanafim" || (DUEL && DUEL.semana) ? "desafio da semana" : "duelo 1x1 online")) + '</div>';
   if(qual === "main"){
     h += (CONTA ? '<div class="note" style="margin:-12px 0 14px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' + (CONTA.codigo ? ' &nbsp;•&nbsp; ID #' + esc(CONTA.codigo) : '') + '</div>' : '') +
          (CONTA && CONTA.temSenha === false ? '<div class="vinc" style="margin:0 0 14px"><div class="note" style="margin:0;line-height:1.6">🔒 Sua conta ainda <strong>não tem senha</strong>. Toque em MINHA CONTA para criar uma e entrar em qualquer aparelho com o seu nome.</div></div>' : '') +
          '<button class="bigbtn jogar" data-a="jogar">JOGAR<small>Sua fábrica, no seu ritmo. Escolha fácil, normal ou hardcore.</small></button>' +
          '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Desafie um amigo pelo nome. Os dois jogam 5 minutos ao mesmo tempo, cada um no seu computador.</small></button>' +
+         '<button class="bigbtn rank" data-a="semana">📅 DESAFIO DA SEMANA<small>Uma corrida de 5 minutos sozinho contra o relógio. Jogue quando quiser — o ranking reseta toda segunda.</small></button>' +
          '<button class="bigbtn rank" data-a="ranking">🏆 RANKING<small>Os 10 melhores de todos os tempos: duelos e fábricas.</small></button>' +
          (CONTA ? '<button class="bigbtn voltar" data-a="conta" style="font-size:13px;padding:10px">⚙ MINHA CONTA</button>' : '');
   } else if(qual === "modos"){
@@ -4410,14 +4427,40 @@ function telaInicio(qual, extra){
          '<div class="note" style="margin:0 0 16px">O convite vale por 2 minutos. ' + esc(extra) + ' vê o pedido quando estiver no menu do jogo.</div>' +
          '<button class="bigbtn voltar" data-a="cancelar">CANCELAR CONVITE</button>';
   } else if(qual === "contagem"){
-    h += '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">' + esc(DUEL.nomes[0]) + '  ×  ' + esc(DUEL.nomes[1]) + '</div>' +
+    h += (DUEL.semana
+           ? '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">📅 DESAFIO DA SEMANA</div>'
+           : '<div class="lab" style="color:#d8b4fe;letter-spacing:2px">' + esc(DUEL.nomes[0]) + '  ×  ' + esc(DUEL.nomes[1]) + '</div>') +
          '<div style="font-size:15px;margin:14px 0 4px;color:var(--dim)">A partida começa em</div>' +
          '<div id="cont" style="font-size:84px;font-weight:bold;color:var(--gold);line-height:1">…</div>' +
-         '<div class="note" style="margin-top:14px">Os dois computadores largam juntos. Vence quem ganhar mais dinheiro em 5 minutos.</div>';
+         '<div class="note" style="margin-top:14px">' + (DUEL.semana
+           ? "Você sozinho contra o relógio. Ganhe o máximo que puder em 5 minutos."
+           : "Os dois computadores largam juntos. Vence quem ganhar mais dinheiro em 5 minutos.") + '</div>';
   } else if(qual === "fim"){
     h += '<div style="font-size:30px;margin:6px 0">⏱️</div><div style="font-size:20px;font-weight:bold">TEMPO ESGOTADO</div>' +
          '<div class="val gold" style="font-size:24px;margin:10px 0">' + moedaExata(DUEL.final || 0) + '</div>' +
          '<div class="note">Aguardando ' + esc(DUEL.nomes[1]) + ' terminar…</div>';
+  } else if(qual === "fimsemana"){
+    h += '<div style="font-size:30px;margin:6px 0">⏱️</div><div style="font-size:20px;font-weight:bold">TEMPO ESGOTADO</div>' +
+         '<div class="val gold" style="font-size:24px;margin:10px 0">' + moedaExata((DUEL && DUEL.final) || 0) + '</div>' +
+         '<div class="note">Enviando sua marca…</div>';
+  } else if(qual === "semana"){
+    h += '<div id="semanabox"><div class="note" style="margin:16px 0">Carregando…</div></div>' +
+         '<button class="bigbtn duelo" data-a="jogarsemana" style="margin-top:4px;font-size:16px;padding:12px">JOGAR (5 minutos)</button>' +
+         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
+  } else if(qual === "semanafim"){
+    const rk = (semanaInfo && Array.isArray(semanaInfo.ranking)) ? semanaInfo.ranking : [];
+    const pos = CONTA ? rk.findIndex(x => x.nome === CONTA.nome) : -1;
+    const linhaSemana = (x,i) => '<div class="rk ' + (i < 3 ? "p" + (i+1) : "") + (CONTA && x.nome === CONTA.nome ? " voce" : "") + '">' +
+      '<div class="pos">' + (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i+1) + "º") + '</div>' +
+      '<div class="nm">' + esc(x.nome) + (CONTA && x.nome === CONTA.nome ? ' <span style="color:var(--ok);font-size:11px">(você)</span>' : '') + '</div>' +
+      '<div class="val">' + moeda(x.valor) + '</div></div>';
+    h += '<div style="font-size:40px">' + (pos === 0 ? "🏆" : "📅") + '</div>' +
+         '<div class="lab" style="color:var(--gold);letter-spacing:2px">SUA MARCA NA SEMANA</div>' +
+         '<div class="val gold" style="font-size:24px;margin:8px 0">' + moedaExata((DUEL && DUEL.final) || 0) + '</div>' +
+         (pos >= 0 ? '<div class="note" style="margin-bottom:10px">Você está em <strong style="color:var(--gold)">' + (pos+1) + 'º lugar</strong> essa semana.</div>' : '<div class="note" style="margin-bottom:10px">Fora do top 10 por enquanto — tenta de novo!</div>') +
+         (rk.length ? rk.map(linhaSemana).join("") : '<div class="note" style="margin:10px 0">Ninguém mais jogou essa semana ainda.</div>') +
+         '<button class="bigbtn duelo" data-a="jogarsemana" style="font-size:16px;padding:12px;margin-top:10px">JOGAR DE NOVO</button>' +
+         '<button class="bigbtn voltar" data-a="sairsemana">SAIR</button>';
   } else if(qual === "resultado"){
     const d = extra, eu = d.seuFinal || 0, el_ = d.finalAdversario || 0;
     const venci = eu > el_, empate = eu === el_;
@@ -4458,6 +4501,9 @@ async function acaoInicio(a){
   if(a === "ranking") return abrirRanking();
   if(a === "nome") return telaInicio("nome");
   if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "nome"); if(CONTA) atualizarPerfil(); return; }
+  if(a === "semana") return abrirSemana();
+  if(a === "jogarsemana") return comecarSemana();
+  if(a === "sairsemana") return sairDuelo();
   if(a === "salvarnome"){
     const el = document.getElementById("cnome");
     const nome = (el ? el.value : "").trim();
@@ -4643,6 +4689,7 @@ async function carregarAmigos(){
 }
 
 let ultimoAdversario = "";
+let semanaInfo = null;       // {semana, ranking:[{nome,valor}], meuRecorde} do Desafio da Semana
 function abrirConta(){
   if(!CONTA) return telaInicio("nome");
   telaInicio("conta");
@@ -4758,8 +4805,59 @@ async function terminarPartida(){
   S.stored = 0;
   DUEL.final = Math.round(S.stats.totalGanho || 0);
   render();
+  if(DUEL.semana){ telaInicio("fimsemana"); return enviarFinalSemana(); }
   telaInicio("fim");
   enviarFinal();
+}
+
+/* ---------------- DESAFIO DA SEMANA ----------------
+   Mesma partida de 5 minutos do duelo, mas sem adversario: cada um joga quando quiser,
+   contra um ranking que reseta toda segunda. Reaproveita o objeto DUEL (com DUEL.semana
+   = true) para herdar de graca tudo que o duelo ja garante: guarda e devolve o save real
+   (STASH), trava fusao e codigos, desliga quebras. */
+async function abrirSemana(){
+  telaInicio("semana");
+  const r = await api("/desafio/semana");
+  if(r.status === 401){ guardarConta(null); return telaInicio("nome"); }
+  if(r.rede) return msg(r.msg);
+  semanaInfo = { semana: r.semana, ranking: Array.isArray(r.ranking) ? r.ranking : [], meuRecorde: Number(r.meuRecorde) || 0 };
+  if(ultimaTela === "semana") renderSemana();
+}
+
+function renderSemana(){
+  const box = document.getElementById("semanabox");
+  if(!box || !semanaInfo) return;
+  const rk = semanaInfo.ranking;
+  const linha = (x,i) => '<div class="rk ' + (i < 3 ? "p" + (i+1) : "") + (CONTA && x.nome === CONTA.nome ? " voce" : "") + '">' +
+    '<div class="pos">' + (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i+1) + "º") + '</div>' +
+    '<div class="nm">' + esc(x.nome) + (CONTA && x.nome === CONTA.nome ? ' <span style="color:var(--ok);font-size:11px">(você)</span>' : '') + '</div>' +
+    '<div class="val">' + moeda(x.valor) + '</div></div>';
+  box.innerHTML = (rk.length ? rk.map(linha).join("") : '<div class="note" style="margin:16px 0">Ninguém jogou essa semana ainda. Seja o primeiro!</div>') +
+    (semanaInfo.meuRecorde > 0 ? '<div class="note" style="margin-top:8px">Sua melhor marca essa semana: <strong style="color:var(--gold)">' + moeda(semanaInfo.meuRecorde) + '</strong></div>' : '');
+}
+
+function comecarSemana(){
+  if(DUEL) return;
+  document.querySelectorAll(".modal-bg").forEach(x=>x.remove());
+  STASH = JSON.stringify(S);
+  const agora = Date.now();
+  DUEL = { id:"semana" + agora, nomes:[CONTA ? CONTA.nome : "Você", ""], startAt: agora + 3000, endAt: agora + 3000 + 300000,
+           rodando:false, terminado:false, final:null, art:S.art, ganhoAdv:0, enviado:false, semana:true };
+  document.body.classList.add("duelo");
+  abrirAba("fab", "maq");
+  telaInicio("contagem");
+}
+
+async function enviarFinalSemana(){
+  if(!DUEL || DUEL.enviado) return;
+  const id = DUEL.id;
+  const r = await api("/desafio/semana/relatorio", { valor: DUEL.final });
+  if(!DUEL || DUEL.id !== id) return;              // saiu no meio tempo: nao mexe em mais nada
+  if(r.rede) return setTimeout(enviarFinalSemana, 2000);   // sem rede: tenta de novo
+  if(r.status === 401){ guardarConta(null); return sairDuelo(); }
+  DUEL.enviado = true;
+  semanaInfo = { semana: semanaInfo ? semanaInfo.semana : null, ranking: Array.isArray(r.ranking) ? r.ranking : [], meuRecorde: Number(r.meuRecorde) || 0 };
+  telaInicio("semanafim");
 }
 async function enviarFinal(){
   if(!DUEL || DUEL.enviado) return;
@@ -4809,6 +4907,7 @@ function aplicarEstado(d){
 
 async function pollar(){
   if(pollando || !CONTA) return;          // vale tambem jogando sozinho: o convite do amigo aparece por cima do jogo
+  if(DUEL && DUEL.semana) return;         // desafio da semana nao tem duelo nenhum no servidor; nao pergunta por um
   pollando = true;
   try{
     if(ultimaTela === "desafio" && emMenu && !DUEL && Date.now() - ultimoAmigos > 5000) carregarAmigos();
@@ -4838,8 +4937,13 @@ setInterval(()=>{
 
 function tickDuelo(){
   if(!DUEL) return;
-  $("#duelwho").textContent = "⚔️ " + DUEL.nomes[0] + "  ×  " + DUEL.nomes[1];
-  $("#duelscore").textContent = "Você: " + moeda(S.stats.totalGanho || 0) + "  •  " + DUEL.nomes[1] + ": " + moeda(DUEL.ganhoAdv || 0);
+  if(DUEL.semana){
+    $("#duelwho").textContent = "📅 Desafio da Semana";
+    $("#duelscore").textContent = "Sua carteira agora: " + moeda(S.stats.totalGanho || 0);
+  } else {
+    $("#duelwho").textContent = "⚔️ " + DUEL.nomes[0] + "  ×  " + DUEL.nomes[1];
+    $("#duelscore").textContent = "Você: " + moeda(S.stats.totalGanho || 0) + "  •  " + DUEL.nomes[1] + ": " + moeda(DUEL.ganhoAdv || 0);
+  }
   const t = $("#dueltime");
   const rest = DUEL.rodando ? (DUEL.endAt - agoraSrv())/1000 : (DUEL.terminado ? 0 : 300);
   t.textContent = mmss(rest);
@@ -4865,8 +4969,9 @@ function sairDuelo(manterMenu){
 
 $("#menubtn").onclick = abrirMenuInicial;
 $("#duelsair").onclick = async ()=>{
-  if(!confirm("Sair do duelo? Você perde a partida (seu save normal continua intacto).")) return;
-  await api("/duelo/desistir", {});
+  const semana = Boolean(DUEL && DUEL.semana);
+  if(!confirm(semana ? "Sair do desafio? Sua marca desse minuto não entra no ranking (seu save normal continua intacto)." : "Sair do duelo? Você perde a partida (seu save normal continua intacto).")) return;
+  if(!semana) await api("/duelo/desistir", {});
   sairDuelo();
 };
 
