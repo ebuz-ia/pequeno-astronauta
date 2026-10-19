@@ -1732,17 +1732,25 @@ let MP = MP_PADRAO;   // trocada por desenhaMaquina() de acordo com a skin equip
    de maquina pra maquina sem custar de novo - so a PRIMEIRA vez que aquela
    skin aparece em qualquer maquina custa dinheiro. O fundo tem o catalogo
    dele, separado, valendo pra fabrica inteira de uma vez. */
+/* 19/10/2026: skin muda o FORMATO do corpo, nao so a cor (correcao do usuario:
+   "nao quero que mude so a cor, quero que mude o modelo da coisa"). 5 formatos
+   compartilhados entre TODAS as maquinas: "padrao" (o desenho original de cada
+   maquina, unico e bespoke) + 4 genericos (torre, cilindrica, compacta, angular)
+   desenhados do zero, que qualquer maquina pode vestir. Cada skin combina um
+   formato com uma cor, pra ainda dar pra distinguir visualmente as 10 opcoes.
+   Os ids ficam os mesmos de quando so existia cor, pra nao invalidar quem ja
+   comprou nos primeiros minutos que isso ficou no ar. */
 const MAQUINA_SKINS = [
-  { id:"padrao",   nome:"Padrão",              custo:0,       seed:"#434c5d" },
-  { id:"aco",      nome:"Aço Azul",            custo:500,     seed:"#3b5a7a" },
-  { id:"verde",    nome:"Verde Oficina",       custo:1500,    seed:"#3d5c42" },
-  { id:"vermelho", nome:"Vermelho Industrial", custo:5000,    seed:"#6b3a3a" },
-  { id:"roxo",     nome:"Roxo Real",           custo:15000,   seed:"#5a3d6b" },
-  { id:"dourado",  nome:"Dourado",             custo:50000,   seed:"#8a6b2e" },
-  { id:"rosa",     nome:"Rosa Choque",         custo:150000,  seed:"#8a3d6b" },
-  { id:"preto",    nome:"Preto Fosco",         custo:400000,  seed:"#20232a" },
-  { id:"gelo",     nome:"Branco Gelo",         custo:1000000, seed:"#93a0ad" },
-  { id:"alerta",   nome:"Vermelho Alerta",     custo:3000000, seed:"#7a2e2e" }
+  { id:"padrao",   nome:"Padrão",              custo:0,       seed:"#434c5d", forma:"padrao" },
+  { id:"aco",      nome:"Torre de Aço",        custo:500,     seed:"#3b5a7a", forma:"torre" },
+  { id:"verde",    nome:"Cilindro Verde",      custo:1500,    seed:"#3d5c42", forma:"cilindrica" },
+  { id:"vermelho", nome:"Compacta Vermelha",   custo:5000,    seed:"#6b3a3a", forma:"compacta" },
+  { id:"roxo",     nome:"Angular Roxa",        custo:15000,   seed:"#5a3d6b", forma:"angular" },
+  { id:"dourado",  nome:"Torre Dourada",       custo:50000,   seed:"#8a6b2e", forma:"torre" },
+  { id:"rosa",     nome:"Cilindro Rosa Choque",custo:150000,  seed:"#8a3d6b", forma:"cilindrica" },
+  { id:"preto",    nome:"Compacta Preto Fosco",custo:400000,  seed:"#20232a", forma:"compacta" },
+  { id:"gelo",     nome:"Angular Branco Gelo", custo:1000000, seed:"#93a0ad", forma:"angular" },
+  { id:"alerta",   nome:"Torre Vermelho Alerta",custo:3000000,seed:"#7a2e2e", forma:"torre" }
 ];
 const FUNDO_SKINS = [
   { id:"padrao",   nome:"Padrão",         custo:0,       parede:"#11151d", luz:"#ffe3b0" },
@@ -1768,6 +1776,86 @@ function paletaMaquina(seed){
 function skinMaqEquipada(id){
   const sk = (S.skinPorMaq && S.skinPorMaq[id]) || "padrao";
   return MAQUINA_SKINS.find(s => s.id === sk) || MAQUINA_SKINS[0];
+}
+// cor que identifica cada maquina, pra ela continuar reconhecivel mesmo num corpo generico
+const COR_IDENTIDADE_EXTRA = { mOmega:"#c084fc", mConstante:"#5eead4", mcalebe:"#ffd24a" };
+function corIdentidade(id){
+  return (typeof COR_MAQ !== "undefined" && COR_MAQ[id]) || COR_IDENTIDADE_EXTRA[id] || "#9ad1ff";
+}
+
+/* ---------------- 4 FORMATOS GENERICOS (19/10/2026) ----------------
+   Desenho completo, do zero, compartilhado por qualquer maquina - usam MP (a
+   paleta da skin, ja trocada por desenhaMaquina) pra chapa/estrutura, e a cor
+   de identidade da maquina (corIdentidade) pro visor/luz, pra continuar dando
+   pra saber qual maquina e qual mesmo com o corpo diferente. */
+function desenhaFormaTorre(x, id){
+  const cor = corIdentidade(id);
+  sombraChao(x+10, 32);
+  chapa(x+16, BASE-16, 20, 16); rebites(x+16, BASE-16, 20, 16);      // base
+  chapa(x+10, BASE-68, 32, 54); rebites(x+10, BASE-68, 32, 54);      // torre alta e estreita
+  for(let i=0;i<3;i++) tela(x+16, BASE-60+i*15, 20, 8, cor);          // 3 janelas acesas empilhadas
+  const pisca = (F>>4)%2;
+  lamp(x+22, BASE-78, 8, 6, cor, pisca);
+  brilho(x+26, BASE-76, 10, cor, pisca ? .6 : .15);
+}
+function desenhaFormaCilindrica(x, id){
+  const cor = corIdentidade(id);
+  sombraChao(x+4, 44);
+  chapa(x+14, BASE-10, 24, 10);                                      // pe
+  circulo(x+26, BASE-44, 24, MP.mid);
+  R(x+2, BASE-68, 48, 1, MP.hi);                                     // brilho de topo do tanque
+  R(x+2, BASE-20, 48, 1, MP.dark);                                   // sombra embaixo do tanque
+  circulo(x+26, BASE-62, 9, MP.lit);                                 // tampa
+  R(x+17, BASE-50, 18, 22, MP.out);
+  R(x+18, BASE-49, 16, 20, MP.glass);
+  const h = 8 + Math.round(6*Math.sin(F/20));
+  R(x+19, BASE-30-h, 14, h, cor);
+  cx.globalAlpha=.2; for(let i=0;i<h;i+=3) R(x+19, BASE-30-h+i, 14, 1, "#ffffff"); cx.globalAlpha=1;
+}
+function desenhaFormaCompacta(x, id){
+  const cor = corIdentidade(id);
+  sombraChao(x+2, 60);
+  chapa(x+4, BASE-30, 56, 30); rebites(x+4, BASE-30, 56, 30);         // corpo baixo e largo
+  tela(x+10, BASE-25, 44, 10, cor);                                   // painel largo
+  grelha(x+10, BASE-11, 44, 7);
+  for(const dx of [10, 40]) chamine(x+dx, BASE-46, 6, 16, dx);        // duas chamines pequenas
+}
+function desenhaFormaAngular(x, id){
+  const cor = corIdentidade(id);
+  sombraChao(x+6, 42);
+  cx.fillStyle = MP.out; cx.beginPath();
+  cx.moveTo(x+9, BASE); cx.lineTo(x+13, BASE-58); cx.lineTo(x+41, BASE-58); cx.lineTo(x+45, BASE); cx.closePath(); cx.fill();
+  cx.fillStyle = MP.mid; cx.beginPath();
+  cx.moveTo(x+10, BASE-1); cx.lineTo(x+14, BASE-57); cx.lineTo(x+40, BASE-57); cx.lineTo(x+44, BASE-1); cx.closePath(); cx.fill();
+  cx.fillStyle = MP.hi; cx.beginPath();
+  cx.moveTo(x+14, BASE-57); cx.lineTo(x+16, BASE-57); cx.lineTo(x+13, BASE-15); cx.lineTo(x+11, BASE-15); cx.closePath(); cx.fill();
+  tela(x+19, BASE-48, 14, 24, cor);
+  const pisca = (F>>4)%2;
+  lamp(x+23, BASE-56, 6, 5, cor, pisca);
+}
+function desenhaFormaCompartilhada(formaId, id, x){
+  if(formaId === "torre") return desenhaFormaTorre(x, id);
+  if(formaId === "cilindrica") return desenhaFormaCilindrica(x, id);
+  if(formaId === "compacta") return desenhaFormaCompacta(x, id);
+  if(formaId === "angular") return desenhaFormaAngular(x, id);
+}
+// aviso de maquina quebrada: compartilhado entre o desenho bespoke e os formatos genericos,
+// pra quebra continuar visivel nao importa a skin equipada (isso e estado do jogo, nao so visual)
+function desenhaAlertaQuebrada(id, x){
+  if(!maquinaQuebrada(id)) return;
+  const b = S.broken && S.broken[id];
+  fumaca(x+32, BASE-35, 77, "#ef5350");
+  fumaca(x+20, BASE-30, 88, "#262626");
+  const pisca = (F>>3)%2;
+  R(x+24, BASE-72, 16, 14, pisca ? "#ef5350" : "#f59e0b");
+  cx.fillStyle = "#0c0f14";
+  cx.font = "bold 10px monospace";
+  cx.fillText("!", x+30, BASE-61);
+  if(b && b.consertando){
+    const pct = Math.max(0, Math.min(1, 1 - (b.tempoRestante / 10)));
+    R(x+10, BASE-80, 44, 5, "#0c0f14");
+    R(x+11, BASE-79, Math.round(42*pct), 3, "#4ade80");
+  }
 }
 function paletaFundo(parede, luz){
   const chave = parede + luz;
@@ -1905,7 +1993,13 @@ function desenhaMaquina(id, x){
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
   const skin = skinMaqEquipada(id);
-  MP = skin.id === "padrao" ? MP_PADRAO : paletaMaquina(skin.seed);
+  if(skin.forma && skin.forma !== "padrao"){
+    MP = paletaMaquina(skin.seed);
+    desenhaFormaCompartilhada(skin.forma, id, x);
+    desenhaAlertaQuebrada(id, x);
+    MP = MP_PADRAO;
+    return;
+  }
   const tv = tierVisual(id);
   camadasAtras(x, tv);
   switch(id){
@@ -2264,23 +2358,7 @@ function desenhaMaquina(id, x){
   }
 
   camadasFrente(x, tv);
-
-  // Alerta e fumaça de máquina quebrada
-  if(maquinaQuebrada(id)){
-    const b = S.broken && S.broken[id];
-    fumaca(x+32, BASE-35, 77, "#ef5350");
-    fumaca(x+20, BASE-30, 88, "#262626");
-    const pisca = (F>>3)%2;
-    R(x+24, BASE-72, 16, 14, pisca ? "#ef5350" : "#f59e0b");
-    cx.fillStyle = "#0c0f14";
-    cx.font = "bold 10px monospace";
-    cx.fillText("!", x+30, BASE-61);
-    if(b && b.consertando){
-      const pct = Math.max(0, Math.min(1, 1 - (b.tempoRestante / 10)));
-      R(x+10, BASE-80, 44, 5, "#0c0f14");
-      R(x+11, BASE-79, Math.round(42*pct), 3, "#4ade80");
-    }
-  }
+  desenhaAlertaQuebrada(id, x);
   MP = MP_PADRAO;   // devolve a paleta padrao pro resto do desenho (silo, fusao, etc)
 }
 
@@ -2593,6 +2671,15 @@ function thumb(canvasEl, id){
   else { c.scale(0.66,0.66); c.translate(10, -(BASE-65)); desenhaMaquina(id, 0); }
   c.restore();
   cx = anterior;
+}
+// desenha a miniatura MOSTRANDO uma skin diferente da equipada de verdade (pro seletor
+// de skins) sem mexer no save - troca, desenha, devolve, tudo sincrono
+function thumbComSkin(canvasEl, machineId, skinId){
+  if(!S.skinPorMaq) S.skinPorMaq = {};
+  const real = S.skinPorMaq[machineId];
+  S.skinPorMaq[machineId] = skinId;
+  thumb(canvasEl, machineId);
+  if(real === undefined) delete S.skinPorMaq[machineId]; else S.skinPorMaq[machineId] = real;
 }
 
 /* ---------------- INTERFACE ---------------- */
@@ -4082,12 +4169,14 @@ function listaSkinsMaquinas(){
       const dono = sk.id === "padrao" || (S.skinsMaq && S.skinsMaq[sk.id]);
       const equipado = atual === sk.id;
       const chip = el(
-        '<div title="' + sk.nome + (dono ? "" : " — " + moeda(sk.custo)) + '" style="width:32px;height:32px;' +
-          'border-radius:7px;cursor:pointer;flex:none;position:relative;background:' + sk.seed + ';' +
-          'border:2px solid ' + (equipado ? "var(--gold)" : "#2a303b") + ';opacity:' + (dono ? "1" : ".4") + '">' +
+        '<div title="' + sk.nome + (dono ? "" : " — " + moeda(sk.custo)) + '" style="width:56px;height:44px;' +
+          'border-radius:7px;cursor:pointer;flex:none;position:relative;overflow:hidden;background:#0c0f14;' +
+          'border:2px solid ' + (equipado ? "var(--gold)" : "#2a303b") + ';opacity:' + (dono ? "1" : ".45") + '">' +
+          '<canvas class="mini" width="56" height="44" style="display:block"></canvas>' +
           (equipado ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
-            'color:#fff;font-size:14px;text-shadow:0 0 3px #000">✓</div>' : "") +
+            'color:#fff;font-size:15px;text-shadow:0 0 3px #000">✓</div>' : "") +
         '</div>');
+      thumbComSkin(chip.querySelector("canvas"), m.id, sk.id);
       chip.onclick = ()=> comprarEquiparSkinMaq(m.id, sk.id);
       linha.appendChild(chip);
     });
