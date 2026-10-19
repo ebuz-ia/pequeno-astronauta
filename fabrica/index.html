@@ -1751,20 +1751,22 @@ let MP = MP_PADRAO;   // trocada por desenhaMaquina() de acordo com a skin equip
    o do topo fica caro de verdade - pedido do usuario: "mais barato de 20% ou
    25%, ai 20% a 15%, 15% a 10%, mais barato ainda de 10% a 5%" nos 5 niveis,
    com o topo passando de 5 milhoes). */
+/* Precos de 19/10/2026 (3a revisao): "deixa mais caro" - subi mais 5x em cima
+   da 2a revisao, mantendo a mesma proporcao entre os 5 niveis. */
 const MAQUINA_SKINS = [
   { id:"padrao",    nome:"Padrão (Clássico)",      custo:0,        forma:"padrao",    desc:"Modelo clássico original da fábrica" },
-  { id:"cibertorre",nome:"Ciber-Torre Quântica",   custo:40000,    forma:"cibertorre",desc:"Torre futurista com plasma quântico e aletas aeroespaciais" },
-  { id:"steampunk", nome:"Caldeira Steampunk",     custo:400000,   forma:"steampunk", desc:"Caldeira de bronze e cobre com pistão animado e vapor" },
-  { id:"biocapsula",nome:"Cápsula Bio-Orgânica",   custo:2000000,  forma:"biocapsula",desc:"Tanque de vidro blindado com fluido e bolhas ativas" },
-  { id:"titanio",   nome:"Monólito Bélico",        custo:10000000, forma:"titanio",   desc:"Fortaleza de aço titânico com bobina Tesla e exaustão" }
+  { id:"cibertorre",nome:"Ciber-Torre Quântica",   custo:200000,   forma:"cibertorre",desc:"Torre futurista com plasma quântico e aletas aeroespaciais" },
+  { id:"steampunk", nome:"Caldeira Steampunk",     custo:2000000,  forma:"steampunk", desc:"Caldeira de bronze e cobre com pistão animado e vapor" },
+  { id:"biocapsula",nome:"Cápsula Bio-Orgânica",   custo:10000000, forma:"biocapsula",desc:"Tanque de vidro blindado com fluido e bolhas ativas" },
+  { id:"titanio",   nome:"Monólito Bélico",        custo:50000000, forma:"titanio",   desc:"Fortaleza de aço titânico com bobina Tesla e exaustão" }
 ];
 
 const FUNDO_SKINS = [
   { id:"padrao",  nome:"Fábrica Clássica",      custo:0,        desc:"Alvenaria industrial, vigas de ferro e luminárias suspensas" },
-  { id:"scifi",   nome:"Complexo High-Tech",    custo:40000,    desc:"Laboratório quântico com neon ciano e piso espelhado" },
-  { id:"forja",   nome:"Fundição Vulcânica",    custo:400000,   desc:"Caverna vulcânica com calhas de magma e grelhas incandescentes" },
-  { id:"bioma",   nome:"Bio-Domo Ecológico",    custo:2000000,  desc:"Estufa de vidro em arco com tubos hidropônicos e deck de madeira" },
-  { id:"orbital", nome:"Estação Espacial",      custo:10000000, desc:"Hangar orbital com janela panorâmica para as estrelas e nebulosas" }
+  { id:"scifi",   nome:"Complexo High-Tech",    custo:200000,   desc:"Laboratório quântico com neon ciano e piso espelhado" },
+  { id:"forja",   nome:"Fundição Vulcânica",    custo:2000000,  desc:"Caverna vulcânica com calhas de magma e grelhas incandescentes" },
+  { id:"bioma",   nome:"Bio-Domo Ecológico",    custo:10000000, desc:"Estufa de vidro em arco com tubos hidropônicos e deck de madeira" },
+  { id:"orbital", nome:"Estação Espacial",      custo:50000000, desc:"Hangar orbital com janela panorâmica para as estrelas e nebulosas" }
 ];
 
 function normalizarSkinsSalvas(){
