@@ -1788,56 +1788,93 @@ function corIdentidade(id){
    paleta da skin, ja trocada por desenhaMaquina) pra chapa/estrutura, e a cor
    de identidade da maquina (corIdentidade) pro visor/luz, pra continuar dando
    pra saber qual maquina e qual mesmo com o corpo diferente. */
-function desenhaFormaTorre(x, id){
-  const cor = corIdentidade(id);
-  sombraChao(x+10, 32);
-  chapa(x+16, BASE-16, 20, 16); rebites(x+16, BASE-16, 20, 16);      // base
-  chapa(x+10, BASE-68, 32, 54); rebites(x+10, BASE-68, 32, 54);      // torre alta e estreita
-  for(let i=0;i<3;i++) tela(x+16, BASE-60+i*15, 20, 8, cor);          // 3 janelas acesas empilhadas
-  const pisca = (F>>4)%2;
-  lamp(x+22, BASE-78, 8, 6, cor, pisca);
-  brilho(x+26, BASE-76, 10, cor, pisca ? .6 : .15);
+/* ---------------- FORMAS EM SVG (19/10/2026, 2a correcao) ----------------
+   O usuario mandou referencias de ilustracao flat-design (cores planas,
+   gradiente suave, contorno solido, cantos arredondados) e disse que o
+   desenho em retangulo cru "nao e profissional". Essas 4 formas passam a ser
+   SVG de verdade (gradiente, circulo, path) rasterizado numa <img> e colado
+   no canvas com drawImage - nao sao copia das referencias (uma delas e um
+   banco de imagens, Shutterstock, direito autoral), so usam a MESMA LINGUAGEM
+   visual: body em gradiente, contorno escuro grosso, tela/luz na cor de
+   identidade da maquina. */
+const _formaImgCache = {};
+function imagemForma(formaId, corCorpo, corAccent){
+  const chave = formaId + "|" + corCorpo + "|" + corAccent;
+  if(_formaImgCache[chave]) return _formaImgCache[chave];
+  const gerar = GERADOR_SVG_FORMA[formaId];
+  const img = new Image();
+  if(gerar) img.src = "data:image/svg+xml;utf8," + encodeURIComponent(gerar(corCorpo, corAccent));
+  _formaImgCache[chave] = img;
+  return img;
 }
-function desenhaFormaCilindrica(x, id){
+const GERADOR_SVG_FORMA = {
+  torre: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${tom(cc,.32)}"/><stop offset="1" stop-color="${tom(cc,-.12)}"/>
+    </linearGradient></defs>
+    <ellipse cx="50" cy="133" rx="36" ry="5" fill="#000" opacity=".15"/>
+    <rect x="18" y="106" width="64" height="24" rx="6" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <rect x="26" y="18" width="48" height="94" rx="12" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <rect x="34" y="32" width="32" height="16" rx="5" fill="${ca}"/>
+    <rect x="37" y="35" width="12" height="4" rx="2" fill="#fff" opacity=".55"/>
+    <rect x="34" y="56" width="32" height="16" rx="5" fill="${ca}" opacity=".85"/>
+    <rect x="34" y="80" width="32" height="16" rx="5" fill="${ca}" opacity=".85"/>
+    <circle cx="50" cy="10" r="11" fill="${ca}" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <rect x="45" y="-2" width="10" height="14" rx="3" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
+  </svg>`,
+  cilindrica: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 120">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${tom(cc,.32)}"/><stop offset=".5" stop-color="${tom(cc,.06)}"/>
+      <stop offset="1" stop-color="${tom(cc,-.18)}"/>
+    </linearGradient></defs>
+    <ellipse cx="55" cy="113" rx="38" ry="5" fill="#000" opacity=".15"/>
+    <rect x="30" y="98" width="16" height="14" fill="${tom(cc,-.3)}"/>
+    <rect x="64" y="98" width="16" height="14" fill="${tom(cc,-.3)}"/>
+    <rect x="15" y="30" width="80" height="78" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <ellipse cx="55" cy="30" rx="40" ry="16" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <ellipse cx="55" cy="26" rx="26" ry="10" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
+    <rect x="38" y="52" width="34" height="42" rx="6" fill="${tom(cc,-.6)}"/>
+    <rect x="41" y="55" width="28" height="36" rx="4" fill="#12161f"/>
+    <rect x="43" y="68" width="24" height="21" fill="${ca}" opacity=".9"/>
+    <rect x="43" y="57" width="24" height="3" fill="#fff" opacity=".3"/>
+  </svg>`,
+  compacta: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${tom(cc,.3)}"/><stop offset="1" stop-color="${tom(cc,-.14)}"/>
+    </linearGradient></defs>
+    <ellipse cx="70" cy="94" rx="58" ry="5" fill="#000" opacity=".15"/>
+    <rect x="18" y="22" width="16" height="22" rx="3" fill="${tom(cc,-.35)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
+    <rect x="106" y="22" width="16" height="22" rx="3" fill="${tom(cc,-.35)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
+    <rect x="8" y="40" width="124" height="48" rx="10" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <rect x="22" y="50" width="70" height="28" rx="5" fill="#12161f" stroke="${tom(cc,-.6)}" stroke-width="3"/>
+    <rect x="26" y="54" width="62" height="20" fill="${ca}" opacity=".88"/>
+    <rect x="26" y="54" width="18" height="20" fill="#fff" opacity=".12"/>
+    <circle cx="104" cy="56" r="6" fill="${ca}"/>
+    <circle cx="104" cy="72" r="6" fill="${tom(cc,-.45)}"/>
+    <circle cx="118" cy="56" r="6" fill="${tom(cc,-.45)}"/>
+    <circle cx="118" cy="72" r="6" fill="${ca}"/>
+  </svg>`,
+  angular: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${tom(cc,.32)}"/><stop offset="1" stop-color="${tom(cc,-.16)}"/>
+    </linearGradient></defs>
+    <ellipse cx="50" cy="124" rx="38" ry="5" fill="#000" opacity=".15"/>
+    <path d="M20 120 L30 24 L70 24 L80 120 Z" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M30 24 L36 24 L29 100 L22 100 Z" fill="#fff" opacity=".18"/>
+    <path d="M36 44 L64 44 L68 92 L32 92 Z" fill="#12161f" stroke="${tom(cc,-.6)}" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M39 48 L61 48 L64 88 L36 88 Z" fill="${ca}" opacity=".9"/>
+    <circle cx="50" cy="12" r="10" fill="${ca}" stroke="${tom(cc,-.6)}" stroke-width="4"/>
+    <path d="M30 24 L70 24 L64 10 L36 10 Z" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="3" stroke-linejoin="round"/>
+  </svg>`
+};
+function desenhaFormaGenerica(x, id, skin){
   const cor = corIdentidade(id);
-  sombraChao(x+4, 44);
-  chapa(x+14, BASE-10, 24, 10);                                      // pe
-  circulo(x+26, BASE-44, 24, MP.mid);
-  R(x+2, BASE-68, 48, 1, MP.hi);                                     // brilho de topo do tanque
-  R(x+2, BASE-20, 48, 1, MP.dark);                                   // sombra embaixo do tanque
-  circulo(x+26, BASE-62, 9, MP.lit);                                 // tampa
-  R(x+17, BASE-50, 18, 22, MP.out);
-  R(x+18, BASE-49, 16, 20, MP.glass);
-  const h = 8 + Math.round(6*Math.sin(F/20));
-  R(x+19, BASE-30-h, 14, h, cor);
-  cx.globalAlpha=.2; for(let i=0;i<h;i+=3) R(x+19, BASE-30-h+i, 14, 1, "#ffffff"); cx.globalAlpha=1;
-}
-function desenhaFormaCompacta(x, id){
-  const cor = corIdentidade(id);
+  const img = imagemForma(skin.forma, skin.seed, cor);
   sombraChao(x+2, 60);
-  chapa(x+4, BASE-30, 56, 30); rebites(x+4, BASE-30, 56, 30);         // corpo baixo e largo
-  tela(x+10, BASE-25, 44, 10, cor);                                   // painel largo
-  grelha(x+10, BASE-11, 44, 7);
-  for(const dx of [10, 40]) chamine(x+dx, BASE-46, 6, 16, dx);        // duas chamines pequenas
+  if(img.complete && img.naturalWidth) cx.drawImage(img, x-4, BASE-80, 72, 80);
 }
-function desenhaFormaAngular(x, id){
-  const cor = corIdentidade(id);
-  sombraChao(x+6, 42);
-  cx.fillStyle = MP.out; cx.beginPath();
-  cx.moveTo(x+9, BASE); cx.lineTo(x+13, BASE-58); cx.lineTo(x+41, BASE-58); cx.lineTo(x+45, BASE); cx.closePath(); cx.fill();
-  cx.fillStyle = MP.mid; cx.beginPath();
-  cx.moveTo(x+10, BASE-1); cx.lineTo(x+14, BASE-57); cx.lineTo(x+40, BASE-57); cx.lineTo(x+44, BASE-1); cx.closePath(); cx.fill();
-  cx.fillStyle = MP.hi; cx.beginPath();
-  cx.moveTo(x+14, BASE-57); cx.lineTo(x+16, BASE-57); cx.lineTo(x+13, BASE-15); cx.lineTo(x+11, BASE-15); cx.closePath(); cx.fill();
-  tela(x+19, BASE-48, 14, 24, cor);
-  const pisca = (F>>4)%2;
-  lamp(x+23, BASE-56, 6, 5, cor, pisca);
-}
-function desenhaFormaCompartilhada(formaId, id, x){
-  if(formaId === "torre") return desenhaFormaTorre(x, id);
-  if(formaId === "cilindrica") return desenhaFormaCilindrica(x, id);
-  if(formaId === "compacta") return desenhaFormaCompacta(x, id);
-  if(formaId === "angular") return desenhaFormaAngular(x, id);
+function desenhaFormaCompartilhada(formaId, id, x, skin){
+  desenhaFormaGenerica(x, id, skin);
 }
 // aviso de maquina quebrada: compartilhado entre o desenho bespoke e os formatos genericos,
 // pra quebra continuar visivel nao importa a skin equipada (isso e estado do jogo, nao so visual)
@@ -1994,10 +2031,8 @@ function desenhaMaquina(id, x){
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
   const skin = skinMaqEquipada(id);
   if(skin.forma && skin.forma !== "padrao"){
-    MP = paletaMaquina(skin.seed);
-    desenhaFormaCompartilhada(skin.forma, id, x);
+    desenhaFormaCompartilhada(skin.forma, id, x, skin);
     desenhaAlertaQuebrada(id, x);
-    MP = MP_PADRAO;
     return;
   }
   const tv = tierVisual(id);
