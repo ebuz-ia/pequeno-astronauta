@@ -401,12 +401,12 @@
   <div id="cod" class="hide"></div>
   <div id="mis" class="list hide"></div>
   <div id="art" class="hide">
-    <div class="lab" style="margin-bottom:6px">🎨 Fundo da fábrica</div>
-    <div class="note">Repinta a parede, as vigas e as luzes. Vale pra fábrica inteira.</div>
+    <div class="lab" style="margin-bottom:6px">🎨 Skins da Fábrica (5 Ambientes)</div>
+    <div class="note">Muda a arquitetura completa e todo o modelo do fundo da fábrica. Vale pra fábrica inteira e custa Pixels.</div>
     <div class="list" id="skinFundoList" style="margin-top:8px;margin-bottom:16px"></div>
 
-    <div class="lab" style="margin-bottom:6px">🎨 Pintura das máquinas</div>
-    <div class="note">Cada máquina pode usar uma pintura diferente. Comprou uma vez, pode trocar de máquina à vontade sem pagar de novo.</div>
+    <div class="lab" style="margin-bottom:6px">🎨 Skins das Máquinas (5 Modelos)</div>
+    <div class="note">Cada máquina pode ter um modelo visual e silhueta diferente com animações exclusivas. Comprou uma vez com Pixels, pode usar em qualquer máquina!</div>
     <div class="list" id="skinMaqList" style="margin-top:8px;margin-bottom:16px"></div>
 
     <div class="lab" style="margin-bottom:6px">Minhas artes</div>
@@ -1115,6 +1115,7 @@ function carregar(){
     S.art = o.art||{}; S.done = o.done||{}; S.dailyDone = o.dailyDone||{};
     S.skinsMaq = o.skinsMaq||{}; S.skinPorMaq = o.skinPorMaq||{};
     S.skinsFundo = o.skinsFundo||{}; S.skinFundoAtual = o.skinFundoAtual || "padrao";
+    if(typeof normalizarSkinsSalvas === "function") normalizarSkinsSalvas();
     if(o.lastSave) S.lastSave = o.lastSave;
     S.managerLevel = o.managerLevel || 0;
     S.hasMechanic = Boolean(o.hasMechanic);
@@ -1740,143 +1741,68 @@ let MP = MP_PADRAO;   // trocada por desenhaMaquina() de acordo com a skin equip
    formato com uma cor, pra ainda dar pra distinguir visualmente as 10 opcoes.
    Os ids ficam os mesmos de quando so existia cor, pra nao invalidar quem ja
    comprou nos primeiros minutos que isso ficou no ar. */
+/* ---------------- 5 SKINS DE MÁQUINAS E 5 AMBIENTES DE FUNDO ----------------
+   Cada máquina tem 5 opções de skin que mudam seu modelo 3D/pixel art com silhueta
+   e animações exclusivas (não só cor!). Desbloqueie com Pixels.
+   O fundo da fábrica tem 5 ambientes arquitetônicos completos (paredes, janelas,
+   teto, iluminação e piso). */
 const MAQUINA_SKINS = [
-  { id:"padrao",   nome:"Padrão",              custo:0,       seed:"#434c5d", forma:"padrao" },
-  { id:"aco",      nome:"Torre de Aço",        custo:500,     seed:"#3b5a7a", forma:"torre" },
-  { id:"verde",    nome:"Cilindro Verde",      custo:1500,    seed:"#3d5c42", forma:"cilindrica" },
-  { id:"vermelho", nome:"Compacta Vermelha",   custo:5000,    seed:"#6b3a3a", forma:"compacta" },
-  { id:"roxo",     nome:"Angular Roxa",        custo:15000,   seed:"#5a3d6b", forma:"angular" },
-  { id:"dourado",  nome:"Torre Dourada",       custo:50000,   seed:"#8a6b2e", forma:"torre" },
-  { id:"rosa",     nome:"Cilindro Rosa Choque",custo:150000,  seed:"#8a3d6b", forma:"cilindrica" },
-  { id:"preto",    nome:"Compacta Preto Fosco",custo:400000,  seed:"#20232a", forma:"compacta" },
-  { id:"gelo",     nome:"Angular Branco Gelo", custo:1000000, seed:"#93a0ad", forma:"angular" },
-  { id:"alerta",   nome:"Torre Vermelho Alerta",custo:3000000,seed:"#7a2e2e", forma:"torre" }
-];
-const FUNDO_SKINS = [
-  { id:"padrao",   nome:"Padrão",         custo:0,       parede:"#11151d", luz:"#ffe3b0" },
-  { id:"noturno",  nome:"Noturno Azul",   custo:500,     parede:"#0d1a2e", luz:"#8fd4ff" },
-  { id:"floresta", nome:"Floresta",       custo:1500,    parede:"#0f1f16", luz:"#baff8a" },
-  { id:"vulcao",   nome:"Vulcão",         custo:5000,    parede:"#241012", luz:"#ff8a4a" },
-  { id:"gelo",     nome:"Gelo",           custo:15000,   parede:"#0f1c22", luz:"#aef2ff" },
-  { id:"neon",     nome:"Neon Roxo",      custo:50000,   parede:"#180f26", luz:"#d88aff" },
-  { id:"dourado",  nome:"Dourado",        custo:150000,  parede:"#1d1708", luz:"#ffe066" },
-  { id:"rosa",     nome:"Rosa Choque",    custo:400000,  parede:"#210f1a", luz:"#ff8ad1" },
-  { id:"alerta",   nome:"Alerta Vermelho",custo:1000000, parede:"#1f0c0c", luz:"#ff4d4d" },
-  { id:"artico",   nome:"Ártico",         custo:3000000, parede:"#161a1f", luz:"#ffffff" }
+  { id:"padrao",    nome:"Padrão (Clássico)",      custo:0,       forma:"padrao",    desc:"Modelo clássico original da fábrica" },
+  { id:"cibertorre",nome:"Ciber-Torre Quântica",   custo:10000,   forma:"cibertorre",desc:"Torre futurista com plasma quântico e aletas aeroespaciais" },
+  { id:"steampunk", nome:"Caldeira Steampunk",     custo:50000,   forma:"steampunk", desc:"Caldeira de bronze e cobre com pistão animado e vapor" },
+  { id:"biocapsula",nome:"Cápsula Bio-Orgânica",   custo:250000,  forma:"biocapsula",desc:"Tanque de vidro blindado com fluido e bolhas ativas" },
+  { id:"titanio",   nome:"Monólito Bélico",        custo:1000000, forma:"titanio",   desc:"Fortaleza de aço titânico com bobina Tesla e exaustão" }
 ];
 
-const _cachePaletaMaq = {}, _cachePaletaFundo = {};
-function paletaMaquina(seed){
-  if(_cachePaletaMaq[seed]) return _cachePaletaMaq[seed];
-  const p = { out: tom(seed,-0.86), dark: tom(seed,-0.36), mid: seed, lit: tom(seed,0.37),
-              hi: tom(seed,0.43), spec: tom(seed,0.74), glass: tom(seed,-0.81) };
-  _cachePaletaMaq[seed] = p;
-  return p;
+const FUNDO_SKINS = [
+  { id:"padrao",  nome:"Fábrica Clássica",      custo:0,       desc:"Alvenaria industrial, vigas de ferro e luminárias suspensas" },
+  { id:"scifi",   nome:"Complexo High-Tech",    custo:10000,   desc:"Laboratório quântico com neon ciano e piso espelhado" },
+  { id:"forja",   nome:"Fundição Vulcânica",    custo:50000,   desc:"Caverna vulcânica com calhas de magma e grelhas incandescentes" },
+  { id:"bioma",   nome:"Bio-Domo Ecológico",    custo:250000,  desc:"Estufa de vidro em arco com tubos hidropônicos e deck de madeira" },
+  { id:"orbital", nome:"Estação Espacial",      custo:1000000, desc:"Hangar orbital com janela panorâmica para as estrelas e nebulosas" }
+];
+
+function normalizarSkinsSalvas(){
+  const MIGRA_MAQ = { aco:"cibertorre", dourado:"cibertorre", alerta:"cibertorre",
+    roxo:"steampunk", gelo:"steampunk", verde:"biocapsula", rosa:"biocapsula",
+    vermelho:"titanio", preto:"titanio" };
+  const MIGRA_FUNDO = { noturno:"scifi", neon:"scifi", dourado:"scifi",
+    vulcao:"forja", alerta:"forja", floresta:"bioma", rosa:"bioma",
+    gelo:"orbital", artico:"orbital" };
+  if(S.skinsMaq){
+    Object.keys(MIGRA_MAQ).forEach(velho=>{ if(S.skinsMaq[velho]) S.skinsMaq[MIGRA_MAQ[velho]] = true; });
+  }
+  if(S.skinsFundo){
+    Object.keys(MIGRA_FUNDO).forEach(velho=>{ if(S.skinsFundo[velho]) S.skinsFundo[MIGRA_FUNDO[velho]] = true; });
+  }
+  // quem tinha um skin antigo EQUIPADO (nao so comprado) tambem precisa continuar
+  // equipado em algo, senao cai pro padrao sem avisar - troca pelo equivalente novo
+  if(S.skinPorMaq){
+    Object.keys(S.skinPorMaq).forEach(maqId=>{
+      const velho = S.skinPorMaq[maqId];
+      if(MIGRA_MAQ[velho]) S.skinPorMaq[maqId] = MIGRA_MAQ[velho];
+    });
+  }
+  if(S.skinFundoAtual && MIGRA_FUNDO[S.skinFundoAtual]) S.skinFundoAtual = MIGRA_FUNDO[S.skinFundoAtual];
 }
+
 function skinMaqEquipada(id){
   const sk = (S.skinPorMaq && S.skinPorMaq[id]) || "padrao";
   return MAQUINA_SKINS.find(s => s.id === sk) || MAQUINA_SKINS[0];
 }
-// cor que identifica cada maquina, pra ela continuar reconhecivel mesmo num corpo generico
+
+function fundoEquipado(){
+  const sk = (S && S.skinFundoAtual) || "padrao";
+  return FUNDO_SKINS.find(s => s.id === sk) || FUNDO_SKINS[0];
+}
+
+// cor que identifica cada maquina, pra ela continuar reconhecivel mesmo num corpo com skin
 const COR_IDENTIDADE_EXTRA = { mOmega:"#c084fc", mConstante:"#5eead4", mcalebe:"#ffd24a" };
 function corIdentidade(id){
   return (typeof COR_MAQ !== "undefined" && COR_MAQ[id]) || COR_IDENTIDADE_EXTRA[id] || "#9ad1ff";
 }
 
-/* ---------------- 4 FORMATOS GENERICOS (19/10/2026) ----------------
-   Desenho completo, do zero, compartilhado por qualquer maquina - usam MP (a
-   paleta da skin, ja trocada por desenhaMaquina) pra chapa/estrutura, e a cor
-   de identidade da maquina (corIdentidade) pro visor/luz, pra continuar dando
-   pra saber qual maquina e qual mesmo com o corpo diferente. */
-/* ---------------- FORMAS EM SVG (19/10/2026, 2a correcao) ----------------
-   O usuario mandou referencias de ilustracao flat-design (cores planas,
-   gradiente suave, contorno solido, cantos arredondados) e disse que o
-   desenho em retangulo cru "nao e profissional". Essas 4 formas passam a ser
-   SVG de verdade (gradiente, circulo, path) rasterizado numa <img> e colado
-   no canvas com drawImage - nao sao copia das referencias (uma delas e um
-   banco de imagens, Shutterstock, direito autoral), so usam a MESMA LINGUAGEM
-   visual: body em gradiente, contorno escuro grosso, tela/luz na cor de
-   identidade da maquina. */
-const _formaImgCache = {};
-function imagemForma(formaId, corCorpo, corAccent){
-  const chave = formaId + "|" + corCorpo + "|" + corAccent;
-  if(_formaImgCache[chave]) return _formaImgCache[chave];
-  const gerar = GERADOR_SVG_FORMA[formaId];
-  const img = new Image();
-  if(gerar) img.src = "data:image/svg+xml;utf8," + encodeURIComponent(gerar(corCorpo, corAccent));
-  _formaImgCache[chave] = img;
-  return img;
-}
-const GERADOR_SVG_FORMA = {
-  torre: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="${tom(cc,.32)}"/><stop offset="1" stop-color="${tom(cc,-.12)}"/>
-    </linearGradient></defs>
-    <ellipse cx="50" cy="133" rx="36" ry="5" fill="#000" opacity=".15"/>
-    <rect x="18" y="106" width="64" height="24" rx="6" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <rect x="26" y="18" width="48" height="94" rx="12" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <rect x="34" y="32" width="32" height="16" rx="5" fill="${ca}"/>
-    <rect x="37" y="35" width="12" height="4" rx="2" fill="#fff" opacity=".55"/>
-    <rect x="34" y="56" width="32" height="16" rx="5" fill="${ca}" opacity=".85"/>
-    <rect x="34" y="80" width="32" height="16" rx="5" fill="${ca}" opacity=".85"/>
-    <circle cx="50" cy="10" r="11" fill="${ca}" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <rect x="45" y="-2" width="10" height="14" rx="3" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
-  </svg>`,
-  cilindrica: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 120">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="${tom(cc,.32)}"/><stop offset=".5" stop-color="${tom(cc,.06)}"/>
-      <stop offset="1" stop-color="${tom(cc,-.18)}"/>
-    </linearGradient></defs>
-    <ellipse cx="55" cy="113" rx="38" ry="5" fill="#000" opacity=".15"/>
-    <rect x="30" y="98" width="16" height="14" fill="${tom(cc,-.3)}"/>
-    <rect x="64" y="98" width="16" height="14" fill="${tom(cc,-.3)}"/>
-    <rect x="15" y="30" width="80" height="78" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <ellipse cx="55" cy="30" rx="40" ry="16" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <ellipse cx="55" cy="26" rx="26" ry="10" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
-    <rect x="38" y="52" width="34" height="42" rx="6" fill="${tom(cc,-.6)}"/>
-    <rect x="41" y="55" width="28" height="36" rx="4" fill="#12161f"/>
-    <rect x="43" y="68" width="24" height="21" fill="${ca}" opacity=".9"/>
-    <rect x="43" y="57" width="24" height="3" fill="#fff" opacity=".3"/>
-  </svg>`,
-  compacta: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${tom(cc,.3)}"/><stop offset="1" stop-color="${tom(cc,-.14)}"/>
-    </linearGradient></defs>
-    <ellipse cx="70" cy="94" rx="58" ry="5" fill="#000" opacity=".15"/>
-    <rect x="18" y="22" width="16" height="22" rx="3" fill="${tom(cc,-.35)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
-    <rect x="106" y="22" width="16" height="22" rx="3" fill="${tom(cc,-.35)}" stroke="${tom(cc,-.6)}" stroke-width="3"/>
-    <rect x="8" y="40" width="124" height="48" rx="10" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <rect x="22" y="50" width="70" height="28" rx="5" fill="#12161f" stroke="${tom(cc,-.6)}" stroke-width="3"/>
-    <rect x="26" y="54" width="62" height="20" fill="${ca}" opacity=".88"/>
-    <rect x="26" y="54" width="18" height="20" fill="#fff" opacity=".12"/>
-    <circle cx="104" cy="56" r="6" fill="${ca}"/>
-    <circle cx="104" cy="72" r="6" fill="${tom(cc,-.45)}"/>
-    <circle cx="118" cy="56" r="6" fill="${tom(cc,-.45)}"/>
-    <circle cx="118" cy="72" r="6" fill="${ca}"/>
-  </svg>`,
-  angular: (cc, ca) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${tom(cc,.32)}"/><stop offset="1" stop-color="${tom(cc,-.16)}"/>
-    </linearGradient></defs>
-    <ellipse cx="50" cy="124" rx="38" ry="5" fill="#000" opacity=".15"/>
-    <path d="M20 120 L30 24 L70 24 L80 120 Z" fill="url(#g)" stroke="${tom(cc,-.6)}" stroke-width="4" stroke-linejoin="round"/>
-    <path d="M30 24 L36 24 L29 100 L22 100 Z" fill="#fff" opacity=".18"/>
-    <path d="M36 44 L64 44 L68 92 L32 92 Z" fill="#12161f" stroke="${tom(cc,-.6)}" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M39 48 L61 48 L64 88 L36 88 Z" fill="${ca}" opacity=".9"/>
-    <circle cx="50" cy="12" r="10" fill="${ca}" stroke="${tom(cc,-.6)}" stroke-width="4"/>
-    <path d="M30 24 L70 24 L64 10 L36 10 Z" fill="${tom(cc,-.3)}" stroke="${tom(cc,-.6)}" stroke-width="3" stroke-linejoin="round"/>
-  </svg>`
-};
-function desenhaFormaGenerica(x, id, skin){
-  const cor = corIdentidade(id);
-  const img = imagemForma(skin.forma, skin.seed, cor);
-  sombraChao(x+2, 60);
-  if(img.complete && img.naturalWidth) cx.drawImage(img, x-4, BASE-80, 72, 80);
-}
-function desenhaFormaCompartilhada(formaId, id, x, skin){
-  desenhaFormaGenerica(x, id, skin);
-}
-// aviso de maquina quebrada: compartilhado entre o desenho bespoke e os formatos genericos,
+// aviso de maquina quebrada: compartilhado entre o desenho bespoke e as skins de modelos,
 // pra quebra continuar visivel nao importa a skin equipada (isso e estado do jogo, nao so visual)
 function desenhaAlertaQuebrada(id, x){
   if(!maquinaQuebrada(id)) return;
@@ -1894,24 +1820,15 @@ function desenhaAlertaQuebrada(id, x){
     R(x+11, BASE-79, Math.round(42*pct), 3, "#4ade80");
   }
 }
-function paletaFundo(parede, luz){
-  const chave = parede + luz;
-  if(_cachePaletaFundo[chave]) return _cachePaletaFundo[chave];
-  const p = {
-    paredeA: tom(parede,-0.24), paredeB: parede,
-    tijoloA: tom(parede,0.02),  tijoloB: tom(parede,0.037),
-    vigaA: tom(parede,0.035), vigaB: tom(parede,0.077), vigaC: tom(parede,-0.285), vigaD: tom(parede,-0.15),
-    tuboA: tom(parede,0.06), tuboB: tom(parede,0.144), tuboC: tom(parede,-0.33), tuboD: tom(parede,0.098),
-    lampCorpo: tom(parede,0.077), lampBrilho: tom(parede,0.19),
-    lampLuz: luz, lampGlow: tom(luz,-0.12),
-    chaoA: tom(parede,0.187), chaoB: tom(parede,0.284), chaoC: tom(parede,-0.344)
-  };
-  _cachePaletaFundo[chave] = p;
-  return p;
-}
-function fundoEquipado(){
-  const sk = (S && S.skinFundoAtual) || "padrao";
-  return FUNDO_SKINS.find(s => s.id === sk) || FUNDO_SKINS[0];
+
+function chapaM(x, y, w, h, corCorpo, corHi, corSombra, corBorda){
+  const bd = corBorda || "#080a0f";
+  R(x-1, y-1, w+2, h+2, bd);
+  R(x, y, w, h, corCorpo);
+  R(x, y, w, 1, corHi || "#ffffff");
+  R(x, y, 1, h, corHi || "#ffffff");
+  R(x, y+h-1, w, 1, corSombra || "#000000");
+  R(x+w-1, y, 1, h, corSombra || "#000000");
 }
 
 function sombraChao(x, w){
@@ -2025,18 +1942,248 @@ function camadasFrente(x, t){
   }
 }
 
+/* ---------------- 4 MODELOS 3D/PIXEL ART PARA AS SKINS DE MÁQUINAS ----------------
+   Silhuetas exclusivas, materiais detalhados, animações próprias e iluminação
+   dinâmica que utilizam a cor de identidade de cada máquina (corIdentidade). */
+
+function desenhaModeloCiberTorre(id, x){
+  const cor = corIdentidade(id);
+  sombraChao(x+6, 52);
+
+  // Pés e suportes angulares de apoio na base
+  R(x+6, BASE-6, 52, 6, "#0f172a");
+  chapaM(x+8, BASE-16, 48, 10, "#1e293b", "#38bdf8", "#0f172a", "#020617");
+  rebites(x+8, BASE-16, 48, 10, "#38bdf8");
+
+  // Aletas laterais escalonadas de resfriamento aeroespacial
+  for(let i=0; i<4; i++){
+    const fy = BASE - 26 - i*8;
+    R(x+8 - i*2, fy, 8 + i*2, 3, "#334155");
+    R(x+8 - i*2, fy, 8 + i*2, 1, "#64748b");
+    R(x+48, fy, 8 + i*2, 3, "#334155");
+    R(x+48, fy, 8 + i*2, 1, "#64748b");
+  }
+
+  // Coluna central aerodinâmica em placas de liga branca/titânio
+  chapaM(x+14, BASE-56, 36, 40, "#cbd5e1", "#f8fafc", "#475569", "#0f172a");
+  rebites(x+14, BASE-56, 36, 40, "#94a3b8");
+
+  // Câmara de contenção quântica central
+  R(x+20, BASE-50, 24, 30, "#030712");
+  R(x+20, BASE-50, 24, 1, "#38bdf8");
+  R(x+20, BASE-21, 24, 1, "#38bdf8");
+
+  // Núcleo de plasma quântico pulsante com a cor da máquina
+  const puls = Math.sin(F/5) * 3;
+  brilho(x+32, BASE-35, 12 + puls, cor, 0.7);
+  circulo(x+32, BASE-35, 6, cor);
+  circulo(x+32, BASE-35, 3, "#ffffff");
+  anelOrbita(x+32, BASE-35, 10, 5, 4, "#ffffff", 8);
+
+  // Reflexo curvo no visor do reator
+  cx.globalAlpha = 0.35;
+  R(x+22, BASE-48, 2, 26, "#ffffff");
+  cx.globalAlpha = 1;
+
+  // Cúpula superior e display holográfico
+  chapaM(x+16, BASE-64, 32, 8, "#1e293b", "#475569", "#0f172a", "#020617");
+  tela(x+20, BASE-62, 24, 5, cor);
+
+  // Antena transmissora com sinalizador estroboscópico no topo
+  R(x+31, BASE-72, 2, 8, "#94a3b8");
+  lamp(x+30, BASE-76, 4, 4, cor, (F>>3)%2===0);
+}
+
+function desenhaModeloSteampunk(id, x){
+  const cor = corIdentidade(id);
+  sombraChao(x+4, 56);
+
+  // Base pesada de ferro fundido e bronze
+  chapaM(x+6, BASE-14, 52, 14, "#291b12", "#451a03", "#120a06", "#0a0504");
+  rebites(x+6, BASE-14, 52, 14, "#f59e0b");
+
+  // Caldeira horizontal cilíndrica em cobre polido e bronze
+  chapaM(x+8, BASE-48, 48, 34, "#92400e", "#b45309", "#451a03", "#1e0b02");
+
+  // Faixas e anéis de reforço de latão rebitadas
+  R(x+14, BASE-48, 5, 34, "#d97706");
+  R(x+14, BASE-48, 1, 34, "#fef08a");
+  rebites(x+14, BASE-48, 5, 34, "#fef08a");
+
+  R(x+45, BASE-48, 5, 34, "#d97706");
+  R(x+45, BASE-48, 1, 34, "#fef08a");
+  rebites(x+45, BASE-48, 5, 34, "#fef08a");
+
+  // Portinhola de ferro fundido da fornalha
+  R(x+22, BASE-34, 20, 18, "#1c1917");
+  R(x+22, BASE-34, 20, 1, "#44403c");
+  R(x+22, BASE-17, 20, 1, "#0c0a09");
+
+  // Fogo vivo crepitante na cor da máquina / calor
+  const fl = (F>>2)%3;
+  R(x+24, BASE-32+fl, 16, 14-fl, "#991b1b");
+  R(x+26, BASE-30+fl, 12, 11-fl, "#ea580c");
+  R(x+28, BASE-27+fl, 8, 7-fl, "#fef08a");
+  brilho(x+32, BASE-25, 8, cor, 0.45);
+
+  // Manômetro circular analógico com ponteiro giratório
+  circulo(x+12, BASE-38, 5, "#fef3c7");
+  circulo(x+12, BASE-38, 6, "#78350f");
+  const ang = ((F*0.06)%2.4) - 1.2;
+  cx.strokeStyle = "#991b1b";
+  cx.lineWidth = 1;
+  cx.beginPath();
+  cx.moveTo(x+12, BASE-38);
+  cx.lineTo(x+12 + Math.cos(ang)*4, BASE-38 + Math.sin(ang)*4);
+  cx.stroke();
+
+  // Cilindro pneumático lateral com pistão mecânico animado
+  cano(x+52, BASE-44, 8, 22);
+  const pist = Math.sin(F/4) * 4;
+  R(x+55, BASE-50 + pist, 2, 8, "#cbd5e1");
+  R(x+53, BASE-52 + pist, 6, 3, "#f59e0b");
+
+  // Serpentina de tubo de cobre
+  cano(x+6, BASE-30, 4, 14);
+
+  // Duas chaminés clássicas soltando baforadas de vapor
+  chamine(x+18, BASE-64, 8, 16, 1, "#f1f5f9");
+  chamine(x+38, BASE-68, 8, 20, 2, "#f1f5f9");
+}
+
+function desenhaModeloBioCapsula(id, x){
+  const cor = corIdentidade(id);
+  sombraChao(x+6, 52);
+
+  // Base em biopolímero reforçado
+  chapaM(x+10, BASE-16, 44, 16, "#134e4a", "#0f766e", "#042f2e", "#021c1a");
+  rebites(x+10, BASE-16, 44, 16, "#2dd4bf");
+
+  // Válvulas reguladoras pneumáticas
+  circulo(x+16, BASE-8, 3, "#2dd4bf");
+  circulo(x+48, BASE-8, 3, "#2dd4bf");
+
+  // Tubos condutores de fluido biológico nas laterais
+  cano(x+6, BASE-48, 6, 32);
+  cano(x+52, BASE-48, 6, 32);
+
+  // Vidro blindado transparente do tanque cilíndrico
+  R(x+14, BASE-56, 36, 40, "#022c22");
+  cx.globalAlpha = 0.55;
+  R(x+15, BASE-54, 34, 37, cor);
+  cx.globalAlpha = 1;
+
+  // Núcleo biológico celular flutuante
+  const cyP = BASE - 35 + Math.sin(F/7)*3;
+  brilho(x+32, cyP, 12, cor, 0.7);
+  circulo(x+32, cyP, 7, cor);
+  circulo(x+32, cyP, 4, "#ffffff");
+
+  // Bolhas ativas subindo no fluido biológico
+  for(let b=0; b<4; b++){
+    const by = BASE - 20 - ((F*1.3 + b*11) % 32);
+    const bx = x + 21 + ((b*7 + 3) % 22);
+    circulo(bx, by, 1.5, "#a7f3d0");
+  }
+
+  // Reflexo diagonal no vidro blindado
+  cx.globalAlpha = 0.45;
+  R(x+18, BASE-52, 2, 32, "#ffffff");
+  R(x+21, BASE-52, 1, 32, "#ffffff");
+  cx.globalAlpha = 1;
+
+  // Cúpula superior com monitor de dados vitais
+  chapaM(x+14, BASE-64, 36, 8, "#134e4a", "#14b8a6", "#042f2e", "#021c1a");
+  tela(x+20, BASE-62, 24, 5, "#2dd4bf");
+
+  // Válvula de alívio com vapor verde sutil
+  R(x+30, BASE-68, 4, 4, "#14b8a6");
+  if(F%30 < 10) fumaca(x+32, BASE-70, 5, "#a7f3d0");
+}
+
+function desenhaModeloTitanio(id, x){
+  const cor = corIdentidade(id);
+  sombraChao(x+2, 60);
+
+  // Pés blindados angulares de sustentação
+  chapaM(x+4, BASE-16, 56, 16, "#090d16", "#1e293b", "#020617", "#000000");
+  rebites(x+4, BASE-16, 56, 16, "#64748b");
+
+  // Chassi monolítico militar facetado
+  chapaM(x+8, BASE-48, 48, 32, "#0f172a", "#334155", "#020617", "#000000");
+  rebites(x+8, BASE-48, 48, 32, "#94a3b8");
+
+  // Blindagens facetadas laterais
+  R(x+10, BASE-46, 4, 28, "#475569");
+  R(x+50, BASE-46, 4, 28, "#475569");
+
+  // Câmara interna da turbina / bobina de indução Tesla
+  R(x+18, BASE-44, 28, 24, "#020617");
+
+  // Núcleo com rotação e arcos de indução
+  const ang = F * 0.15;
+  brilho(x+32, BASE-32, 12, cor, 0.55);
+  circulo(x+32, BASE-32, 7, "#1e293b");
+  circulo(x+32, BASE-32, 4, cor);
+
+  // Faíscas / raios elétricos da bobina
+  for(let sp=0; sp<4; sp++){
+    const a = ang + sp * 1.57;
+    const sx = x + 32 + Math.cos(a) * 9;
+    const sy = BASE - 32 + Math.sin(a) * 7;
+    R(sx, sy, 2, 2, "#ffffff");
+    R(sx-1, sy-1, 4, 1, cor);
+  }
+
+  // Fendas de ventilação incandescentes
+  grelha(x+12, BASE-14, 40, 6);
+  cx.globalAlpha = 0.4 + Math.sin(F/6)*0.2;
+  R(x+13, BASE-13, 38, 2, cor);
+  cx.globalAlpha = 1;
+
+  // Torre de blindagem superior
+  chapaM(x+12, BASE-58, 40, 10, "#1e293b", "#475569", "#020617", "#000000");
+
+  // Exaustores duplos reforçados
+  R(x+14, BASE-68, 8, 10, "#090d16");
+  R(x+15, BASE-66, 6, 8, "#334155");
+  R(x+42, BASE-68, 8, 10, "#090d16");
+  R(x+43, BASE-66, 6, 8, "#334155");
+  if(F%20 < 8){
+    fumaca(x+18, BASE-70, 7, "#64748b");
+    fumaca(x+46, BASE-70, 9, "#64748b");
+  }
+
+  // Sinalizador rotativo estroboscópico de alerta
+  const strobe = (F>>2)%4;
+  const sc = strobe === 0 ? "#ef4444" : strobe === 1 ? "#f59e0b" : "#450a0a";
+  R(x+28, BASE-64, 8, 6, "#020617");
+  lamp(x+29, BASE-63, 6, 4, sc, strobe < 2);
+}
+
+function desenhaModeloMaquina(forma, id, x){
+  switch(forma){
+    case "cibertorre": desenhaModeloCiberTorre(id, x); break;
+    case "steampunk":  desenhaModeloSteampunk(id, x);  break;
+    case "biocapsula": desenhaModeloBioCapsula(id, x); break;
+    case "titanio":    desenhaModeloTitanio(id, x);    break;
+    default: break;
+  }
+}
+
 function desenhaMaquina(id, x){
   if(id.startsWith("fu_")) return desenhaFusao(id, x);
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
   const skin = skinMaqEquipada(id);
+  const tv = tierVisual(id);
+  camadasAtras(x, tv);
   if(skin.forma && skin.forma !== "padrao"){
-    desenhaFormaCompartilhada(skin.forma, id, x, skin);
+    desenhaModeloMaquina(skin.forma, id, x);
+    camadasFrente(x, tv);
     desenhaAlertaQuebrada(id, x);
     return;
   }
-  const tv = tierVisual(id);
-  camadasAtras(x, tv);
   switch(id){
 
     case "m1265xv": {                       // caixa com chamine e visor
@@ -2558,46 +2705,307 @@ function desenhaEsteira(largura){
   });
 }
 
-function desenhaFundo(w){
-  const sk = fundoEquipado();
-  const FP = paletaFundo(sk.parede, sk.luz);
-  // parede
-  R(0, 0, w, 200, FP.paredeA);
-  R(0, 0, w, BASE, FP.paredeB);
-  // tijolos
-  for(let y=0; y<BASE; y+=10){
-    for(let x=((y/10)%2)*14; x<w; x+=28){
-      R(x, y, 26, 8, FP.tijoloA);
-      R(x, y, 26, 1, FP.tijoloB);
+/* ---------------- 5 AMBIENTES COMPLETOS PARA O FUNDO DA FÁBRICA ----------------
+   Muda a arquitetura inteira: paredes, vigas, teto, iluminação, janelas e piso. */
+function desenhaFundoPorSkin(w, skinId){
+  switch(skinId){
+    case "scifi": { // Complexo High-Tech (Laboratório Quântico)
+      // Parede de nanopolímero modular escura
+      R(0, 0, w, BASE, "#070c18");
+      // Painéis modulares com chanfros e fendas de dados
+      for(let x=0; x<w; x+=70){
+        R(x+2, 4, 66, BASE-8, "#0d1627");
+        R(x+4, 6, 62, BASE-12, "#111c32");
+        R(x+4, 6, 62, 1, "#1e2f52");
+        // Linhas de circuito neon ciano
+        R(x+12, 18, 46, 1, "#0369a1");
+        R(x+12, 18, 1, 30, "#0369a1");
+        R(x+12, 48, 20, 1, "#0284c7");
+        R(x+32, 48, 1, 25, "#38bdf8");
+        // Luzes de telemetria e status nos painéis
+        const pisca = (F + x)%24 < 12;
+        R(x+52, 24, 3, 3, pisca ? "#38bdf8" : "#0c4a6e");
+        R(x+52, 30, 3, 3, !pisca ? "#4ade80" : "#14532d");
+      }
+      // Colunas estruturais verticais de servidores quânticos
+      for(let x=68; x<w; x+=140){
+        R(x, 0, 10, BASE, "#050914");
+        R(x+1, 0, 8, BASE, "#162035");
+        R(x+1, 0, 1, BASE, "#38bdf8");
+        for(let sy=20; sy<BASE-20; sy+=12){
+          R(x+3, sy, 4, 2, ((F>>3) + sy)%3===0 ? "#38bdf8" : "#0284c7");
+        }
+      }
+      // Tubo de energia de plasma ciano contínuo no teto
+      R(0, 10, w, 8, "#021c33");
+      const plasmaAlpha = 0.5 + Math.sin(F/7)*0.25;
+      cx.globalAlpha = plasmaAlpha;
+      R(0, 12, w, 4, "#38bdf8");
+      cx.globalAlpha = 1;
+      R(0, 13, w, 2, "#ffffff");
+      // Trilhos de luz LED no teto projetando feixes verticais
+      for(let x=35; x<w; x+=140){
+        R(x-12, 0, 24, 4, "#38bdf8");
+        cx.globalAlpha = 0.08;
+        R(x-20, 4, 40, BASE-4, "#38bdf8");
+        cx.globalAlpha = 0.15;
+        R(x-10, 4, 20, BASE-4, "#0284c7");
+        cx.globalAlpha = 1;
+      }
+      // Chão: placas de cerâmica composta espelhada de laboratório
+      R(0, BASE, w, 4, "#0284c7");
+      R(0, BASE, w, 1, "#38bdf8");
+      R(0, BASE+4, w, 200-BASE-4, "#0b1220");
+      for(let x=0; x<w; x+=40){
+        R(x, BASE+5, 1, 40, "#1e293b");
+        R(x+10, BASE+10, 20, 2, "#0284c7");
+      }
+      break;
+    }
+    case "forja": { // Fundição Vulcânica (Forja de Magma)
+      // Parede de rocha vulcânica / basalto escuro
+      R(0, 0, w, BASE, "#140a08");
+      for(let y=0; y<BASE; y+=16){
+        for(let x=((y/16)%2)*20; x<w; x+=40){
+          R(x, y, 38, 14, "#1f100d");
+          R(x, y, 38, 1, "#2c1713");
+          // Fissuras térmicas com magma na rocha
+          if((x+y)%7===0){
+            R(x+6, y+4, 12, 1, "#b91c1c");
+            R(x+10, y+5, 8, 1, "#ef4444");
+            R(x+14, y+6, 4, 1, "#f97316");
+          }
+        }
+      }
+      // Arcos maciços de ferro forjado negro com rebites
+      for(let x=20; x<w; x+=120){
+        R(x, 0, 12, BASE, "#0a0504");
+        R(x+2, 0, 8, BASE, "#1f120f");
+        R(x+2, 0, 1, BASE, "#3d221c");
+        for(let y=16; y<BASE; y+=24){
+          R(x+3, y, 2, 2, "#7c2d12");
+          R(x+7, y, 2, 2, "#7c2d12");
+        }
+      }
+      // Calha suspensa de metal líquido / lava incandescente no alto
+      R(0, 8, w, 12, "#180905");
+      R(0, 9, w, 10, "#9a3412");
+      const lavaShift = (F*2)%20;
+      for(let x=-20; x<w+20; x+=20){
+        R(x+lavaShift, 10, 14, 6, "#ea580c");
+        R(x+lavaShift+2, 11, 10, 4, "#f59e0b");
+        R(x+lavaShift+4, 12, 6, 2, "#fef08a");
+      }
+      // Braseiros e lâmpadas em jaulas industriais pesadas
+      for(let x=50; x<w; x+=120){
+        R(x-8, 18, 16, 12, "#0a0504");
+        R(x-6, 20, 12, 8, "#ea580c");
+        R(x-4, 22, 8, 4, "#fef08a");
+        cx.globalAlpha = 0.12 + Math.sin((F+x)/6)*0.04;
+        for(let i=1; i<=5; i++) R(x-8-i*8, BASE-4-i*3, 16+i*16, 4, "#f97316");
+        cx.globalAlpha = 1;
+      }
+      // Chão: grelhas de ferro fundido vazadas sobre poço de magma ardente
+      R(0, BASE, w, 4, "#ea580c");
+      R(0, BASE, w, 1, "#fef08a");
+      R(0, BASE+4, w, 200-BASE-4, "#0f0705");
+      R(0, BASE+6, w, 14, "#7c2d12");
+      R(0, BASE+8, w, 10, "#c2410c");
+      for(let x=0; x<w; x+=12){
+        R(x+2, BASE+10, 8, 5, "#f97316");
+        R(x+4, BASE+11, 4, 3, "#fde047");
+      }
+      for(let x=0; x<w; x+=8) R(x, BASE+4, 2, 20, "#180805");
+      break;
+    }
+    case "bioma": { // Bio-Domo Ecológico (Estufa Tecnológica)
+      // Parede: Vidraças de estufa com céu exterior e colinas ao longe
+      R(0, 0, w, BASE, "#1e3a5f");
+      R(0, 30, w, BASE-30, "#2d527c");
+      for(let x=0; x<w; x+=60){
+        circulo(x+30, BASE-10, 45, "#14532d");
+        circulo(x+55, BASE-8, 35, "#166534");
+      }
+      // Estrutura em arco de vidro com colunas de biopolímero esmeralda
+      for(let x=0; x<w; x+=90){
+        R(x, 0, 8, BASE, "#064e3b");
+        R(x+1, 0, 6, BASE, "#047857");
+        R(x+1, 0, 1, BASE, "#10b981");
+        for(let y=10; y<BASE; y+=18){
+          circulo(x-2, y, 3, "#15803d");
+          circulo(x+9, y+8, 3, "#22c55e");
+        }
+      }
+      // Vidraças com reflexos diagonais de luz
+      for(let x=20; x<w; x+=90){
+        cx.globalAlpha = 0.15;
+        cx.fillStyle = "#ffffff";
+        cx.beginPath();
+        cx.moveTo(x, 0); cx.lineTo(x+30, 0);
+        cx.lineTo(x, BASE-20); cx.lineTo(x-30, BASE-20);
+        cx.fill();
+        cx.globalAlpha = 1;
+      }
+      // Tubulação de hidroponia com fluido verde-esmeralda
+      R(0, 12, w, 8, "#064e3b");
+      R(0, 14, w, 4, "#10b981");
+      R(0, 15, w, 2, "#6ee7b7");
+      // Lâmpadas solares de cultivo botânico suspensas
+      for(let x=45; x<w; x+=90){
+        R(x-8, 20, 16, 5, "#78350f");
+        R(x-6, 25, 12, 3, "#fde047");
+        cx.globalAlpha = 0.12;
+        for(let i=1; i<=4; i++) R(x-8-i*6, BASE-2-i*3, 16+i*12, 3, "#fde047");
+        cx.globalAlpha = 1;
+      }
+      // Chão: deck de madeira ecológica e biopolímero
+      R(0, BASE, w, 4, "#22c55e");
+      R(0, BASE, w, 1, "#86efac");
+      R(0, BASE+4, w, 200-BASE-4, "#1e1309");
+      for(let y=BASE+4; y<200; y+=8){
+        R(0, y, w, 7, "#3b2314");
+        R(0, y, w, 1, "#52321c");
+        for(let x=((y/8)%3)*35; x<w; x+=70) R(x, y, 1, 7, "#170e06");
+      }
+      break;
+    }
+    case "orbital": { // Hangar Espacial (Cyberpunk Deep Space)
+      // Janela panorâmica espacial
+      R(0, 0, w, BASE, "#030712");
+      // Nebulosa cósmica púrpura/magenta
+      cx.globalAlpha = 0.18;
+      for(let i=0; i<w; i+=80){
+        circulo(i+40, 50, 45, "#7e22ce");
+        circulo(i+70, 70, 35, "#c026d3");
+      }
+      cx.globalAlpha = 1;
+      // Planeta gigante gasoso ao fundo com anéis
+      const planX = 140;
+      circulo(planX, 48, 26, "#1e1b4b");
+      circulo(planX, 48, 24, "#4338ca");
+      circulo(planX-4, 44, 20, "#6366f1");
+      cx.save();
+      cx.translate(planX, 48);
+      cx.rotate(-0.35);
+      cx.fillStyle = "#a5b4fc";
+      cx.beginPath();
+      cx.ellipse(0, 0, 42, 6, 0, 0, Math.PI*2);
+      cx.strokeStyle = "#818cf8";
+      cx.lineWidth = 2;
+      cx.stroke();
+      cx.restore();
+      // Estrelas no espaço sideral
+      const seedStars = [12, 45, 88, 120, 160, 210, 260, 310, 370, 430, 490, 550, 610];
+      seedStars.forEach((sx, idx)=>{
+        const sy = (idx * 29 + 17) % (BASE - 20);
+        const pisca = ((F>>2) + idx)%3 === 0;
+        R(sx % w, sy, pisca ? 2 : 1, pisca ? 2 : 1, pisca ? "#ffffff" : "#94a3b8");
+      });
+      // Molduras angulares de titânio da janela panorâmica
+      for(let x=0; x<w; x+=130){
+        R(x, 0, 12, BASE, "#0b0f19");
+        R(x+2, 0, 8, BASE, "#1e293b");
+        R(x+2, 0, 1, BASE, "#475569");
+        R(x-6, 0, 24, 8, "#0b0f19");
+        R(x-4, 0, 20, 6, "#334155");
+        R(x-6, BASE-12, 24, 12, "#0b0f19");
+        R(x-4, BASE-10, 20, 10, "#334155");
+      }
+      // Feixes de cabos elétricos pesados com presilhas neon
+      R(0, 8, w, 3, "#111827");
+      R(0, 12, w, 4, "#1f2937");
+      R(0, 17, w, 2, "#0f172a");
+      for(let x=25; x<w; x+=50){
+        R(x, 7, 3, 13, "#d946ef");
+        R(x+1, 8, 1, 11, "#f0abfc");
+      }
+      // Sinalizadores estroboscópicos de hangar espacial
+      for(let x=65; x<w; x+=130){
+        const blink = (F>>3)%2 === 0;
+        R(x-6, 20, 12, 5, "#1e293b");
+        R(x-4, 25, 8, 3, blink ? "#06b6d4" : "#c084fc");
+        cx.globalAlpha = 0.12;
+        R(x-14, 24, 28, BASE-24, blink ? "#06b6d4" : "#c084fc");
+        cx.globalAlpha = 1;
+      }
+      // Chão: blindagem aeroespacial com faixas hazard amarelas e pretas
+      R(0, BASE, w, 4, "#334155");
+      R(0, BASE, w, 1, "#64748b");
+      R(0, BASE+4, w, 200-BASE-4, "#0b0f19");
+      for(let y=BASE+4; y<200; y+=12){
+        R(0, y, w, 11, "#111827");
+        R(0, y, w, 1, "#1f2937");
+      }
+      for(let x=-20; x<w+20; x+=16){
+        cx.fillStyle = "#eab308";
+        cx.beginPath();
+        cx.moveTo(x, BASE+5); cx.lineTo(x+8, BASE+5);
+        cx.lineTo(x+3, BASE+11); cx.lineTo(x-5, BASE+11);
+        cx.fill();
+      }
+      break;
+    }
+    default: { // "padrao": Fábrica Clássica (Alvenaria Industrial)
+      // Parede de tijolos
+      R(0, 0, w, 200, "#0c1017");
+      R(0, 0, w, BASE, "#11151d");
+      // Tijolos industriais
+      for(let y=0; y<BASE; y+=10){
+        for(let x=((y/10)%2)*14; x<w; x+=28){
+          R(x, y, 26, 8, "#141923");
+          R(x, y, 26, 1, "#1a212e");
+        }
+      }
+      // Vigas verticais
+      for(let x=24; x<w; x+=112){
+        R(x, 0, 7, BASE, "#18202c");
+        R(x, 0, 1, BASE, "#232e3e");
+        R(x+6, 0, 1, BASE, "#0d1117");
+        for(let y=14; y<BASE; y+=26) R(x+1, y, 5, 2, "#131a24");
+      }
+      // Tubulação no alto com flanges
+      R(0, 12, w, 7, "#1c2533");
+      R(0, 12, w, 1, "#2e3b50");
+      R(0, 18, w, 1, "#0d121a");
+      for(let x=18; x<w; x+=64){ R(x, 10, 6, 11, "#273447"); R(x, 10, 6, 1, "#3b4d66"); }
+      // Luminárias industriais suspensas por correntes com cone de luz quente
+      for(let x=56; x<w; x+=224){
+        for(let cy=0; cy<20; cy+=4) R(x, cy, 1, 3, "#374151");
+        R(x-10, 20, 20, 5, "#253040");
+        R(x-10, 20, 20, 1, "#3a495e");
+        R(x-7, 25, 14, 2, "#ffe3b0");
+        cx.globalAlpha = .12; R(x-9, 27, 18, 3, "#ffb040");
+        cx.globalAlpha = .06; R(x-14, 30, 28, 4, "#ffb040");
+        cx.globalAlpha = .05;
+        for(let i=1;i<=4;i++) R(x-10-i*7, BASE-3-i, 20+i*14, 3, "#ffe3b0");
+        cx.globalAlpha = 1;
+      }
+      // Chão de concreto industrial
+      R(0, BASE, w, 4, "#2b3442");
+      R(0, BASE, w, 1, "#3e4a5d");
+      R(0, BASE+4, w, 200-BASE-4, "#0e1218");
+      break;
     }
   }
-  // vigas verticais
-  for(let x=24; x<w; x+=112){
-    R(x, 0, 7, BASE, FP.vigaA);
-    R(x, 0, 1, BASE, FP.vigaB);
-    R(x+6, 0, 1, BASE, FP.vigaC);
-    for(let y=14; y<BASE; y+=26) R(x+1, y, 5, 2, FP.vigaD);
-  }
-  // tubulacao no alto
-  R(0, 12, w, 7, FP.tuboA);
-  R(0, 12, w, 1, FP.tuboB);
-  R(0, 18, w, 1, FP.tuboC);
-  for(let x=18; x<w; x+=64){ R(x, 10, 6, 11, FP.tuboD); R(x, 10, 6, 1, FP.tuboD + "66"); }
-  // luminarias: so o ponto de luz e uma poca suave no chao
-  for(let x=56; x<w; x+=224){
-    R(x-10, 20, 20, 5, FP.lampCorpo);
-    R(x-10, 20, 20, 1, FP.lampBrilho);
-    R(x-7, 25, 14, 2, FP.lampLuz);
-    cx.globalAlpha = .10; R(x-9, 27, 18, 3, FP.lampGlow);
-    cx.globalAlpha = .05; R(x-14, 30, 28, 4, FP.lampGlow);
-    cx.globalAlpha = .045;
-    for(let i=1;i<=4;i++) R(x-10-i*7, BASE-3-i, 20+i*14, 3, FP.lampGlow);
-    cx.globalAlpha = 1;
-  }
-  // chao
-  R(0, BASE, w, 4, FP.chaoA);
-  R(0, BASE, w, 1, FP.chaoB);
-  R(0, BASE+4, w, 200-BASE-4, FP.chaoC);
+}
+
+function desenhaFundo(w){
+  const sk = fundoEquipado();
+  desenhaFundoPorSkin(w, sk.id);
+}
+
+function thumbFundo(canvasEl, skinId){
+  if(!canvasEl) return;
+  const c = canvasEl.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  const anterior = cx;
+  cx = c;
+  c.clearRect(0,0,canvasEl.width,canvasEl.height);
+  c.save();
+  c.scale(canvasEl.width / 180, canvasEl.height / 200);
+  desenhaFundoPorSkin(180, skinId);
+  c.restore();
+  cx = anterior;
 }
 
 function loopDesenho(){
@@ -4169,17 +4577,17 @@ function listaSkinsFundo(){
     const dono = sk.id === "padrao" || (S.skinsFundo && S.skinsFundo[sk.id]);
     const equipado = (S.skinFundoAtual || "padrao") === sk.id;
     const row = el(
-      '<div class="row' + (equipado ? " owned" : "") + '">' +
-        '<div style="width:56px;height:44px;border-radius:6px;flex:none;position:relative;overflow:hidden;' +
-          'background:' + sk.parede + ';border:2px solid ' + (equipado ? "var(--gold)" : "#2a303b") + '">' +
-          '<div style="position:absolute;left:8px;top:8px;width:16px;height:6px;border-radius:2px;' +
-            'background:' + sk.luz + ';box-shadow:0 0 8px ' + sk.luz + '"></div>' +
+      '<div class="row' + (equipado ? " owned" : "") + '" style="gap:10px">' +
+        '<canvas class="mini" width="56" height="44" style="border-radius:6px;flex:none;border:2px solid ' +
+          (equipado ? "var(--gold)" : "#2a303b") + ';display:block"></canvas>' +
+        '<div class="info">' +
+          '<div class="nm">' + sk.nome + '</div>' +
+          '<div class="sub" style="font-size:11px">' + sk.desc + (dono ? (equipado ? " — em uso agora" : " — liberado") : " — " + moeda(sk.custo) + " Pixels") + '</div>' +
         '</div>' +
-        '<div class="info"><div class="nm">' + sk.nome + '</div>' +
-        '<div class="sub">' + (equipado ? "equipado agora" : dono ? "você já tem" : "toque pra comprar") + '</div></div>' +
         '<div class="sp"></div>' +
-        (equipado ? '<span class="tag">ATUAL</span>' : '<button class="buy">' + (dono ? "USAR" : moeda(sk.custo)) + '</button>') +
+        (equipado ? '<span class="tag">USANDO</span>' : '<button class="buy">' + (dono ? "USAR" : moeda(sk.custo)) + '</button>') +
       '</div>');
+    thumbFundo(row.querySelector("canvas"), sk.id);
     box.appendChild(row);
     const btn = row.querySelector("button");
     if(btn) btn.onclick = ()=> comprarEquiparSkinFundo(sk.id);
@@ -4190,27 +4598,37 @@ function listaSkinsMaquinas(){
   box.innerHTML = "";
   const minhas = MACHINES.filter(m => !m.fusao && nivelMaq(m.id) > 0);
   if(!minhas.length){
-    box.appendChild(el('<div class="note">Compre uma máquina pra poder pintar ela.</div>'));
+    box.appendChild(el('<div class="note">Compre uma máquina para liberar a personalização de skin.</div>'));
     return;
   }
   minhas.forEach(m=>{
     const atual = (S.skinPorMaq && S.skinPorMaq[m.id]) || "padrao";
+    const nomeAtual = (MAQUINA_SKINS.find(s=>s.id===atual)||MAQUINA_SKINS[0]).nome;
     const card = el('<div class="row" style="flex-direction:column;align-items:stretch;gap:8px">' +
-      '<div class="nm">' + m.nome + '</div>' +
-      '<div class="skinchips" style="display:flex;gap:6px;flex-wrap:wrap"></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between">' +
+        '<div class="nm">' + m.nome + '</div>' +
+        '<div class="sub" style="font-size:11px;color:var(--dim)">Skin: <b style="color:var(--txt)">' + nomeAtual + '</b></div>' +
+      '</div>' +
+      '<div class="skinchips" style="display:flex;gap:8px;flex-wrap:wrap"></div>' +
     '</div>');
     const linha = card.querySelector(".skinchips");
     MAQUINA_SKINS.forEach(sk=>{
       const dono = sk.id === "padrao" || (S.skinsMaq && S.skinsMaq[sk.id]);
       const equipado = atual === sk.id;
       const chip = el(
-        '<div title="' + sk.nome + (dono ? "" : " — " + moeda(sk.custo)) + '" style="width:56px;height:44px;' +
-          'border-radius:7px;cursor:pointer;flex:none;position:relative;overflow:hidden;background:#0c0f14;' +
-          'border:2px solid ' + (equipado ? "var(--gold)" : "#2a303b") + ';opacity:' + (dono ? "1" : ".45") + '">' +
-          '<canvas class="mini" width="56" height="44" style="display:block"></canvas>' +
-          (equipado ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
-            'color:#fff;font-size:15px;text-shadow:0 0 3px #000">✓</div>' : "") +
-        '</div>');
+        '<div title="' + sk.nome + ' — ' + sk.desc + (dono ? ' (Liberado)' : ' — ' + moeda(sk.custo) + ' Pixels') + '" ' +
+          'style="width:58px;cursor:pointer;flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;' +
+          'padding:4px;border-radius:8px;background:' + (equipado ? 'rgba(255,210,74,0.1)' : '#0c0f14') + ';' +
+          'border:2px solid ' + (equipado ? 'var(--gold)' : dono ? '#3b4352' : '#222834') + ';opacity:' + (dono ? '1' : '.65') + '">' +
+          '<div style="position:relative;width:48px;height:40px;overflow:hidden;border-radius:4px">' +
+            '<canvas class="mini" width="48" height="40" style="display:block"></canvas>' +
+            (equipado ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;' +
+              'background:rgba(0,0,0,0.3);color:#ffd24a;font-size:16px;font-weight:bold;text-shadow:0 0 4px #000">✓</div>' : '') +
+          '</div>' +
+          '<span style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54px;color:' +
+            (equipado ? 'var(--gold)' : dono ? 'var(--txt)' : 'var(--dim)') + '">' + (dono ? (equipado ? 'USANDO' : 'USAR') : moeda(sk.custo)) + '</span>' +
+        '</div>'
+      );
       thumbComSkin(chip.querySelector("canvas"), m.id, sk.id);
       chip.onclick = ()=> comprarEquiparSkinMaq(m.id, sk.id);
       linha.appendChild(chip);
@@ -4267,7 +4685,7 @@ const ABAS = {
   fab:  { subs:[["maq","Máquinas"],["arm","Armazenador"],["fus","Fusão"]] },
   eq:   { subs:[["ger","Gerentes e mecânico"]] },
   prog: { subs:[["pre","Prêmios"],["mis","Missões"],["conq","Conquistas"],["reb","Rebirth e selos"]] },
-  mais: { subs:[["sv","Salvar"],["cod","Códigos"],["art","Minhas artes"]] }
+  mais: { subs:[["sv","Salvar"],["cod","Códigos"],["art","Skins e artes"]] }
 };
 const PAINEIS = ["maq","arm","fus","ger","reb","conq","cod","mis","art","sv","pre"];
 const subSel = { fab:"maq", eq:"ger", prog:"mis", mais:"sv" };
