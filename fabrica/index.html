@@ -837,7 +837,12 @@ function animarRoda(escolhido, cv2){
     const k = Math.min(1, (t - t0) / dur);
     const suave = 1 - Math.pow(1 - k, 4);            // comeca rapido e vai parando
     rodaAngulo = ini + (fim - ini) * suave;
-    desenhaRoda(cv2);
+    // busca o canvas de NOVO a cada quadro: girar muda S.roleta.giros, que entra na
+    // assinatura da tela e dispara um reconstruir que troca o <canvas> por um novo -
+    // sem isso a animacao ficava desenhando no canvas antigo, que ja saiu da tela
+    // (por isso a roda parecia nao girar: ela girava, so que invisivel)
+    const vivo = document.getElementById("roda") || cv2;
+    desenhaRoda(vivo);
     if(k < 1) requestAnimationFrame(passo);
     else { rodaGirando = false; clearTimeout(rodaSocorro); aplicarPremioRoleta(escolhido); }
   })(t0);
@@ -1369,6 +1374,28 @@ function pagarConta(){
   salvar();
 }
 
+// Cada rebirth libera (de graca) e ja equipa o proximo ambiente de fundo -
+// pedido do usuario em 21/10/2026: "cada rebirth faz mudar a fabrica pra parte
+// do fundo da fabrica". So cobre rebirth 1 a 4 porque so ha 4 fundos pagos
+// (scifi/forja/bioma/orbital) alem do padrao; rebirth 5 fica no orbital mesmo,
+// que ja e o topo. Quem ja tinha comprado/equipado outro fundo por conta propria
+// continua podendo trocar de volta na aba Skins e artes - isso so DA o novo,
+// nao TIRA nada escolhido antes.
+const FUNDO_POR_REBIRTH = { 1:"scifi", 2:"forja", 3:"bioma", 4:"orbital" };
+function liberarFundoDoRebirth(rebirth){
+  const id = FUNDO_POR_REBIRTH[rebirth];
+  if(!id) return null;
+  if(!S.skinsFundo) S.skinsFundo = {};
+  const jaTinha = Boolean(S.skinsFundo[id]);
+  S.skinsFundo[id] = true;
+  S.skinFundoAtual = id;
+  if(!jaTinha){
+    const sk = FUNDO_SKINS.find(s=>s.id===id);
+    if(sk) toast("🏭 A fábrica virou " + sk.nome + "!");
+  }
+  return id;
+}
+
 function realizarRebirth(req){
   if((S.rebirth || 0) >= 5) return;
   const maquinas = maquinasDoRebirthAtual();
@@ -1376,6 +1403,7 @@ function realizarRebirth(req){
   if(!ok) return;
 
   S.rebirth = (S.rebirth || 0) + 1;
+  liberarFundoDoRebirth(S.rebirth);
   toast("🌟 REBIRTH " + S.rebirth + " REALIZADO!");
   for(let i=0;i<25;i++) faisca();
   mostrarModalRebirth(req);
@@ -4173,6 +4201,7 @@ const CODIGOS = [
     aplicar(){
       const NIVEL_RESET = 43, REBIRTH_RESET = 4;
       S.rebirth = REBIRTH_RESET;
+      liberarFundoDoRebirth(REBIRTH_RESET);   // o fundo acompanha o rebirth, mesmo fora do realizarRebirth()
       S.selos = 0;
       if(S.codes){ delete S.codes["calebe.."]; delete S.codes["calebe..."]; }   // tranca a secreta de novo
       S.fusoes = [];                                    // fusoes somem, senao a producao nao bate
@@ -4225,7 +4254,7 @@ const CODIGOS = [
     aplicar(){ S.roleta = S.roleta || {}; S.roleta.giros = Math.min(ROLETA_MAX + 3, (S.roleta.giros||0) + 3); } },
   { chave:"rebirthextra", titulo:"Rebirth Extra", efeito:"Rebirth +1 na hora",
     tier:"impossivel", pista:"Nascer de novo, sem precisar merecer dessa vez.",
-    aplicar(){ S.rebirth = Math.min(5, (S.rebirth||0)+1); } },
+    aplicar(){ S.rebirth = Math.min(5, (S.rebirth||0)+1); liberarFundoDoRebirth(S.rebirth); } },
   { chave:"tanquecheio", titulo:"Tanque Cheio", efeito:"Enche o combustível de todas as máquinas (modo hardcore) e deixa o overclock pronto",
     tier:"impossivel", pista:"O carro não anda sem isso, e a fábrica no modo difícil também não.",
     aplicar(){ S.fuel = {}; MACHINES.forEach(m=>{ if(nivelMaq(m.id)>0) S.fuel[m.id] = FUEL_MAX; });
@@ -4279,7 +4308,10 @@ const CODIGOS = [
     aplicar(){ S.wallet += 10000; } },
   { chave:"foguete", titulo:"Foguete", efeito:"Ganha R$ 25.000",
     tier:"hardcore", pista:"Vai rápido, faz barulho, e sobe que nem a produção.",
-    aplicar(){ S.wallet += 25000; } }
+    aplicar(){ S.wallet += 25000; } },
+  { chave:"asafe", titulo:"Asafe", efeito:"Ganha 20 giros da roleta na hora",
+    tier:"impossivel", pista:"Um nome proprio que faz a roda girar vinte vezes de uma vez so.",
+    aplicar(){ S.roleta = S.roleta || {}; S.roleta.giros = Math.min(ROLETA_MAX + 20, (S.roleta.giros||0) + 20); } }
 ];
 
 let codTexto = "";
@@ -4527,7 +4559,7 @@ function listaCodigos(){
   add("todas +10 níveis",()=> maquinasDoRebirthAtual().forEach(m=> S.machines[m.id] = nivelMaq(m.id)+10));
   add("armazenador máximo", ()=> S.storageLevel = STORAGE.length);
   add("gerente máximo", ()=>{ S.managerLevel = MANAGERS.length; S.hasMechanic = true; });
-  add("rebirth +1", ()=> S.rebirth = Math.min(5, (S.rebirth||0)+1));
+  add("rebirth +1", ()=>{ S.rebirth = Math.min(5, (S.rebirth||0)+1); liberarFundoDoRebirth(S.rebirth); });
   add("consertar tudo", ()=> S.broken = {});
   add("quitar conta", ()=>{ if(S.bill) S.bill.ativa = false; });
   add("habilidades prontas", ()=>{ S.hab = novoHab(); });
