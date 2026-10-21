@@ -467,6 +467,19 @@ const MACHINES = [
   {id:"msingularity",nome:"Singularidade",custo:200000,ps:520,rebirthReq:5},
   {id:"minfinity",   nome:"Pixel Infinito",custo:350000,ps:800,rebirthReq:5},
 
+  /* As 4 "skins" de maquina (Ciber-Torre, Steampunk, Bio-Capsula, Titanio) viraram
+     maquinas de verdade em 21/10/2026, a pedido do usuario ("quero que elas virem
+     maquinas") - antes eram so uma repintura aplicavel em qualquer maquina, sem
+     producao propria; agora cada uma e uma maquina normal, com nivel e producao
+     proprios, entram na conta do rebirth que elas pedem, e usam o desenho que o
+     filho do usuario ja tinha feito (desenhaModeloCiberTorre etc.) como visual
+     fixo - nao usam mais o sistema de skin (ninguem troca a pintura delas).
+     O preco de nivel 1 ecoa o preco que elas tinham como skin (200k/2M/10M/50M). */
+  {id:"mcibertorre",nome:"Ciber-Torre Quântica",custo:200000,   ps:600,  rebirthReq:2},
+  {id:"msteampunk", nome:"Caldeira Steampunk",  custo:2000000,  ps:3000, rebirthReq:3},
+  {id:"mbiocapsula",nome:"Cápsula Bio-Orgânica",custo:10000000, ps:8000, rebirthReq:4},
+  {id:"mtitanio",   nome:"Monólito Bélico",     custo:50000000, ps:25000,rebirthReq:5},
+
   // A segunda melhor do jogo: comeca forte mas subir de nivel custa muito mais que nas outras
   {id:"mOmega", nome:"Ômega", custo:2000000, ps:10000, rebirthReq:0, cresc:1.35, premio:true},
 
@@ -1781,12 +1794,12 @@ let MP = MP_PADRAO;   // trocada por desenhaMaquina() de acordo com a skin equip
    com o topo passando de 5 milhoes). */
 /* Precos de 19/10/2026 (3a revisao): "deixa mais caro" - subi mais 5x em cima
    da 2a revisao, mantendo a mesma proporcao entre os 5 niveis. */
+/* 21/10/2026: as 4 pagas viraram maquinas de verdade (MACHINES, mais acima) -
+   so sobra a "padrao" aqui, porque toda maquina comum ainda pode trocar entre
+   ela mesma e nada mais. O seletor de skin continua existindo (pra quando
+   surgir uma skin nova de verdade, so cor/forma sem virar maquina). */
 const MAQUINA_SKINS = [
-  { id:"padrao",    nome:"Padrão (Clássico)",      custo:0,        forma:"padrao",    desc:"Modelo clássico original da fábrica" },
-  { id:"cibertorre",nome:"Ciber-Torre Quântica",   custo:200000,   forma:"cibertorre",desc:"Torre futurista com plasma quântico e aletas aeroespaciais" },
-  { id:"steampunk", nome:"Caldeira Steampunk",     custo:2000000,  forma:"steampunk", desc:"Caldeira de bronze e cobre com pistão animado e vapor" },
-  { id:"biocapsula",nome:"Cápsula Bio-Orgânica",   custo:10000000, forma:"biocapsula",desc:"Tanque de vidro blindado com fluido e bolhas ativas" },
-  { id:"titanio",   nome:"Monólito Bélico",        custo:50000000, forma:"titanio",   desc:"Fortaleza de aço titânico com bobina Tesla e exaustão" }
+  { id:"padrao",    nome:"Padrão (Clássico)",      custo:0,        forma:"padrao",    desc:"Modelo clássico original da fábrica" }
 ];
 
 const FUNDO_SKINS = [
@@ -1832,7 +1845,8 @@ function fundoEquipado(){
 }
 
 // cor que identifica cada maquina, pra ela continuar reconhecivel mesmo num corpo com skin
-const COR_IDENTIDADE_EXTRA = { mOmega:"#c084fc", mConstante:"#5eead4", mcalebe:"#ffd24a" };
+const COR_IDENTIDADE_EXTRA = { mOmega:"#c084fc", mConstante:"#5eead4", mcalebe:"#ffd24a",
+  mcibertorre:"#38bdf8", msteampunk:"#f59e0b", mbiocapsula:"#2dd4bf", mtitanio:"#ef4444" };
 function corIdentidade(id){
   return (typeof COR_MAQ !== "undefined" && COR_MAQ[id]) || COR_IDENTIDADE_EXTRA[id] || "#9ad1ff";
 }
@@ -2206,13 +2220,24 @@ function desenhaModeloMaquina(forma, id, x){
   }
 }
 
+// As 4 maquinas que vieram de skin (21/10/2026) tem visual proprio e fixo -
+// nao passam pelo seletor de skin, sempre desenham o mesmo modelo.
+const FORMA_NATIVA = { mcibertorre:"cibertorre", msteampunk:"steampunk",
+  mbiocapsula:"biocapsula", mtitanio:"titanio" };
+
 function desenhaMaquina(id, x){
   if(id.startsWith("fu_")) return desenhaFusao(id, x);
   const im = getImg(id);
   if(im){ cx.drawImage(im, x, BASE-64, 64, 64); return; }
-  const skin = skinMaqEquipada(id);
   const tv = tierVisual(id);
   camadasAtras(x, tv);
+  if(FORMA_NATIVA[id]){
+    desenhaModeloMaquina(FORMA_NATIVA[id], id, x);
+    camadasFrente(x, tv);
+    desenhaAlertaQuebrada(id, x);
+    return;
+  }
+  const skin = skinMaqEquipada(id);
   if(skin.forma && skin.forma !== "padrao"){
     desenhaModeloMaquina(skin.forma, id, x);
     camadasFrente(x, tv);
