@@ -342,6 +342,11 @@
     margin:0 auto;background:var(--panel);border:2px solid var(--gold);border-radius:12px;
     padding:14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 8px 30px rgba(0,0,0,.5);
     pointer-events:auto}
+  #tutcard.hide{display:none}   /* .hide sozinho (classe) perde pra #tutcard (id) sem isso - por
+    isso o card nao sumia ao clicar em ENTENDI/PULAR: um id sempre vence uma classe no CSS */
+  @media (max-width:700px){
+    #tutcard{bottom:calc(76px + env(safe-area-inset-bottom))}   /* mesma folga que o #toast ja usa, pra nao tampar o menu fixo de baixo */
+  }
   #tutcard .rob{flex:none;width:52px;height:52px}
   #tutcard .txt{flex:1;min-width:0}
   #tutcard .fala{font-size:13px;line-height:1.5;color:var(--txt);margin-bottom:8px}
