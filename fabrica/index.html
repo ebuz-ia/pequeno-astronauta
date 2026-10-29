@@ -298,6 +298,7 @@
     margin-top:5px;line-height:1.5}
   .bigbtn.jogar{background:#16452c;border-color:#4ade80;color:#d1fae5}
   .bigbtn.rank{background:#3b2f0b;border-color:#ffd24a;color:#fff3c4}
+  .bigbtn.livre{background:#0e3a42;border-color:#2dd4bf;color:#ccfbf1}
   .bigbtn.duelo{background:#2d1b4e;border-color:#a855f7;color:#f3e8ff}
   .bigbtn.facil{background:#16452c;border-color:#4ade80;color:#d1fae5}
   .bigbtn.normal{background:#123c3a;border-color:#35e0d8;color:#ccfbf1}
@@ -356,6 +357,50 @@
   #tutcard button{font:inherit;font-size:12px;padding:7px 12px;border-radius:6px;cursor:pointer;border:2px solid var(--line)}
   #tutcard .pular{background:transparent;color:var(--dim)}
   #tutcard .prox{background:var(--gold);color:#241d00;border-color:#c79a21;font-weight:bold}
+
+  /* ---------------- CELULAR DO "LIVRE" (29/10/2026) ---------------- */
+  #celularWrap{position:fixed;inset:0;z-index:1500;display:none;align-items:center;justify-content:center;
+    background:rgba(5,6,10,.86);padding:24px 12px}
+  #celularFecha{position:absolute;top:18px;right:18px;z-index:1502;font:inherit;font-size:13px;
+    padding:8px 14px;border-radius:20px;cursor:pointer;background:#1b2029;color:var(--txt);border:2px solid var(--line)}
+  .fone{position:relative;width:320px;max-width:92vw;height:660px;max-height:88vh;background:#0a0c10;
+    border-radius:46px;border:10px solid #1c1f26;box-shadow:0 0 0 2px #000, 0 20px 60px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;overflow:hidden}
+  .fone::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:26px;
+    background:#0a0c10;border-radius:0 0 18px 18px;z-index:5}
+  .fone-status{display:flex;justify-content:space-between;align-items:center;padding:8px 22px 2px;
+    font-size:12px;font-weight:bold;color:#fff;flex:none}
+  .fone-tela{flex:1;min-height:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#1a2230,#11151c);
+    overflow-y:auto}
+  .fone-home{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 10px;padding:18px 16px;align-content:start}
+  .fone-app{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border:none;background:none;
+    font:inherit;color:#fff;padding:0}
+  .fone-app svg{width:52px;height:52px;border-radius:13px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  .fone-app span{font-size:10px;text-align:center;line-height:1.2;color:#e6ecf5;text-shadow:0 1px 2px #000}
+  .fone-home-bar{flex:none;display:flex;justify-content:center;padding:10px 0 14px}
+  .fone-home-bar i{display:block;width:120px;height:4px;border-radius:3px;background:#fff;opacity:.55}
+  .fone-topo{display:flex;align-items:center;gap:10px;padding:14px 16px 6px;flex:none}
+  .fone-voltar{font:inherit;font-size:13px;padding:7px 12px;border-radius:16px;cursor:pointer;
+    background:#232a36;color:var(--txt);border:2px solid var(--line)}
+  .fone-titulo{font-weight:bold;color:#fff;font-size:15px}
+  .fone-loja-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #232a36}
+  .fone-loja-item svg{width:44px;height:44px;border-radius:11px;flex:none}
+  .fone-loja-info{flex:1;min-width:0}
+  .fone-loja-info b{display:block;font-size:13px;color:#fff}
+  .fone-loja-info span{font-size:10px;color:#8b97a8}
+  .fone-loja-item button{font:inherit;font-size:11px;font-weight:bold;padding:7px 12px;border-radius:14px;
+    cursor:pointer;border:2px solid var(--line);background:#232a36;color:var(--txt);flex:none;min-width:72px}
+  .fone-loja-item button.on{background:var(--gold);color:#241d00;border-color:#c79a21}
+  .fone-embed{flex:1;display:flex;flex-direction:column;padding:10px 14px 14px;gap:8px;min-height:0}
+  .fone-embed input{font:inherit;font-size:12px;padding:9px 10px;border-radius:8px;border:2px solid var(--line);
+    background:#0e1116;color:var(--txt)}
+  .fone-embed .ir{font:inherit;font-size:12px;font-weight:bold;padding:9px;border-radius:8px;cursor:pointer;
+    border:2px solid #2dd4bf;background:#0e3a42;color:#ccfbf1}
+  .fone-embed .caixa{flex:1;min-height:0;border-radius:12px;overflow:hidden;background:#000;
+    display:flex;align-items:center;justify-content:center}
+  .fone-embed .caixa iframe,.fone-embed .caixa blockquote{width:100%;height:100%;border:0}
+  .fone-embed .vazio{color:#8b97a8;font-size:12px;text-align:center;padding:20px;line-height:1.6}
+  @media (max-width:420px){ .fone{width:280px;height:560px} }
 </style>
 </head>
 <body>
@@ -399,6 +444,15 @@
       </div>
     </div>
   </div>
+
+  <div id="celularWrap">
+    <button id="celularFecha">✕ FECHAR</button>
+    <div class="fone">
+      <div class="fone-status"><span id="foneHora">9:41</span><span>🔋 100%</span></div>
+      <div class="fone-tela" id="foneTela"></div>
+    </div>
+  </div>
+
   <div id="duelbar">
     <div><div class="lab" id="duelwho" style="color:#d8b4fe"></div>
       <div class="sub dim" id="duelscore" style="font-size:11px"></div></div>
@@ -1106,6 +1160,7 @@ const hoje = () => new Date().toISOString().slice(0,10);
 function novoJogo(){
   return {
     tutorialFeito: false,
+    livreApps: {},
     skinsMaq: {}, skinPorMaq: {}, skinsFundo: {}, skinFundoAtual: "padrao",
     wallet:0, stored:0, storageLevel:1, managerLevel:0,
     hasMechanic: false,
@@ -1194,6 +1249,7 @@ function carregar(){
     // save existente sem esse campo = jogador que ja joga ha tempos, nao mostra
     // o tutorial sem pedir; so quem comecar DEPOIS desse recurso ganha o default false
     S.tutorialFeito = o.tutorialFeito !== undefined ? o.tutorialFeito : true;
+    S.livreApps = o.livreApps || {};
     if(typeof normalizarSkinsSalvas === "function") normalizarSkinsSalvas();
     if(o.lastSave) S.lastSave = o.lastSave;
     S.managerLevel = o.managerLevel || 0;
@@ -5247,10 +5303,11 @@ function telaInicio(qual, extra){
   const box = $("#inicio");
   box.style.display = "flex";
   let h = '<div class="box"><h2>FÁBRICA DE PIXEL</h2><div class="sub2">' +
-    (qual === "main" || qual === "modos" ? "escolha como quer jogar" : (qual === "semana" || qual === "semanafim" || (DUEL && DUEL.semana) ? "desafio da semana" : "duelo 1x1 online")) + '</div>';
+    (qual === "main" || qual === "modos" ? "escolha como quer jogar" : qual === "livre" ? "fora da fábrica" : (qual === "semana" || qual === "semanafim" || (DUEL && DUEL.semana) ? "desafio da semana" : "duelo 1x1 online")) + '</div>';
   if(qual === "main"){
     h += (CONTA ? '<div class="note" style="margin:-12px 0 14px">Você é <strong style="color:var(--gold)">' + esc(CONTA.nome) + '</strong>' + (CONTA.codigo ? ' &nbsp;•&nbsp; ID #' + esc(CONTA.codigo) : '') + '</div>' : '') +
          (CONTA && CONTA.temSenha === false ? '<div class="vinc" style="margin:0 0 14px"><div class="note" style="margin:0;line-height:1.6">🔒 Sua conta ainda <strong>não tem senha</strong>. Toque em MINHA CONTA para criar uma e entrar em qualquer aparelho com o seu nome.</div></div>' : '') +
+         '<button class="bigbtn livre" data-a="livre" style="font-size:19px;padding:16px">🆓 LIVRE<small>Jogar ou assistir vídeos, além de só jogar Fábrica de Pixel.</small></button>' +
          '<button class="bigbtn jogar" data-a="jogar">JOGAR<small>Sua fábrica, no seu ritmo. Escolha fácil, normal ou hardcore.</small></button>' +
          '<button class="bigbtn duelo" data-a="duelo">DUELO 1x1<small>Desafie um amigo pelo nome. Os dois jogam 5 minutos ao mesmo tempo, cada um no seu computador.</small></button>' +
          '<button class="bigbtn rank" data-a="semana">📅 DESAFIO DA SEMANA<small>Uma corrida de 5 minutos sozinho contra o relógio. Jogue quando quiser — o ranking reseta toda segunda.</small></button>' +
@@ -5418,6 +5475,13 @@ function telaInicio(qual, extra){
     h += '<div style="font-size:30px;margin:6px 0">⏱️</div><div style="font-size:20px;font-weight:bold">TEMPO ESGOTADO</div>' +
          '<div class="val gold" style="font-size:24px;margin:10px 0">' + moedaExata((DUEL && DUEL.final) || 0) + '</div>' +
          '<div class="note">Enviando sua marca…</div>';
+  } else if(qual === "livre"){
+    h += '<div style="font-size:40px;margin:4px 0">🆓</div>' +
+         '<div class="note" style="line-height:1.7;margin-bottom:16px">' +
+           '<strong style="color:var(--txt)">Livre:</strong> jogar ou assistir vídeos, além de só jogar Fábrica de Pixel. ' +
+           'Abre um celular de mentirinha com alguns apps de verdade dentro.</div>' +
+         '<button class="bigbtn livre" data-a="abrircelular" style="font-size:16px;padding:12px">ABRIR</button>' +
+         '<button class="bigbtn voltar" data-a="voltar">VOLTAR</button>';
   } else if(qual === "semana"){
     h += '<div id="semanabox"><div class="note" style="margin:16px 0">Carregando…</div></div>' +
          '<button class="bigbtn duelo" data-a="jogarsemana" style="margin-top:4px;font-size:16px;padding:12px">JOGAR (5 minutos)</button>' +
@@ -5473,6 +5537,8 @@ function telaInicio(qual, extra){
 
 async function acaoInicio(a){
   if(a === "jogar") return telaInicio("modos");
+  if(a === "livre") return telaInicio("livre");
+  if(a === "abrircelular") return abrirCelular();
   if(a === "ranking") return abrirRanking();
   if(a === "nome") return telaInicio("nome");
   if(a === "duelo"){ telaInicio(CONTA ? "desafio" : "nome"); if(CONTA) atualizarPerfil(); return; }
@@ -6022,6 +6088,142 @@ function encerrarTutorial(){
 $("#tutprox").onclick = avancarTutorial;
 $("#tutpular").onclick = encerrarTutorial;
 $("#tutbtn").onclick = iniciarTutorial;
+
+/* ---------------- "LIVRE" - celular com apps de verdade (29/10/2026) ----------------
+   Cada app ou abre um link de verdade numa aba nova, ou mostra o player OFICIAL
+   de um video (YouTube/TikTok) - nunca um iframe escondendo outra coisa e nunca
+   um proxy. "INSTALAR" e so uma animacaozinha de enfeite: o app sempre abre o
+   link real ou o player oficial, nada e baixado nem roda escondido. */
+const LIVRE_APPS = [
+  { id:"youtube", nome:"YouTube",
+    icone:'<rect width="48" height="48" rx="12" fill="#FF0000"/><path d="M19 15l16 9-16 9z" fill="#fff"/>',
+    tela:true },
+  { id:"tiktok", nome:"TikTok",
+    icone:'<rect width="48" height="48" rx="12" fill="#010101"/>'+
+      '<path d="M30 9c1 4 4 7 8 7v5c-3 0-6-1-8-3v12c0 6-5 10-10 10s-10-4-10-10 5-10 10-10c.8 0 1.6.1 2.3.3v5.3c-.7-.3-1.5-.5-2.3-.5-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5V9h5z" fill="#25F4EE"/>'+
+      '<path d="M28.2 9c1 4 4 7 8 7v5c-3 0-6-1-8-3v12c0 6-5 10-10 10s-10-4-10-10 5-10 10-10c.8 0 1.6.1 2.3.3v5.3c-.7-.3-1.5-.5-2.3-.5-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5V9h5z" fill="#FE2C55"/>'+
+      '<path d="M29.1 9c1 4 4 7 8 7v5c-3 0-6-1-8-3v12c0 6-5 10-10 10s-10-4-10-10 5-10 10-10c.8 0 1.6.1 2.3.3v5.3c-.7-.3-1.5-.5-2.3-.5-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5V9h5z" fill="#fff"/>',
+    tela:true },
+  { id:"poki", nome:"Poki",
+    icone:'<rect width="48" height="48" rx="12" fill="#172b6d"/><rect x="9" y="18" width="30" height="15" rx="7.5" fill="#4b7bec"/>'+
+      '<rect x="15.2" y="22" width="1.6" height="7" fill="#fff"/><rect x="12.2" y="24.5" width="7" height="1.6" fill="#fff"/>'+
+      '<circle cx="30" cy="23" r="2.2" fill="#fff"/><circle cx="34.5" cy="27.5" r="2.2" fill="#fff"/>',
+    acao: ()=> window.open("https://poki.com", "_blank") },
+  { id:"google", nome:"Entrar",
+    icone:'<rect width="48" height="48" rx="12" fill="#fff"/><text x="24" y="33" font-size="24" font-weight="bold" text-anchor="middle" fill="#4285F4" font-family="ui-monospace,monospace">G</text>',
+    acao: ()=> window.open("https://accounts.google.com", "_blank") },
+  { id:"minecraft", nome:"Minecraft",
+    icone:'<rect width="48" height="48" rx="10" fill="#5b3a20"/><rect width="48" height="19" fill="#5fa83c"/><rect width="48" height="5" fill="#4a8a2e"/>',
+    acao: ()=> window.open("https://www.minecraft.net", "_blank") }
+];
+const APP_STORE_ICONE = '<defs><linearGradient id="as" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4FC3F7"/><stop offset="1" stop-color="#1E88E5"/></linearGradient></defs>'+
+  '<rect width="48" height="48" rx="12" fill="url(#as)"/><path d="M24 11l10 17H14z" fill="#fff"/><circle cx="24" cy="31" r="3.2" fill="#fff"/>';
+const FABRICA_ICONE = '<rect width="48" height="48" rx="12" fill="#1b2029"/><rect x="9" y="27" width="30" height="12" fill="#434c5d"/>'+
+  '<rect x="13" y="14" width="6" height="13" fill="#434c5d"/><rect x="25" y="18" width="6" height="9" fill="#434c5d"/><rect x="9" y="27" width="30" height="3" fill="#ffd24a"/>';
+
+let celularTela = "home";
+const svgApp = miolo => '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' + miolo + '</svg>';
+
+function abrirCelular(){
+  celularTela = "home";
+  $("#celularWrap").style.display = "flex";
+  const agora = new Date();
+  $("#foneHora").textContent = String(agora.getHours()).padStart(2,"0") + ":" + String(agora.getMinutes()).padStart(2,"0");
+  renderCelular();
+}
+function fecharCelular(){ $("#celularWrap").style.display = "none"; }
+
+function abrirAppLivre(app){
+  if(app.acao) return app.acao();
+  celularTela = "app:" + app.id;
+  renderCelular();
+}
+function instalarAppLivre(id){
+  if(!S.livreApps) S.livreApps = {};
+  S.livreApps[id] = true;
+  salvar();
+  renderCelular();
+}
+
+function renderCelular(){
+  const box = $("#foneTela");
+  if(celularTela === "home"){
+    const instalados = LIVRE_APPS.filter(a => S.livreApps && S.livreApps[a.id]);
+    box.innerHTML =
+      '<div class="fone-home">' +
+        '<button class="fone-app" data-fechar="1">' + svgApp(FABRICA_ICONE) + '<span>Fábrica de Pixel</span></button>' +
+        instalados.map(a => '<button class="fone-app" data-app="' + a.id + '">' + svgApp(a.icone) + '<span>' + a.nome + '</span></button>').join("") +
+        '<button class="fone-app" data-loja="1">' + svgApp(APP_STORE_ICONE) + '<span>App Store</span></button>' +
+      '</div>' +
+      '<div class="fone-home-bar"><i></i></div>';
+    box.querySelector('[data-fechar]').onclick = fecharCelular;
+    box.querySelector('[data-loja]').onclick = ()=>{ celularTela = "loja"; renderCelular(); };
+    box.querySelectorAll('[data-app]').forEach(b=>{
+      b.onclick = ()=> abrirAppLivre(LIVRE_APPS.find(a=>a.id===b.dataset.app));
+    });
+  } else if(celularTela === "loja"){
+    box.innerHTML =
+      '<div class="fone-topo"><button class="fone-voltar" data-voltar="1">‹ Início</button><span class="fone-titulo">App Store</span></div>' +
+      LIVRE_APPS.map(a=>{
+        const on = Boolean(S.livreApps && S.livreApps[a.id]);
+        return '<div class="fone-loja-item">' + svgApp(a.icone) +
+          '<div class="fone-loja-info"><b>' + a.nome + '</b><span>' + (on ? "instalado" : "grátis") + '</span></div>' +
+          '<button class="' + (on?"on":"") + '" data-id="' + a.id + '">' + (on ? "ABRIR" : "INSTALAR") + '</button>' +
+        '</div>';
+      }).join("") +
+      '<div class="fone-home-bar"><i></i></div>';
+    box.querySelector('[data-voltar]').onclick = ()=>{ celularTela = "home"; renderCelular(); };
+    box.querySelectorAll('[data-id]').forEach(b=>{
+      b.onclick = ()=>{
+        const app = LIVRE_APPS.find(a=>a.id===b.dataset.id);
+        if(S.livreApps && S.livreApps[app.id]) return abrirAppLivre(app);
+        b.disabled = true; b.textContent = "...";
+        setTimeout(()=> instalarAppLivre(app.id), 900);   // so de enfeite, nada e baixado de verdade
+      };
+    });
+  } else if(celularTela.indexOf("app:") === 0){
+    const id = celularTela.slice(4);
+    const app = LIVRE_APPS.find(a=>a.id===id);
+    box.innerHTML =
+      '<div class="fone-topo"><button class="fone-voltar" data-voltar="1">‹ Início</button><span class="fone-titulo">' + app.nome + '</span></div>' +
+      '<div class="fone-embed">' +
+        '<input id="foneLink" placeholder="Cole aqui o link de um vídeo do ' + app.nome + '">' +
+        '<button class="ir" data-ir="1">▶ ABRIR VÍDEO</button>' +
+        '<div class="caixa" id="foneCaixa"><div class="vazio">Cole o link de um vídeo acima e toque em ABRIR VÍDEO.<br><br>' +
+          'Isso usa o player oficial do ' + app.nome + ', do jeito que eles mesmos liberam pra outros sites mostrarem.</div></div>' +
+      '</div>';
+    box.querySelector('[data-voltar]').onclick = ()=>{ celularTela = "home"; renderCelular(); };
+    box.querySelector('[data-ir]').onclick = ()=> abrirVideoLivre(id);
+  }
+}
+
+const idYoutube = url => { const m = url.match(/(?:youtu\.be\/|[?&]v=|shorts\/)([a-zA-Z0-9_-]{11})/); return m ? m[1] : null; };
+
+function abrirVideoLivre(id){
+  const link = $("#foneLink").value.trim();
+  const caixa = $("#foneCaixa");
+  if(!link){ caixa.innerHTML = '<div class="vazio">Cole um link primeiro.</div>'; return; }
+  if(id === "youtube"){
+    const vid = idYoutube(link);
+    if(!vid){ caixa.innerHTML = '<div class="vazio">Não achei um vídeo nesse link. Copie o link de cima do navegador, de um vídeo do YouTube.</div>'; return; }
+    caixa.innerHTML = '<iframe src="https://www.youtube.com/embed/' + vid + '" allow="autoplay;encrypted-media" allowfullscreen></iframe>';
+  } else if(id === "tiktok"){
+    caixa.innerHTML = '<div class="vazio">Carregando…</div>';
+    fetch("https://www.tiktok.com/oembed?url=" + encodeURIComponent(link))
+      .then(r=>{ if(!r.ok) throw new Error("falhou"); return r.json(); })
+      .then(j=>{
+        if(celularTela !== "app:tiktok") return;   // a pessoa ja saiu dessa tela
+        caixa.innerHTML = j.html;
+        if(!window.__tiktokEmbedJs){
+          window.__tiktokEmbedJs = true;
+          const s = document.createElement("script"); s.src = "https://www.tiktok.com/embed.js"; document.body.appendChild(s);
+        } else if(window.tiktokEmbed && window.tiktokEmbed.lib) window.tiktokEmbed.lib.render(caixa);
+      })
+      .catch(()=>{ if(celularTela === "app:tiktok") caixa.innerHTML = '<div class="vazio">Não consegui abrir esse vídeo. Confira se o link é mesmo do TikTok.</div>'; });
+  }
+}
+
+$("#celularFecha").onclick = fecharCelular;
 
 $("#menubtn").onclick = abrirMenuInicial;
 $("#duelsair").onclick = async ()=>{
