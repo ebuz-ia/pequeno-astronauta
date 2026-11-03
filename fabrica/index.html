@@ -24,6 +24,8 @@
 <link rel="canonical" href="https://game.ebuz.com.br/fabrica/">
 <meta name="theme-color" content="#0e1116">
 <meta name="author" content="CaDaN Games">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Fábrica de Pixel">
@@ -6307,6 +6309,10 @@ async function mostrarConviteAmizade(){
     }
   }catch(e){}
 })();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
