@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "br.com.ebuz.game.twa",
+    "sha256_cert_fingerprints": ["6A:64:C7:D5:A5:5E:E9:76:30:50:26:EA:63:EC:CF:D0:E0:CE:03:C4:F0:D5:69:FD:C9:A7:14:21:70:B9:1A:76"]
+  }
+}]
