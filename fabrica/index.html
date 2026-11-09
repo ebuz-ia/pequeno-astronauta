@@ -541,6 +541,14 @@
   </div>
   <input type="file" id="imp" accept="application/json">
   <input type="file" id="artfile" accept="image/*">
+  <div id="cel" class="hide" style="display:flex;flex-direction:column;align-items:center;padding:12px 0 0">
+    <div class="fone">
+      <div class="fone-status"><span>9:41</span><span>🔋</span></div>
+      <div class="fone-tela" style="padding:0;overflow:hidden;position:relative">
+        <iframe src="https://games.ebuz.com.br" style="position:absolute;inset:0;width:100%;height:100%;border:none" allow="fullscreen" title="eBuz Games"></iframe>
+      </div>
+    </div>
+  </div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 <canvas id="fundoMenu"></canvas>
@@ -4628,10 +4636,10 @@ const ABAS = {
   fab:  { subs:[["maq","Máquinas"],["arm","Armazenador"],["fus","Fusão"]] },
   eq:   { subs:[["ger","Gerentes e mecânico"]] },
   prog: { subs:[["pre","Prêmios"],["mis","Missões"],["conq","Conquistas"],["reb","Rebirth e selos"]] },
-  mais: { subs:[["sv","Salvar"],["cod","Códigos"],["art","Skins e artes"]] }
+  mais: { subs:[["cel","Celular"],["sv","Salvar"],["cod","Códigos"],["art","Skins e artes"]] }
 };
-const PAINEIS = ["maq","arm","fus","ger","reb","conq","cod","mis","art","sv","pre"];
-const subSel = { fab:"maq", eq:"ger", prog:"mis", mais:"sv" };
+const PAINEIS = ["maq","arm","fus","ger","reb","conq","cod","mis","art","sv","pre","cel"];
+const subSel = { fab:"maq", eq:"ger", prog:"mis", mais:"cel" };
 let abaAtual = "fab";
 function abrirAba(a, sub){
   if(!ABAS[a]) a = "fab";
