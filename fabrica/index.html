@@ -59,6 +59,16 @@
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
 }
 </script>
+<!-- Google Ad Manager -->
+<script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js" crossorigin="anonymous"></script>
+<script>
+  window.googletag = window.googletag || {cmd: []};
+  googletag.cmd.push(function() {
+    googletag.defineSlot('/22701419861/fabrica_pixel_jogo', [300, 250], 'div-gpt-ad-1794876556762-0').addService(googletag.pubads());
+    googletag.pubads().enableSingleRequest();
+    googletag.enableServices();
+  });
+</script>
 <style>
   :root{
     --bg:#11141b; --panel:#1b2029; --panel2:#232a36; --line:#2f3947;
@@ -6356,5 +6366,11 @@ async function mostrarConviteAmizade(){
   }catch(e){}
 })();
 </script>
+<!-- Banner de anúncio 300x250 fixo no canto inferior direito -->
+<div style="position:fixed;bottom:10px;right:10px;z-index:9999;">
+  <div id='div-gpt-ad-1794876556762-0' style='min-width:300px;min-height:250px;'>
+    <script>googletag.cmd.push(function(){googletag.display('div-gpt-ad-1794876556762-0');});</script>
+  </div>
+</div>
 </body>
 </html>
