@@ -227,10 +227,10 @@ makeMachine(6.5,-10.5,"TRANCA DA PORTA",0xff6633);
 const trancaMachine=machines[1];
 trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;
 // Kits fora da fábrica (coletáveis durante o dia)
-const kitA=new T.Group();kitA.position.set(3,0,-13.5);scene.add(kitA);
+const kitA=new T.Group();kitA.position.set(7.5,0,-13);scene.add(kitA);
 cube(kitA,0,.35,0,.65,.7,.65,wood);cube(kitA,0,.75,0,.4,.08,.65,mat(0x888800,.5,.3));
 const kitAGlow=new T.PointLight(0x99dd44,2.0,3);kitAGlow.position.set(0,1.2,0);kitA.add(kitAGlow);
-const kitB=new T.Group();kitB.position.set(-3,0,-13.5);scene.add(kitB);
+const kitB=new T.Group();kitB.position.set(-7.5,0,-13);scene.add(kitB);
 cube(kitB,0,.35,0,.65,.7,.65,mat(0x5c3a1e,.85,.1));cube(kitB,0,.75,0,.35,.08,.55,mat(0x6cb8e8,.4,.6));
 const kitBGlow=new T.PointLight(0x6cb8e8,2.0,3);kitBGlow.position.set(0,1.2,0);kitB.add(kitBGlow);
 
@@ -343,8 +343,9 @@ const introLines=['02:00 AM','A fábrica estava abandonada há anos.','Mas a emp
 function playIntro(){const ov=$('#introOv');const txt=$('#introText');const sk=$('#introSkip');ov.style.display='flex';let i=0,done=false;function finish(){if(done)return;done=true;txt.style.opacity=0;setTimeout(()=>{ov.style.display='none';started=true;$('#dayOverlay').style.display='';},900);}sk.addEventListener('click',finish);setTimeout(()=>{sk.style.opacity=1;},2000);function next(){if(done)return;if(i>=introLines.length){finish();return;}txt.style.opacity=0;setTimeout(()=>{txt.textContent=introLines[i++];txt.style.opacity=1;setTimeout(next,2300);},850);}next();}
 function nearWindow(){for(const w of factoryWindows){const d=Math.hypot(playerPos.x-w.x,playerPos.z-w.z);if(d<2.8)return w;}return null;}
 function boardWindow(w){if(!hasHammer){say('🔨 Você precisa de um MARTELO para barricar!');return;}if(w.boarded){say('🪵 Janela já barricada (Vida: '+Math.round(w.boardStrength)+'%)');return;}w.boarded=true;w.boardStrength=100;boardCount++;const plankMat=new T.MeshStandardMaterial({color:0x8b6914,roughness:.9});const pg=new T.Group();scene.add(pg);pg.position.set(w.x+w.side*.12,5,w.z);const p1=new T.Mesh(new T.BoxGeometry(.12,.22,4.0),plankMat);p1.position.set(0,.8,0);pg.add(p1);const p2=new T.Mesh(new T.BoxGeometry(.12,.22,4.0),plankMat);p2.position.set(0,-.8,0);pg.add(p2);const p3=new T.Mesh(new T.BoxGeometry(.12,3.4,.22),plankMat);p3.position.set(0,0,-1.5);pg.add(p3);const p4=new T.Mesh(new T.BoxGeometry(.12,3.4,.22),plankMat);p4.position.set(0,0,1.5);pg.add(p4);w.planks=pg;$('#bTask').textContent='Janelas: '+boardCount+'/4 barricadas';say('🪵 JANELA BARRICADA! O bicho vai ter que arrombar!');}
-function use(){if(!started||gameOver)return;if(currentMachine)return;if(hidden){exitHide();return;}if(nearSwitch()){activateSwitch();return;}if(dayPhase&&!outsideKitA&&Math.hypot(playerPos.x-3,playerPos.z+13.5)<2.2){outsideKitA=true;kitA.visible=false;trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;say('🔧 KIT DE REPARO! Tranca da porta reforçada!');return;}
-if(dayPhase&&!outsideKitB&&Math.hypot(playerPos.x+3,playerPos.z+13.5)<2.2){outsideKitB=true;kitB.visible=false;flashBattery=Math.min(100,flashBattery+100);if(!flashOn&&flashBattery>0){flashOn=true;flash.visible=true;}say('🔦 KIT DE PILHAS! Lanterna totalmente recarregada!');return;}
+function use(){if(!started||gameOver)return;if(currentMachine)return;if(hidden){exitHide();return;}if(nearSwitch()){activateSwitch();return;}if(dayPhase&&!outsideKitA&&Math.hypot(playerPos.x-7.5,playerPos.z+13)<2.2){outsideKitA=true;kitA.visible=false;trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;say('🔧 KIT DE REPARO! Tranca da porta reforçada!');return;}
+if(dayPhase&&!outsideKitB&&Math.hypot(playerPos.x+7.5,playerPos.z+13)<2.2){outsideKitB=true;kitB.visible=false;flashBattery=Math.min(100,flashBattery+100);if(!flashOn&&flashBattery>0){flashOn=true;flash.visible=true;}say('🔦 KIT DE PILHAS! Lanterna totalmente recarregada!');return;}
+
 if(nearGaveta()){gavetaOpened=true;gavetaObj.children.forEach((c,i)=>{if(c.isPointLight)return;if(i===1)c.position.z=.9;if(i===2)c.position.z=.9;});hasHammer=true;hasPistol=true;ammo=12;$('#ammoHud').style.display='';$('#ammoHud').textContent='🔫 Munição: 12';$('#ab-shoot').style.display='';gavetaGlow.intensity=0;say('🔨🔫 GAVETA ABERTA! Martelo e pistola encontrados!');return;}const b=nearBattery();if(b){pickupBattery(b);return;}if(nearDoor()&&doorOpen){doorOpen=false;say('🚪 Porta fechada!');return;}const w=nearWindow();if(w&&!w.boarded){boardWindow(w);return;}const h=nearHide();if(h){enterHide(h);return;}const m=near();if(!m){say('Nada por aqui para interagir.');return;}currentMachine=m;openMinigame(m);}
 let yaw=0,pitch=0,dragLook=false,lastMouseX=0,lastMouseY=0;
 function turnCamera(dx,dy){
