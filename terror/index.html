@@ -22,7 +22,7 @@
 #breathFill{height:100%;width:30%;border-radius:8px;background:#22cc66;transition:background .25s}
 #lurkWarn{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#3a0000cc;border:2px solid #cc2200;border-radius:10px;padding:14px 22px;font-size:17px;font-weight:bold;color:#ff9988;z-index:7;text-align:center;pointer-events:none}
 </style>
-</head><body><div id="game"></div><div id="hud"><div id="top" class="p"><div id="brand">FÁBRICA ABANDONADA · TURNO DA MADRUGADA</div><div id="clock">00:00</div>GERADOR: <span id="powerText">100%</span><div id="powerBar"><div id="powerFill"></div></div><span id="lightText">LUZES: LIGADAS</span></div><div id="objectives" class="p"><b>MISSÃO</b><div id="gTask">Máquinas consertadas: 0/4</div><div id="dTask">Nenhuma ainda</div><div id="wTask">⚡ Energia: 100%</div><div id="bTask">Janelas: 0/4 barricadas</div><div id="ammoHud" style="display:none">🔫 Munição: 12</div><small>Conserte as 4 máquinas!</small></div><div id="vitals" class="p">CALMA <span id="sanityText">100%</span><div id="sanityBar"><div id="sanityFill"></div></div>🔦 <span id="battText">100%</span><div id="battBar"><div id="battFill"></div></div>Não confie no pato.</div><div id="cross"></div><div id="toast"></div><div id="bottom"><div id="prompt"></div><div id="hint">WASD mover · E interagir · F lanterna · V câmera · G atirar · H respirar · Space pular</div></div></div>
+</head><body><div id="game"></div><div id="hud"><div id="top" class="p"><div id="brand">FÁBRICA ABANDONADA · TURNO DA MADRUGADA</div><div id="clock">00:00</div>GERADOR: <span id="powerText">100%</span><div id="powerBar"><div id="powerFill"></div></div><span id="lightText">LUZES: LIGADAS</span></div><div id="objectives" class="p"><b>MISSÃO</b><div id="gTask">Máquinas consertadas: 0/4</div><div id="dTask">Nenhuma ainda</div><div id="wTask">⚡ Energia: 100%</div><div id="bTask">Janelas: 0/4 barricadas</div><div id="ammoHud" style="display:none">🔫 Munição: 12</div><small>Conserte a tranca 4 vezes!</small></div><div id="vitals" class="p">CALMA <span id="sanityText">100%</span><div id="sanityBar"><div id="sanityFill"></div></div>🔦 <span id="battText">100%</span><div id="battBar"><div id="battFill"></div></div>Não confie no pato.</div><div id="cross"></div><div id="toast"></div><div id="bottom"><div id="prompt"></div><div id="hint">WASD mover · E interagir · F lanterna · V câmera · G atirar · H respirar · Space pular</div></div></div>
 <div id="ctrl">
   <div id="dpad">
     <div class="db" id="db-w" data-game-key="KeyW">▲</div>
@@ -41,8 +41,10 @@
 <div id="lurkWarn">⚠️ O PATO ESTÁ NA JANELA DO CORREDOR!<br><span id="lurkSecs" style="font-size:28px;font-weight:bold">15</span> segundos<br><small>🏃 Vá ao corredor e ligue a luz!</small></div>
 <div id="breathPanel"><div style="font-size:11px;color:#8ca0a8">🫁 RESPIRAÇÃO — segure H para conter</div><div id="breathTrack"><div id="breathFill"></div></div><button id="breathBtn" style="background:rgba(80,160,180,.35);border:1px solid rgba(100,180,200,.5);border-radius:6px;padding:8px 20px;color:#fff;cursor:pointer;font-size:13px">🫁 CONTER</button></div>
 <div id="bloodFlash" style="position:fixed;inset:0;background:#8b0000;opacity:0;z-index:5;pointer-events:none;"></div>
+<div id="dayOverlay" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);text-align:center;z-index:3;pointer-events:auto"><div style="background:#0a1830e0;border:1px solid #4a8a60;border-radius:12px;padding:10px 24px"><div style="font-size:10px;color:#88dd99;letter-spacing:2px">PREPARAÇÃO — COLETE KITS FORA DA FÁBRICA</div><div id="phaseTimerText" style="font-size:36px;font-weight:bold;color:#88ffaa;text-shadow:0 0 10px #44aa66">06:00</div><button id="skipDay" style="margin-top:5px;padding:7px 16px;background:#cc4400;color:#fff;border:0;border-radius:7px;cursor:pointer;font-size:13px;font-weight:bold">▶▶ PULAR PARA A NOITE</button></div></div>
+<div id="nightOverlay" style="display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);text-align:center;z-index:3;pointer-events:none"><div style="background:#1a0505e0;border:1px solid #993333;border-radius:12px;padding:10px 24px"><div style="font-size:10px;color:#dd8888;letter-spacing:2px">🌑 SOBREVIVER ATÉ O AMANHECER</div><div id="nightTimerText" style="font-size:36px;font-weight:bold;color:#ff6644;text-shadow:0 0 10px #880000">06:00</div></div></div>
 <div id="introOv"><div id="introText"></div><div id="introSkip">[ toque para pular ]</div></div>
-<div id="overlay"><div id="card"><small>UMA FÁBRICA · UM PATO ASSASSINO</small><h1>TURNO DA<br>MADRUGADA</h1><p>Conserte as máquinas e mantenha o gerador funcionando. Se a energia acabar, o pato pode invadir pelas janelas. Não deixe aquilo te achar.</p><button id="start">COMEÇAR A NOITE</button><div class="small"><br>WASD ou botões para andar · Arraste o mouse para olhar · E interagir/barricar janelas<br>F lanterna · V alternar câmera · Space pular · Shift correr</div></div></div>
+<div id="overlay"><div id="card"><small>UMA FÁBRICA · UM PATO ASSASSINO</small><h1>TURNO DA<br>MADRUGADA</h1><p>Mantenha o gerador funcionando e conserte a tranca da porta. Se a tranca quebrar, a porta abre e aranhas entram. Não deixe aquilo te achar.</p><button id="start">COMEÇAR A NOITE</button><div class="small"><br>WASD ou botões para andar · Arraste o mouse para olhar · E interagir/barricar janelas<br>F lanterna · V alternar câmera · Space pular · Shift correr</div></div></div>
 <script type="module">
 import * as T from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const $=s=>document.querySelector(s),scene=new T.Scene();scene.background=new T.Color(0x020408);scene.fog=new T.Fog(0x020408,18,48);
@@ -134,10 +136,12 @@ cube(gate,0,6.55,0,9.3,.22,.9,rusty);
 for(let x of [-4.7,4.7]){cube(scene,x,6.5,-11.4,.3,.35,1.2,yellow);}
 
 // === CORREDOR LESTE (x=7 até parede x=9.72, z=-1 a z=5) ===
-// Parede divisória — segmento norte (z=-1 a z=1.2, gap doorway z=1.2 a z=3.5)
-cube(scene,7,5,-0.1,.22,10,2.2,darkMetal);
-// Segmento sul da divisória (z=3.5 a z=5.5)
-cube(scene,7,5,4.5,.22,10,2.0,darkMetal);
+// Parede divisória — corredor estreito (entrada z=1 a z=3.5)
+cube(scene,7,5,-5,.22,10,6,darkMetal);       // segmento norte (z=-11 a z=1)
+cube(scene,7,5,7.25,.22,10,3.75,darkMetal);  // segmento sul (z=3.5 a z=11)
+// Paredes laterais que fecham o corredor
+cube(scene,8.25,5,1,1.25,10,.12,darkMetal);   // parede norte do corredor
+cube(scene,8.25,5,3.5,1.25,10,.12,darkMetal); // parede sul do corredor
 // Faixa de piso para indicar a área
 cube(scene,8.4,.01,2.3,.3,.025,4.0,mat(0xcc6600,.6,.2));
 
@@ -158,41 +162,29 @@ const lurkShadow=new T.Mesh(new T.BoxGeometry(.18,2.6,3.5),mat(0x020203,.95,0));
 lurkShadow.position.set(9.88,5,lurkWz);lurkShadow.visible=false;scene.add(lurkShadow);
 
 // Painel do interruptor de luz no corredor
-const switchPanel=new T.Group();switchPanel.position.set(8.2,2.5,4.4);scene.add(switchPanel);
+const switchPanel=new T.Group();switchPanel.position.set(8.5,2.5,2.8);scene.add(switchPanel);
 cube(switchPanel,0,0,0,.08,.5,.4,darkMetal);
 cube(switchPanel,0,.08,0,.06,.16,.18,mat(0xddcc44,.5,.3));
 const switchGlow=new T.PointLight(0xddcc44,1.0,2.5);switchGlow.position.set(0,.2,.3);switchPanel.add(switchGlow);
 
-// === ESCONDERIJOS ===
-// 1) Armário metálico (parede oeste)
-const locker=new T.Group();locker.position.set(-8.2,0,2);scene.add(locker);
-cube(locker,0,1.5,0,.85,3.0,.52,mat(0x2a3540,.8,.4));
-cube(locker,0,1.5,.28,.8,2.9,.03,mat(0x1c262e,.9,.6));
-cube(locker,.22,1.5,.32,.07,.28,.06,yellow);
-const lockerLight=new T.PointLight(0x4b6fa5,.6,2.5);lockerLight.position.set(0,2.0,.6);locker.add(lockerLight);
-
-// 2) Pilha de caixas (perto da porta norte)
+// === ESCONDERIJO ===
+// Pilha de caixas (perto da porta norte)
 const crateG=new T.Group();crateG.position.set(4.5,0,-9);scene.add(crateG);
 cube(crateG,0,.55,0,1.1,1.1,1.1,wood);
 cube(crateG,.85,.4,.4,.9,.9,.9,mat(0x7a5c3e,.85,0));
 cube(crateG,-.3,.5,-.5,.8,.8,.8,wood);
 
-// 3) Prateleira lateral (parede norte interior)
-const shelf=new T.Group();shelf.position.set(-3,0,8);scene.add(shelf);
-cube(shelf,0,1.5,0,1.6,3.0,.35,mat(0x3d2e1e,.9,.2));
-for(let sy of [.4,1.0,1.6,2.2]) cube(shelf,0,sy,.2,1.5,.08,.6,mat(0x4a3828,.9,0));
-
-// Martelo — pickup para barricar janelas
-const hammerObj=new T.Group();hammerObj.position.set(6,.5,2);scene.add(hammerObj);
-cube(hammerObj,0,0,0,.08,.5,.08,mat(0x8b6914,.8,0));
-cube(hammerObj,0,.28,0,.28,.18,.12,mat(0x596467,.4,.8));
-const hammerGlow=new T.PointLight(0xd9c08c,1.8,2.2);hammerGlow.position.set(0,.5,0);hammerObj.add(hammerGlow);
-
-// Pistola — pickup para matar aranhas
-const pistolObj=new T.Group();pistolObj.position.set(-6,.4,-3);scene.add(pistolObj);
-cube(pistolObj,0,.1,0,.22,.28,.08,mat(0x2a2a2a,.8,.4));
-cube(pistolObj,.12,.2,0,.26,.1,.06,mat(0x2a2a2a,.8,.4));
-const pistolGlow=new T.PointLight(0xff8844,1.8,2.2);pistolGlow.position.set(0,.4,0);pistolObj.add(pistolGlow);
+// Gaveta — contém martelo e pistola
+const gavetaObj=new T.Group();gavetaObj.position.set(-8.5,0,8);scene.add(gavetaObj);
+cube(gavetaObj,0,1.0,0,1.0,2.0,.65,mat(0x3d3020,.85,.2));
+cube(gavetaObj,0,1.42,.34,.88,.76,.05,mat(0x2a2015,.9,.1));
+cube(gavetaObj,0,.62,.34,.88,.76,.05,mat(0x2a2015,.9,.1));
+cube(gavetaObj,0,1.42,.38,.22,.07,.05,mat(0xb89050,.35,.8));
+cube(gavetaObj,0,.62,.38,.22,.07,.05,mat(0xb89050,.35,.8));
+const gavetaGlow=new T.PointLight(0xd9c08c,2.0,3.0);gavetaGlow.position.set(0,2.2,.5);gavetaObj.add(gavetaGlow);
+let gavetaOpened=false;
+const hammerObj=new T.Group();hammerObj.visible=false;scene.add(hammerObj);
+const pistolObj=new T.Group();pistolObj.visible=false;scene.add(pistolObj);
 
 // Machine construction: rounded-ish housing, vents, screens, gauges, warning lights,
 // exposed pipework and feet to avoid the previous plain cube appearance.
@@ -230,40 +222,18 @@ function makeMachine(x,z,name,color){
   const light=new T.PointLight(color,2.0,5);light.position.set(0,2.6,1.2);g.add(light);
   machines.push({x,z,name,group:g,done:false,light});
 }
-makeMachine(-6,-6,"GERADOR",0x35aaff);
-makeMachine(6,-6,"ESTEIRA",0xffaa22);
-makeMachine(-6,6,"COMPRESSOR",0xff3333);
-makeMachine(6,6,"PAINEL ELÉTRICO",0x33ff88);
+makeMachine(-7.75,-3,"GERADOR",0x35aaff);
+makeMachine(6.5,-10.5,"TRANCA DA PORTA",0xff6633);
+const trancaMachine=machines[1];
+trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;
+// Kits fora da fábrica (coletáveis durante o dia)
+const kitA=new T.Group();kitA.position.set(3,0,-13.5);scene.add(kitA);
+cube(kitA,0,.35,0,.65,.7,.65,wood);cube(kitA,0,.75,0,.4,.08,.65,mat(0x888800,.5,.3));
+const kitAGlow=new T.PointLight(0x99dd44,2.0,3);kitAGlow.position.set(0,1.2,0);kitA.add(kitAGlow);
+const kitB=new T.Group();kitB.position.set(-3,0,-13.5);scene.add(kitB);
+cube(kitB,0,.35,0,.65,.7,.65,mat(0x5c3a1e,.85,.1));cube(kitB,0,.75,0,.35,.08,.55,mat(0x6cb8e8,.4,.6));
+const kitBGlow=new T.PointLight(0x6cb8e8,2.0,3);kitBGlow.position.set(0,1.2,0);kitB.add(kitBGlow);
 
-// Detailed conveyor belt with rollers, rubber tread and side rails
-for(let z of [-5,5]){
-  cube(scene,0,1,z,12,.55,2,darkMetal);
-  cube(scene,0,1.34,z,11.6,.12,1.72,mat(0x25292a,.95));
-  cube(scene,0,1.55,z-0.95,12,.18,.16,metal);
-  cube(scene,0,1.55,z+0.95,12,.18,.16,metal);
-  for(let x=-5.5;x<=5.5;x+=.65){
-    const roller=new T.Mesh(new T.CylinderGeometry(.13,.13,1.72,12),metal);
-    roller.rotation.z=Math.PI/2;roller.position.set(x,1.36,z);scene.add(roller);
-    cube(scene,x,1.43,z,.38,.035,1.62,mat(0x3d4141,.95));
-  }
-  // chevron-like tread segments
-  for(let x=-5.4;x<=5.4;x+=.48){
-    cube(scene,x,1.48,z,.08,.035,1.55,mat(0x555b5b,.9));
-  }
-}
-
-// Debris, broken pallets, oil drums and scrap with controlled placement
-for(let i=0;i<18;i++){
-  const rx=(Math.random()-.5)*16,rz=(Math.random()-.5)*19;
-  if(Math.abs(rx)<2.2 && Math.abs(rz)<2.5) continue;
-  const crate=cube(scene,rx,.35+Math.random()*.25,rz,.65+Math.random()*.45,.7+Math.random()*.5,.65+Math.random()*.4,rusty);
-  crate.rotation.y=Math.random()*Math.PI;
-}
-for(let i=0;i<5;i++){
-  const drum=new T.Mesh(new T.CylinderGeometry(.38,.38,1.05,16),mat(0x343c40,.65,.65));
-  drum.position.set(-8+i*.7,.55,2.5);scene.add(drum);
-  for(let y of [.2,.8]){const band=new T.Mesh(new T.TorusGeometry(.39,.035,8,24),rusty);band.position.set(-8+i*.7,y,2.5);band.rotation.x=Math.PI/2;scene.add(band);}
-}
 // ===== COLISÃO DO JOGADOR =====
 // A câmera representa o jogador; colisões são calculadas no plano X/Z.
 const playerRadius=.38;
@@ -273,6 +243,7 @@ function addCollisionBox(cx,cz,hx,hz){
 }
 function playerBlocked(px,pz){
   for(const b of collisionBoxes){
+    if(b.isDoor&&doorAnimY>3) continue;
     const closestX=Math.max(b.cx-b.hx,Math.min(px,b.cx+b.hx));
     const closestZ=Math.max(b.cz-b.hz,Math.min(pz,b.cz+b.hz));
     const dx=px-closestX,dz=pz-closestZ;
@@ -287,21 +258,17 @@ for(const px of [-9,-5,0,5,9]){
   for(const pz of [-9,-5,0,5,9]) addCollisionBox(px,pz,.42,.46);
 }
 // Gate and its side frames
-addCollisionBox(0,-11.12,3.95,.28);
+collisionBoxes.push({cx:0,cz:-11.12,hx:3.95,hz:.28,isDoor:true});
 addCollisionBox(-4.25,-11.12,.34,.42);
 addCollisionBox(4.25,-11.12,.34,.42);
-// Barrels
-for(let i=0;i<5;i++) addCollisionBox(-8+i*.7,2.5,.42,.42);
-// Esteiras
-addCollisionBox(0,-5,5.7,.95);
-addCollisionBox(0,5,5.7,.95);
-// Paredes do corredor leste
-addCollisionBox(7,-0.1,.18,1.1); // segmento norte da divisória
-addCollisionBox(7,4.5,.18,1.0);  // segmento sul da divisória
-// Esconderijos (colisão física)
-addCollisionBox(-8.2,2,.52,.35); // armário
-addCollisionBox(4.5,-9,.8,.7);   // caixas
-addCollisionBox(-3,8,.95,.3);    // prateleira
+addCollisionBox(-8.5,8,.55,.4);      // gaveta
+// Divisória do corredor leste
+addCollisionBox(7,-5,.22,6);         // segmento norte
+addCollisionBox(7,7.25,.22,3.75);    // segmento sul
+addCollisionBox(8.25,1,1.25,.15);    // parede norte do corredor
+addCollisionBox(8.25,3.5,1.25,.15);  // parede sul do corredor
+// Esconderijo (caixas)
+addCollisionBox(4.5,-9,.8,.7);
 
 // flashlight
 const flash=new T.SpotLight(0xe7f3ff,105,38,Math.PI/5,.32,1.25);camera.add(flash);flash.target.position.set(0,0,-1);camera.add(flash.target);scene.add(camera);let flashOn=true;
@@ -352,29 +319,33 @@ const pArmL=cube(playerBody,-.38,.92,0,.22,.72,.22,shirtC);
 const pArmR=cube(playerBody,.38,.92,0,.22,.72,.22,shirtC);
 const pLegL=cube(playerBody,-.13,.35,0,.2,.68,.22,pantsC);
 const pLegR=cube(playerBody,.13,.35,0,.2,.68,.22,pantsC);
-const flashlightTarget=new T.Vector3();const playerPos=new T.Vector3(0,0,7);let velY=0,onGround=true,camShake=0,thirdPerson=true;let gen=100,elapsed=0,started=false,locked=false,active=false,hidden=false,hideNow=null,sanity=100,toastT=0,gameOver=false,monsterDist=99,currentMachine=null,repairs=0,outageTime=0,nextMachineBreak=10,generatorRepairCooldown=0,flashBattery=100,boardCount=0,boardAttackTarget=null,boardAttackTimer=0;let hasHammer=false,hasPistol=false,ammo=12,shootCooldown=0;let doorOpen=false,doorTimer=50,doorAnimY=0,spiderSpawnTimer=0;let walkPhase=0;const spiders=[];let lurkActive=false,lurkTimer=65+Math.random()*35,lurkCountdown=0;let breathBar=0,breathFail=0;const hideSpots=[{x:-8.2,z:2,label:'ARMÁRIO'},{x:4.5,z:-9,label:'CAIXAS'},{x:-3,z:8,label:'PRATELEIRA'}];const keys={};let last=performance.now();
+const flashlightTarget=new T.Vector3();const playerPos=new T.Vector3(0,0,7);let velY=0,onGround=true,camShake=0,thirdPerson=true;let gen=100,elapsed=0,started=false,locked=false,active=false,hidden=false,hideNow=null,sanity=100,toastT=0,gameOver=false,monsterDist=99,currentMachine=null,repairs=0,outageTime=0,nextMachineBreak=10,generatorRepairCooldown=0,flashBattery=100,boardCount=0,boardAttackTarget=null,boardAttackTimer=0;let hasHammer=false,hasPistol=false,ammo=12,shootCooldown=0;let doorOpen=false,doorTimer=50,doorAnimY=0,spiderSpawnTimer=0;let dayPhase=true,phaseTimer=360,nightTimer=360,outsideKitA=false,outsideKitB=false;let walkPhase=0;const spiders=[];let lurkActive=false,lurkTimer=65+Math.random()*35,lurkCountdown=0;let breathBar=0,breathFail=0;const hideSpots=[{x:4.5,z:-9,label:'CAIXAS'}];const keys={};let last=performance.now();
 function say(t){$('#toast').textContent=t;$('#toast').style.opacity=1;toastT=2.5}
-function near(){let best=null,distance=3.5;for(const m of machines){const needs=m.name==='GERADOR'?(gen<100||repairs<4):!m.done;if(!needs)continue;const d=Math.hypot(playerPos.x-m.x,playerPos.z-m.z);if(d<distance){distance=d;best=m;}}return best;}
+function near(){let best=null,distance=3.5;for(const m of machines){const needs=m.name==='GERADOR'?gen<100:!m.done;if(!needs)continue;const d=Math.hypot(playerPos.x-m.x,playerPos.z-m.z);if(d<distance){distance=d;best=m;}}return best;}
 const batteries=[];
 function makeBattery(x,z){const g=new T.Group();g.position.set(x,0,z);scene.add(g);cube(g,0,.18,0,.22,.36,.14,mat(0x6cb8e8,.4,.6));cube(g,0,.38,0,.16,.08,.10,mat(0x222,.6,.8));const glow=new T.PointLight(0x6cb8e8,1.8,2.8);glow.position.set(0,.4,0);g.add(glow);batteries.push({x,z,group:g,taken:false});}
 makeBattery(3,3);makeBattery(-3,-3);makeBattery(7,-2);makeBattery(-7,2);
 function nearBattery(){for(const b of batteries){if(b.taken)continue;const d=Math.hypot(playerPos.x-b.x,playerPos.z-b.z);if(d<2.5)return b;}return null;}
 function pickupBattery(b){b.taken=true;b.group.visible=false;flashBattery=Math.min(100,flashBattery+60);if(!flashOn&&flashBattery>0){flashOn=true;flash.visible=true;}say('🔦 BATERIA ENCONTRADA! Lanterna recarregada!');}
-function nearSwitch(){return Math.hypot(playerPos.x-8.2,playerPos.z-4.4)<2.2;}
+function nearSwitch(){return Math.hypot(playerPos.x-8.5,playerPos.z-2.8)<2.2;}
 function activateSwitch(){if(!lurkActive){say('💡 Interruptor de luz. Use quando o pato estiver na janela!');return;}lurkActive=false;lurkGlow.intensity=0;lurkShadow.visible=false;lurkTimer=55+Math.random()*30;lurkCountdown=0;$('#lurkWarn').style.display='none';say('🔦 LUZ LIGADA! O pato fugiu da janela do corredor!');const bf=$('#bloodFlash');bf.style.transition='opacity .04s';bf.style.opacity='.25';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},100);camShake=.15;}
 function nearHide(){for(const h of hideSpots){if(Math.hypot(playerPos.x-h.x,playerPos.z-h.z)<1.9)return h;}return null;}
 function enterHide(h){hidden=true;hideNow=h;breathBar=20;breathFail=0;$('#breathPanel').style.display='flex';say('🫁 Escondido no '+h.label+'! Segure H para conter a respiração.');}
 function exitHide(){hidden=false;hideNow=null;breathBar=0;breathFail=0;$('#breathPanel').style.display='none';say('Saiu do esconderijo.');}
-function nearHammer(){return !hasHammer&&Math.hypot(playerPos.x-6,playerPos.z-2)<2.2;}
-function nearPistol(){return !hasPistol&&Math.hypot(playerPos.x-(-6),playerPos.z-(-3))<2.2;}
+function nearHammer(){return false;}
+function nearPistol(){return false;}
+function nearGaveta(){return !gavetaOpened&&Math.hypot(playerPos.x-(-8.5),playerPos.z-8)<2.2;}
+function startNight(){dayPhase=false;nightTimer=360;doorAnimY=0;doorOpen=false;doorTimer=30;$('#dayOverlay').style.display='none';$('#nightOverlay').style.display='';scene.background.set(0x111923);scene.fog.color.set(0x111923);say('🌑 A NOITE CAIU! Fique de olho no pato!');const bf=$('#bloodFlash');bf.style.transition='opacity .1s';bf.style.opacity='.45';setTimeout(()=>{bf.style.transition='opacity 2s';bf.style.opacity='0';},200);}
 function nearDoor(){return playerPos.z<-8.5&&Math.abs(playerPos.x)<5.5;}
 function makeSpider(x,z){const sg=new T.Group();sg.position.set(x,.3,z);const sm=mat(0x1a1a1a,.8,0);const body=new T.Mesh(new T.SphereGeometry(.28,8,6),sm);sg.add(body);for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2;const leg=new T.Mesh(new T.CylinderGeometry(.03,.02,.55,6),sm);leg.position.set(Math.cos(a)*.38,0,Math.sin(a)*.38);leg.rotation.z=Math.PI/2;sg.add(leg);}const eyes=new T.Mesh(new T.SphereGeometry(.06,6,6),mat(0xff2200,1,0));eyes.position.set(.12,.18,.22);sg.add(eyes);scene.add(sg);spiders.push({group:sg,alive:true,hp:3,attackTimer:0});}
 function shoot(){if(!hasPistol||ammo<=0||shootCooldown>0||!started||gameOver)return;ammo--;shootCooldown=0.4;const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(0,0),camera);const meshes=spiders.filter(s=>s.alive).flatMap(s=>Array.from(s.group.children));const hits=ray.intersectObjects(meshes,false);if(hits.length>0){const hit=hits[0].object;const sp=spiders.find(s=>s.alive&&s.group.children.includes(hit));if(sp){sp.hp--;camShake=.15;if(sp.hp<=0){sp.alive=false;sp.group.visible=false;say('🕷️ ARANHA ELIMINADA!');}else say('🕷️ ACERTOU! Vida: '+sp.hp);}else say('💥 BANG!');}else say('💨 Errou!');$('#ammoHud').textContent='🔫 Munição: '+ammo;}
-const introLines=['02:00 AM','A fábrica estava abandonada há anos.','Mas a empresa ainda pagava por uma noite de serviço.','Conserte as máquinas.\nMantenha o gerador funcionando.','Se a energia acabar...\naquilo vai entrar.','Não confie no pato.'];
-function playIntro(){const ov=$('#introOv');const txt=$('#introText');const sk=$('#introSkip');ov.style.display='flex';let i=0,done=false;function finish(){if(done)return;done=true;txt.style.opacity=0;setTimeout(()=>{ov.style.display='none';started=true;},900);}sk.addEventListener('click',finish);setTimeout(()=>{sk.style.opacity=1;},2000);function next(){if(done)return;if(i>=introLines.length){finish();return;}txt.style.opacity=0;setTimeout(()=>{txt.textContent=introLines[i++];txt.style.opacity=1;setTimeout(next,2300);},850);}next();}
+const introLines=['02:00 AM','A fábrica estava abandonada há anos.','Mas a empresa ainda pagava por uma noite de serviço.','Mantenha o gerador funcionando.\nConserte a tranca da porta.','Se a tranca quebrar...\naquela coisa vai entrar.','Não confie no pato.'];
+function playIntro(){const ov=$('#introOv');const txt=$('#introText');const sk=$('#introSkip');ov.style.display='flex';let i=0,done=false;function finish(){if(done)return;done=true;txt.style.opacity=0;setTimeout(()=>{ov.style.display='none';started=true;$('#dayOverlay').style.display='';},900);}sk.addEventListener('click',finish);setTimeout(()=>{sk.style.opacity=1;},2000);function next(){if(done)return;if(i>=introLines.length){finish();return;}txt.style.opacity=0;setTimeout(()=>{txt.textContent=introLines[i++];txt.style.opacity=1;setTimeout(next,2300);},850);}next();}
 function nearWindow(){for(const w of factoryWindows){const d=Math.hypot(playerPos.x-w.x,playerPos.z-w.z);if(d<2.8)return w;}return null;}
 function boardWindow(w){if(!hasHammer){say('🔨 Você precisa de um MARTELO para barricar!');return;}if(w.boarded){say('🪵 Janela já barricada (Vida: '+Math.round(w.boardStrength)+'%)');return;}w.boarded=true;w.boardStrength=100;boardCount++;const plankMat=new T.MeshStandardMaterial({color:0x8b6914,roughness:.9});const pg=new T.Group();scene.add(pg);pg.position.set(w.x+w.side*.12,5,w.z);const p1=new T.Mesh(new T.BoxGeometry(.12,.22,4.0),plankMat);p1.position.set(0,.8,0);pg.add(p1);const p2=new T.Mesh(new T.BoxGeometry(.12,.22,4.0),plankMat);p2.position.set(0,-.8,0);pg.add(p2);const p3=new T.Mesh(new T.BoxGeometry(.12,3.4,.22),plankMat);p3.position.set(0,0,-1.5);pg.add(p3);const p4=new T.Mesh(new T.BoxGeometry(.12,3.4,.22),plankMat);p4.position.set(0,0,1.5);pg.add(p4);w.planks=pg;$('#bTask').textContent='Janelas: '+boardCount+'/4 barricadas';say('🪵 JANELA BARRICADA! O bicho vai ter que arrombar!');}
-function use(){if(!started||gameOver)return;if(currentMachine)return;if(hidden){exitHide();return;}if(nearSwitch()){activateSwitch();return;}if(nearHammer()){hasHammer=true;hammerObj.visible=false;say('🔨 MARTELO ENCONTRADO! Agora você pode barricar janelas!');return;}if(nearPistol()){hasPistol=true;pistolObj.visible=false;ammo=12;$('#ammoHud').style.display='';$('#ammoHud').textContent='🔫 Munição: 12';$('#ab-shoot').style.display='';say('🔫 PISTOLA! G ou botão para atirar. Mata aranhas!');return;}const b=nearBattery();if(b){pickupBattery(b);return;}if(nearDoor()&&doorOpen){doorOpen=false;say('🚪 Porta fechada!');return;}const w=nearWindow();if(w&&!w.boarded){boardWindow(w);return;}const h=nearHide();if(h){enterHide(h);return;}const m=near();if(!m){say('Nada por aqui para interagir.');return;}currentMachine=m;openMinigame(m);}
+function use(){if(!started||gameOver)return;if(currentMachine)return;if(hidden){exitHide();return;}if(nearSwitch()){activateSwitch();return;}if(dayPhase&&!outsideKitA&&Math.hypot(playerPos.x-3,playerPos.z+13.5)<2.2){outsideKitA=true;kitA.visible=false;trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;say('🔧 KIT DE REPARO! Tranca da porta reforçada!');return;}
+if(dayPhase&&!outsideKitB&&Math.hypot(playerPos.x+3,playerPos.z+13.5)<2.2){outsideKitB=true;kitB.visible=false;flashBattery=Math.min(100,flashBattery+100);if(!flashOn&&flashBattery>0){flashOn=true;flash.visible=true;}say('🔦 KIT DE PILHAS! Lanterna totalmente recarregada!');return;}
+if(nearGaveta()){gavetaOpened=true;gavetaObj.children.forEach((c,i)=>{if(c.isPointLight)return;if(i===1)c.position.z=.9;if(i===2)c.position.z=.9;});hasHammer=true;hasPistol=true;ammo=12;$('#ammoHud').style.display='';$('#ammoHud').textContent='🔫 Munição: 12';$('#ab-shoot').style.display='';gavetaGlow.intensity=0;say('🔨🔫 GAVETA ABERTA! Martelo e pistola encontrados!');return;}const b=nearBattery();if(b){pickupBattery(b);return;}if(nearDoor()&&doorOpen){doorOpen=false;say('🚪 Porta fechada!');return;}const w=nearWindow();if(w&&!w.boarded){boardWindow(w);return;}const h=nearHide();if(h){enterHide(h);return;}const m=near();if(!m){say('Nada por aqui para interagir.');return;}currentMachine=m;openMinigame(m);}
 let yaw=0,pitch=0,dragLook=false,lastMouseX=0,lastMouseY=0;
 function turnCamera(dx,dy){
   yaw -= dx * 0.003;
@@ -411,6 +382,7 @@ window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;dragLook=f
 $('#start').addEventListener('click',e=>{
   e.preventDefault();$('#overlay').style.display='none';playIntro();
 });
+$('#skipDay').addEventListener('click',()=>{if(dayPhase)startNight();});
 renderer.domElement.addEventListener('click',()=>{if(hasPistol&&started&&!gameOver)shoot();});
 $('#ab-shoot').addEventListener('touchstart',e=>{e.preventDefault();shoot();},{passive:false});
 $('#ab-shoot').addEventListener('click',()=>shoot());
@@ -434,36 +406,38 @@ document.querySelectorAll('[data-game-key]').forEach(btn=>{
   btn.addEventListener('pointercancel',up);
 });
 const panel=document.createElement('div');panel.style.cssText='position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:#000d;color:white;font-family:Arial;';document.body.appendChild(panel);
-function openMinigame(m){panel.style.display='flex';let html=`<div style="background:#172126;border:2px solid #a58a50;border-radius:14px;padding:25px;width:90%;max-width:440px;text-align:center;"><h2>${m.name}</h2><div id="puzzle"></div><button id="closePuzzle" style="margin-top:10px;">FECHAR</button></div>`;panel.innerHTML=html;document.getElementById('closePuzzle').onclick=()=>{panel.style.display='none';currentMachine=null;};const puzzle=document.getElementById('puzzle');if(m.name==='GERADOR'){puzzle.innerHTML='<p>Reconecte os 6 fios na sequência: azul, vermelho, verde, amarelo, branco, roxo.</p><div id="wireButtons"></div><p id="wireStatus">Sequência: 0/6</p>';const colors=[['AZUL','#168cff'],['VERMELHO','#ff3333'],['VERDE','#22cc66'],['AMARELO','#e5c52c'],['BRANCO','#eeeeee'],['ROXO','#a85bdf']];let order=[];const buttons=document.getElementById('wireButtons');colors.forEach(([name,color])=>{const b=document.createElement('button');b.textContent=name;b.style.cssText=`margin:5px;padding:12px;background:${color};color:black;border:0;border-radius:6px;font-weight:bold;cursor:pointer;`;b.onclick=()=>{order.push(name);const correct=['AZUL','VERMELHO','VERDE','AMARELO','BRANCO','ROXO'];if(order.length===6){if(order.every((v,i)=>v===correct[i])){finishMachine(m);}else{order=[];document.getElementById('wireStatus').textContent='Errado! Tente novamente.';}}else{document.getElementById('wireStatus').textContent='Fios conectados: '+order.length+'/6';}};buttons.appendChild(b);});}else if(m.name==='ESTEIRA'){let rotations=0;puzzle.innerHTML='<p>Gire a engrenagem 8 vezes para alinhar o mecanismo!</p><h1 id="gear">⚙️</h1><button id="rotate" style="padding:12px 20px;border:0;border-radius:6px;font-weight:bold;cursor:pointer;">GIRAR ENGRENAGEM</button>';document.getElementById('rotate').onclick=()=>{rotations++;document.getElementById('gear').style.transform=`rotate(${rotations*90}deg)`;if(rotations>=8)finishMachine(m);};}else if(m.name==='COMPRESSOR'){let value=0,direction=1;puzzle.innerHTML='<p>Pressione quando o medidor estiver entre 40%-60%!</p><h1 id="gauge">0%</h1><button id="press" style="padding:12px 20px;border:0;border-radius:6px;font-weight:bold;cursor:pointer;">LIBERAR PRESSÃO</button>';const timer=setInterval(()=>{value+=direction*5;if(value>=100||value<=0)direction*=-1;const gauge=document.getElementById('gauge');if(gauge)gauge.textContent=value+'%';},100);document.getElementById('press').onclick=()=>{if(value>=48&&value<=52){clearInterval(timer);finishMachine(m);}else{say('Pressão fora do ponto!');}};document.getElementById('closePuzzle').addEventListener('click',()=>clearInterval(timer));}else if(m.name==='PAINEL ELÉTRICO'){let count=0;puzzle.innerHTML='<p>Ligue os 6 circuitos sem errar a ordem!</p><div id="circuits"></div><p id="circuitStatus">0/6 ligados</p>'; const area=document.getElementById('circuits');for(let i=0;i<6;i++){const b=document.createElement('button');b.textContent='⚡ DESLIGADO';b.style.cssText='margin:6px;padding:10px;border:0;border-radius:6px;font-weight:bold;cursor:pointer;';b.onclick=()=>{if(b.dataset.on==='1')return;b.dataset.on='1';b.textContent='⚡ LIGADO';b.style.background='#33cc77';count++;document.getElementById('circuitStatus').textContent=count+'/6 ligados';if(count===6)finishMachine(m);};area.appendChild(b);}}}
-function finishMachine(m){if(m.name==='GERADOR'){gen=Math.min(100,gen+65);outageTime=0;nextMachineBreak=10;active=false;monster.visible=false;say('GERADOR REINICIADO! ENERGIA RESTAURADA!');}else{m.done=true;m.light.color.set(0x33ff66);m.light.intensity=3;repairs++;say(m.name+' CONSERTADO!');}panel.style.display='none';currentMachine=null;if(repairs===4){say('TODAS AS MÁQUINAS FORAM CONSERTADAS! VOCÊ SOBREVIVEU!');}}
+function openMinigame(m){panel.style.display='flex';let html=`<div style="background:#172126;border:2px solid #a58a50;border-radius:14px;padding:25px;width:90%;max-width:440px;text-align:center;"><h2>${m.name}</h2><div id="puzzle"></div><button id="closePuzzle" style="margin-top:10px;">FECHAR</button></div>`;panel.innerHTML=html;document.getElementById('closePuzzle').onclick=()=>{panel.style.display='none';currentMachine=null;};const puzzle=document.getElementById('puzzle');if(m.name==='GERADOR'){puzzle.innerHTML='<p>Reconecte os 6 fios na sequência: azul, vermelho, verde, amarelo, branco, roxo.</p><div id="wireButtons"></div><p id="wireStatus">Sequência: 0/6</p>';const colors=[['AZUL','#168cff'],['VERMELHO','#ff3333'],['VERDE','#22cc66'],['AMARELO','#e5c52c'],['BRANCO','#eeeeee'],['ROXO','#a85bdf']];let order=[];const buttons=document.getElementById('wireButtons');colors.forEach(([name,color])=>{const b=document.createElement('button');b.textContent=name;b.style.cssText=`margin:5px;padding:12px;background:${color};color:black;border:0;border-radius:6px;font-weight:bold;cursor:pointer;`;b.onclick=()=>{order.push(name);const correct=['AZUL','VERMELHO','VERDE','AMARELO','BRANCO','ROXO'];if(order.length===6){if(order.every((v,i)=>v===correct[i])){finishMachine(m);}else{order=[];document.getElementById('wireStatus').textContent='Errado! Tente novamente.';}}else{document.getElementById('wireStatus').textContent='Fios conectados: '+order.length+'/6';}};buttons.appendChild(b);});}else if(m.name==='TRANCA DA PORTA'){let pressed=[];const seq=[2,0,3,1];puzzle.innerHTML='<p>Recoloque os 4 parafusos na ordem correta!<br><small style="color:#aaa">Dica: cima-esquerda → baixo-direita → baixo-esquerda → cima-direita</small></p><div id="bolts" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:200px;margin:16px auto"></div><p id="boltStatus">Parafusos: 0/4</p>';const labels=['↖ Cima-Esq','↗ Cima-Dir','↙ Baixo-Esq','↘ Baixo-Dir'];const area=document.getElementById('bolts');const btns=[];for(let i=0;i<4;i++){const b=document.createElement('button');b.textContent=labels[i];b.style.cssText='padding:14px;border:0;border-radius:8px;background:#334;color:#ccc;font-weight:bold;cursor:pointer;';b.onclick=()=>{if(b.dataset.done)return;if(seq[pressed.length]===i){b.dataset.done='1';b.style.background='#2a7a3a';b.style.color='#fff';b.textContent='✔ '+labels[i];pressed.push(i);document.getElementById('boltStatus').textContent='Parafusos: '+pressed.length+'/4';if(pressed.length===4)finishMachine(m);}else{pressed=[];btns.forEach(x=>{x.removeAttribute('data-done');x.style.background='#334';x.style.color='#ccc';x.textContent=labels[btns.indexOf(x)];});document.getElementById('boltStatus').textContent='Errado! Tente de novo.';}};btns.push(b);area.appendChild(b);}}}
+function finishMachine(m){if(m.name==='GERADOR'){gen=Math.min(100,gen+65);outageTime=0;nextMachineBreak=10;active=false;monster.visible=false;say('⚡ GERADOR REINICIADO! ENERGIA RESTAURADA!');}else if(m.name==='TRANCA DA PORTA'){m.done=true;m.light.color.set(0x33ff66);m.light.intensity=3;repairs++;doorOpen=false;doorTimer=30;say('🔒 TRANCA REPOSTA! Porta fechada!');}panel.style.display='none';currentMachine=null;}
 function lose(){gameOver=true;document.exitPointerLock?.();$('#overlay').style.display='flex';$('#card').innerHTML='<small>FIM DE JOGO</small><h1>O PATO<br>TE ACHOU</h1><p>Você ouviu um grasnado atrás de você...</p><button onclick="location.reload()">TENTAR NOVAMENTE</button>'}
 const fwd=new T.Vector3(),right=new T.Vector3(),move=new T.Vector3();
-function animate(now){requestAnimationFrame(animate);let dt=Math.min((now-last)/1000,.05);last=now;if(started&&!gameOver){elapsed+=dt;let mins=Math.min(360,Math.floor(elapsed/10));$('#clock').textContent=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');gen=Math.max(0,gen-dt*.42);$('#powerText').textContent=Math.round(gen)+'%';$('#powerFill').style.width=gen+'%';let on=gen>0;for(let l of lamps)l.intensity=on?12:0;scene.background.set(on?0x111923:0x010104);scene.fog.color.set(on?0x111923:0x010104);$('#lightText').textContent='LUZES: '+(on?'LIGADAS':'APAGADAS');if(!on&&!active&&!boardAttackTarget){const unboarded=factoryWindows.filter(w=>!w.boarded);if(unboarded.length>0){active=true;const entrance=unboarded[Math.floor(Math.random()*unboarded.length)];monster.visible=true;monster.position.set(entrance.x+entrance.side*1.2,0,entrance.z);say('💀 TEM ALGO ARROMBANDO A JANELA!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=.6;}else if(boardCount>0){boardAttackTarget=factoryWindows.filter(w=>w.boarded)[Math.floor(Math.random()*boardCount)];boardAttackTimer=0;say('🪵 O BICHO ESTÁ ARROMBANDO A MADEIRA!');camShake=.3;}}
-if(boardAttackTarget){boardAttackTimer+=dt;if(boardAttackTimer>=3){boardAttackTimer=0;boardAttackTarget.boardStrength=Math.max(0,boardAttackTarget.boardStrength-25);camShake=.4;$('#bTask').textContent='Janelas: '+boardCount+'/4 barricadas';if(boardAttackTarget.boardStrength<=0){boardAttackTarget.boarded=false;boardCount=Math.max(0,boardCount-1);if(boardAttackTarget.planks){scene.remove(boardAttackTarget.planks);boardAttackTarget.planks=null;}say('💀 O BICHO ARROMBOU A MADEIRA! ELE ENTROU!');active=true;monster.visible=true;monster.position.set(boardAttackTarget.x+boardAttackTarget.side*1.2,0,boardAttackTarget.z);const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=1.0;boardAttackTarget=null;}else{say('🪵 MADEIRA SENDO ARROMBADA! Vida: '+Math.round(boardAttackTarget.boardStrength)+'%');}}}
+function animate(now){requestAnimationFrame(animate);let dt=Math.min((now-last)/1000,.05);last=now;if(started&&!gameOver){elapsed+=dt;let mins=Math.min(360,Math.floor(elapsed/10));$('#clock').textContent=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');gen=Math.max(0,gen-dt*.42);$('#powerText').textContent=Math.round(gen)+'%';$('#powerFill').style.width=gen+'%';
+if(dayPhase){phaseTimer=Math.max(0,phaseTimer-dt);const pm=Math.floor(phaseTimer/60),ps=Math.floor(phaseTimer%60);$('#phaseTimerText').textContent=String(pm).padStart(2,'0')+':'+String(ps).padStart(2,'0');if(phaseTimer<=0)startNight();for(let l of lamps)l.intensity=22;scene.background.set(0x1f2e44);scene.fog.color.set(0x1f2e44);$('#lightText').textContent='☀ PREPARAÇÃO';doorAnimY=Math.min(doorAnimY+dt*4,6);gate.position.y=doorAnimY;}else{nightTimer=Math.max(0,nightTimer-dt);const nm=Math.floor(nightTimer/60),ns=Math.floor(nightTimer%60);$('#nightTimerText').textContent=String(nm).padStart(2,'0')+':'+String(ns).padStart(2,'0');if(nightTimer<=0){say('🌅 AMANHECER! VOCÊ SOBREVIVEU A NOITE!');setTimeout(()=>{gameOver=true;$('#overlay').style.display='flex';$('#card').innerHTML='<small>VITÓRIA</small><h1>VOCÊ<br>SOBREVIVEU</h1><p>O amanhecer chegou. Você resistiu a noite toda.</p><button onclick="location.reload()">JOGAR DE NOVO</button>';},2000);}let on=gen>0;for(let l of lamps)l.intensity=on?12:0;scene.background.set(on?0x111923:0x010104);scene.fog.color.set(on?0x111923:0x010104);$('#lightText').textContent='LUZES: '+(on?'LIGADAS':'APAGADAS');}
+if(!dayPhase&&!gen&&!active&&!boardAttackTarget){const unboarded=factoryWindows.filter(w=>!w.boarded);if(unboarded.length>0){active=true;const entrance=unboarded[Math.floor(Math.random()*unboarded.length)];monster.visible=true;monster.position.set(entrance.x+entrance.side*1.2,0,entrance.z);say('💀 TEM ALGO ARROMBANDO A JANELA!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=.6;}else if(boardCount>0){boardAttackTarget=factoryWindows.filter(w=>w.boarded)[Math.floor(Math.random()*boardCount)];boardAttackTimer=0;say('🪵 O BICHO ESTÁ ARROMBANDO A MADEIRA!');camShake=.3;}}
+if(!dayPhase&&boardAttackTarget){boardAttackTimer+=dt;if(boardAttackTimer>=3){boardAttackTimer=0;boardAttackTarget.boardStrength=Math.max(0,boardAttackTarget.boardStrength-25);camShake=.4;$('#bTask').textContent='Janelas: '+boardCount+'/4 barricadas';if(boardAttackTarget.boardStrength<=0){boardAttackTarget.boarded=false;boardCount=Math.max(0,boardCount-1);if(boardAttackTarget.planks){scene.remove(boardAttackTarget.planks);boardAttackTarget.planks=null;}say('💀 O BICHO ARROMBOU A MADEIRA! ELE ENTROU!');active=true;monster.visible=true;monster.position.set(boardAttackTarget.x+boardAttackTarget.side*1.2,0,boardAttackTarget.z);const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=1.0;boardAttackTarget=null;}else{say('🪵 MADEIRA SENDO ARROMBADA! Vida: '+Math.round(boardAttackTarget.boardStrength)+'%');}}}
 // Evento lurk — pato na janela do corredor
-lurkTimer-=dt;
-if(!lurkActive&&lurkTimer<=0&&!active){lurkActive=true;lurkCountdown=15;lurkGlow.intensity=3.2;lurkShadow.visible=true;$('#lurkWarn').style.display='block';say('⚠️ O PATO ESTÁ NA JANELA DO CORREDOR! LIGUE A LUZ!');}
-if(lurkActive){lurkCountdown-=dt;lurkGlow.intensity=2.5+Math.sin(elapsed*7)*.9;$('#lurkSecs').textContent=Math.ceil(lurkCountdown);if(lurkCountdown<=0){lurkActive=false;lurkGlow.intensity=0;lurkShadow.visible=false;lurkTimer=55+Math.random()*30;$('#lurkWarn').style.display='none';if(!active){active=true;monster.visible=true;monster.position.set(lurkWx-1.5,0,lurkWz);say('💀 O PATO ENTROU PELO CORREDOR!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.85';setTimeout(()=>{bf.style.transition='opacity .7s';bf.style.opacity='0';},130);camShake=.9;}}}
-if(gen<=0){outageTime+=dt;if(outageTime>=nextMachineBreak){const repaired=machines.filter(m=>m.done);if(repaired.length>0){const mr=repaired[Math.floor(Math.random()*repaired.length)];mr.done=false;repairs=Math.max(0,repairs-1);say('⚠️ A MÁQUINA '+mr.name+' QUEBROU!');}else{say('⚠️ A FÁBRICA ESTÁ SEM ENERGIA!');}nextMachineBreak+=10;}}else{outageTime=0;nextMachineBreak=10;}
+if(!dayPhase)lurkTimer-=dt;
+if(!dayPhase&&!lurkActive&&lurkTimer<=0&&!active){lurkActive=true;lurkCountdown=15;lurkGlow.intensity=3.2;lurkShadow.visible=true;$('#lurkWarn').style.display='block';say('⚠️ O PATO ESTÁ NA JANELA DO CORREDOR! LIGUE A LUZ!');}
+if(!dayPhase&&lurkActive){lurkCountdown-=dt;lurkGlow.intensity=2.5+Math.sin(elapsed*7)*.9;$('#lurkSecs').textContent=Math.ceil(lurkCountdown);if(lurkCountdown<=0){lurkActive=false;lurkGlow.intensity=0;lurkShadow.visible=false;lurkTimer=55+Math.random()*30;$('#lurkWarn').style.display='none';if(!active){active=true;monster.visible=true;monster.position.set(lurkWx-1.5,0,lurkWz);say('💀 O PATO ENTROU PELO CORREDOR!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.85';setTimeout(()=>{bf.style.transition='opacity .7s';bf.style.opacity='0';},130);camShake=.9;}}}
+if(gen<=0){outageTime+=dt;if(outageTime>=nextMachineBreak){const repaired=machines.filter(m=>m.done);if(repaired.length>0){const mr=repaired[Math.floor(Math.random()*repaired.length)];mr.done=false;say('⚠️ A MÁQUINA '+mr.name+' QUEBROU!');}else{say('⚠️ A FÁBRICA ESTÁ SEM ENERGIA!');}nextMachineBreak+=10;}}else{outageTime=0;nextMachineBreak=10;}
 if(shootCooldown>0)shootCooldown=Math.max(0,shootCooldown-dt);
-// Porta abre aleatoriamente
-if(!doorOpen){doorTimer-=dt;if(doorTimer<=0){doorOpen=true;doorTimer=35+Math.random()*40;say('🚪 A PORTA ABRIU SOZINHA! Feche antes que entre algo!');camShake=.25;}}
+// Porta abre só quando a Tranca está quebrada (apenas durante a noite)
+if(!dayPhase){if(trancaMachine&&!trancaMachine.done){if(!doorOpen){doorTimer-=dt;if(doorTimer<=0){doorOpen=true;doorTimer=20+Math.random()*20;say('🔓 TRANCA QUEBRADA! A PORTA ABRIU! Conserte a tranca!');camShake=.35;}}}else if(doorOpen){doorOpen=false;doorTimer=30;say('🔒 Porta trancada automaticamente.');}
 doorAnimY=doorOpen?Math.min(doorAnimY+dt*4,6):Math.max(doorAnimY-dt*4,0);gate.position.y=doorAnimY;
-// Spawn de aranhas pela porta aberta
-if(doorOpen){spiderSpawnTimer+=dt;if(spiderSpawnTimer>=22){spiderSpawnTimer=0;makeSpider((Math.random()-.5)*3,-10.5);say('🕷️ UMA ARANHA ENTROU PELA PORTA!');}}else{spiderSpawnTimer=0;}
+// Spawn de aranhas e pato pela porta aberta
+if(doorOpen){spiderSpawnTimer+=dt;if(spiderSpawnTimer>=18){spiderSpawnTimer=0;makeSpider((Math.random()-.5)*3,-10.5);say('🕷️ UMA ARANHA ENTROU PELA PORTA!');if(!active&&Math.random()<0.35){active=true;monster.visible=true;monster.position.set(0,0,-12);say('💀 O PATO ENTROU PELA PORTA!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=.6;}}}else{spiderSpawnTimer=0;}}
 // Mover aranhas e atacar jogador
 for(const sp of spiders){if(!sp.alive)continue;const dx=playerPos.x-sp.group.position.x;const dz=playerPos.z-sp.group.position.z;const dist=Math.hypot(dx,dz);if(dist>0.6){sp.group.position.x+=dx/dist*dt*2.4;sp.group.position.z+=dz/dist*dt*2.4;sp.group.rotation.y=Math.atan2(dx,dz);sp.group.children.forEach((c,i)=>{if(i>0&&i<=8)c.rotation.x=Math.sin(elapsed*10+i)*.35;});}if(dist<1.1){sp.attackTimer+=dt;if(sp.attackTimer>=0.6){sp.attackTimer=0;sanity=Math.max(0,sanity-14);camShake=.3;say('🕷️ A ARANHA TE MORDEU!');if(sanity<=0)lose();}}}
 camera.getWorldDirection(fwd);fwd.y=0;fwd.normalize();right.crossVectors(fwd,new T.Vector3(0,1,0)).normalize();move.set(0,0,0);if(!hidden){if(keys.KeyW)move.add(fwd);if(keys.KeyS)move.sub(fwd);if(keys.KeyD)move.add(right);if(keys.KeyA)move.sub(right)}if(move.lengthSq()){
   move.normalize().multiplyScalar((keys.ShiftLeft?5:2.8)*dt);
   const nextX=T.MathUtils.clamp(playerPos.x+move.x,-9.1,9.1);
-  const nextZ=T.MathUtils.clamp(playerPos.z+move.z,-11.2,11.2);
+  const nextZ=T.MathUtils.clamp(playerPos.z+move.z,dayPhase?-14.5:-11.2,11.2);
   if(!playerBlocked(nextX,playerPos.z)) playerPos.x=nextX;
   if(!playerBlocked(playerPos.x,nextZ)) playerPos.z=nextZ;
 }
 // Animação de caminhada 3ª pessoa
 {const mv=move.lengthSq()>0;if(mv)walkPhase+=dt*7;const sw=mv?Math.sin(walkPhase)*.5:0;pLegL.rotation.x=sw;pLegR.rotation.x=-sw;pArmL.rotation.x=-sw*.8;pArmR.rotation.x=sw*.8;}
 playerPos.x=T.MathUtils.clamp(playerPos.x,-9.1,9.1);
-playerPos.z=T.MathUtils.clamp(playerPos.z,-11.2,11.2);
+playerPos.z=T.MathUtils.clamp(playerPos.z,dayPhase?-14.5:-11.2,11.2);
 // Pulo
 if(keys.Space&&onGround){velY=5.8;onGround=false;}
 velY-=20*dt;playerPos.y+=velY*dt;
@@ -478,8 +452,8 @@ playerBody.position.set(playerPos.x,playerPos.y,playerPos.z);
 playerBody.rotation.y=yaw+Math.PI;
 // Minigame de respiração
 if(hidden){breathBar+=dt*18;if(keys.KeyH)breathBar=Math.max(0,breathBar-dt*35);breathBar=T.MathUtils.clamp(breathBar,0,100);$('#breathFill').style.width=breathBar+'%';$('#breathFill').style.background=breathBar>80?'#ff3300':breathBar>55?'#ff9900':'#22cc66';if(breathBar>82&&active&&monsterDist<7){breathFail+=dt;if(breathFail>=2.0){say('💀 O PATO TE OUVIU RESPIRAR!');setTimeout(lose,600);}}else breathFail=Math.max(0,breathFail-dt*.5);}
-if(flashOn){flashBattery=Math.max(0,flashBattery-dt*1.8);if(flashBattery<=0){flashOn=false;flash.visible=false;say('🔦 BATERIA ACABOU! Procure uma bateria.');}}$('#battText').textContent=Math.round(flashBattery)+'%';$('#battFill').style.width=flashBattery+'%';flash.visible=flashOn;const nb=nearBattery();const nw=nearWindow();let a=near();let prTxt='';if(hidden)prTxt='E — SAIR  |  H — CONTER RESPIRAÇÃO 🫁';else if(nearSwitch())prTxt=lurkActive?'⚡ E — LIGAR LUZ 💡 [URGENT!]':'E — INTERRUPTOR 💡';else if(nearHammer())prTxt='E — PEGAR MARTELO 🔨';else if(nearPistol())prTxt='E — PEGAR PISTOLA 🔫';else if(nb)prTxt='E — PEGAR BATERIA 🔦';else if(nearDoor()&&doorOpen)prTxt='E — FECHAR PORTA 🚪';else if(nw&&!nw.boarded&&hasHammer)prTxt='E — BARRICAR JANELA 🪵';else if(nw&&!nw.boarded)prTxt='Encontre um martelo 🔨';else if(nearHide())prTxt='E — ESCONDER no '+nearHide().label;else if(a)prTxt='E — CONSERTAR '+a.name;$('#prompt').textContent=prTxt;
+if(flashOn){flashBattery=Math.max(0,flashBattery-dt*1.8);if(flashBattery<=0){flashOn=false;flash.visible=false;say('🔦 BATERIA ACABOU! Procure uma bateria.');}}$('#battText').textContent=Math.round(flashBattery)+'%';$('#battFill').style.width=flashBattery+'%';flash.visible=flashOn;const nb=nearBattery();const nw=nearWindow();let a=near();let prTxt='';if(hidden)prTxt='E — SAIR  |  H — CONTER RESPIRAÇÃO 🫁';else if(nearSwitch())prTxt=lurkActive?'⚡ E — LIGAR LUZ 💡 [URGENT!]':'E — INTERRUPTOR 💡';else if(nearGaveta())prTxt='E — ABRIR GAVETA 🔨🔫';else if(nb)prTxt='E — PEGAR BATERIA 🔦';else if(nearDoor()&&doorOpen)prTxt='E — FECHAR PORTA 🚪';else if(nw&&!nw.boarded&&hasHammer)prTxt='E — BARRICAR JANELA 🪵';else if(nw&&!nw.boarded)prTxt='Encontre um martelo 🔨';else if(nearHide())prTxt='E — ESCONDER no '+nearHide().label;else if(a)prTxt='E — CONSERTAR '+a.name;$('#prompt').textContent=prTxt;
 if(active){let target=new T.Vector3(playerPos.x,0,playerPos.z);if(hidden&&hideNow)target.set(hideNow.x,0,hideNow.z);let dir=target.clone().sub(monster.position);monsterDist=dir.length();if(monsterDist>1.15){dir.normalize();monster.position.addScaledVector(dir,dt*1.15);monster.rotation.y=Math.atan2(dir.x,dir.z)}if(monsterDist<2&&!hidden){sanity=Math.max(0,sanity-dt*38);if(sanity<=0)lose()}else sanity=Math.min(100,sanity+dt*2)}
-$('#sanityText').textContent=Math.round(sanity)+'%';$('#sanityFill').style.width=sanity+'%';$('#gTask').textContent='Máquinas consertadas: '+repairs+'/4';$('#dTask').textContent=machines.filter(m=>m.done).map(m=>m.name).join(', ')||'Nenhuma ainda';$('#wTask').textContent=gen>0?'⚡ Energia: '+Math.round(gen)+'%':'⚠ ENERGIA ACABOU!';if(toastT>0){toastT-=dt;if(toastT<=0)$('#toast').style.opacity=0}}
+$('#sanityText').textContent=Math.round(sanity)+'%';$('#sanityFill').style.width=sanity+'%';$('#gTask').textContent=dayPhase?'☀ Fase: PREPARAÇÃO':'🌑 Fase: SOBREVIVER ATÉ O AMANHECER';$('#dTask').textContent=trancaMachine&&trancaMachine.done?'🔒 PORTA TRANCADA':'🔓 TRANCA QUEBRADA!';$('#wTask').textContent=gen>0?'⚡ Energia: '+Math.round(gen)+'%':'⚠ ENERGIA ACABOU!';if(toastT>0){toastT-=dt;if(toastT<=0)$('#toast').style.opacity=0}}
 renderer.render(scene,camera)}animate(performance.now());addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script></body></html>
