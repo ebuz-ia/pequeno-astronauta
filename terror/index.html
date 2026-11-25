@@ -56,6 +56,7 @@ function cube(p,x,y,z,w,h,d,m){let o=new T.Mesh(new T.BoxGeometry(w,h,d),m);o.po
 function lamp(x,y,z){let l=new T.PointLight(0xffd9a4,2.3,14);l.position.set(x,y,z);scene.add(l);lamps.push(l);cube(scene,x,y-.15,z,.7,.12,.7,mat(0xc3b18e))}
 const lamps=[],doors=[],windows=[],hides=[];
 scene.add(new T.HemisphereLight(0x526477,0x15100d,1.15));scene.add(new T.AmbientLight(0x303a46,.38));
+const sunLight=new T.DirectionalLight(0xfff8e0,0);sunLight.position.set(5,20,-20);scene.add(sunLight);
 // ===== FÁBRICA ABANDONADA — cenário industrial detalhado =====
 const soot=mat(0x171b1d,.95), windowMetal=mat(0x20272b,.4,.8);
 const blackGlass=new T.MeshBasicMaterial({color:0x000207});
@@ -67,11 +68,15 @@ scene.add(new T.AmbientLight(0x303a46,.38));
 cube(scene,0,-.2,0,20,.4,24,concrete);
 for(let x of [-9.1,9.1]) cube(scene,x,.015,0,.12,.025,23,hazard);
 for(let z of [-11.3,11.3]) cube(scene,0,.015,z,18,.025,.12,hazard);
+// Gramado exterior (fora da parede norte)
+const grassMat=mat(0x2e6a35,.95,.02);cube(scene,0,.01,-16,24,.02,4,grassMat);
+for(let fx of [-10,-5,0,5,10]){cube(scene,fx,.75,-19.5,.12,1.5,.12,wood);}
+cube(scene,0,1.0,-19.5,20,.1,.08,wood);cube(scene,0,.45,-19.5,20,.1,.08,wood);
 
 // Main walls; gaps are deliberately left at the window and gate locations.
 cube(scene,0,6,-12,20,12,.5,darkMetal);
 cube(scene,0,6,12,20,12,.5,darkMetal);
-cube(scene,-10,6,0,.5,12,24,darkMetal);
+cube(scene,-14,6,0,.5,12,24,darkMetal);
 cube(scene,10,6,0,.5,12,24,darkMetal);
 cube(scene,0,12,0,20,.4,24,soot);
 
@@ -88,6 +93,12 @@ for(let x of [-7,-3,3,7]){
   cube(scene,x,10.9,0,.18,.18,23,rusty);
   cube(scene,x,9.9,0,.12,.12,23,darkMetal);
 }
+// Colunas e vigas para expansão oeste
+for(const px of [-11,-13]){
+  cube(scene,px,5.8,0,.55,11.6,.65,rusty);
+  cube(scene,px,11.3,0,.8,.35,23,darkMetal);
+}
+for(let z of [-8,-3,3,8]) cube(scene,-12,10.2,z,.22,.22,.22,rusty);
 
 // Ceiling pipe runs with elbows and valves
 for(let z of [-8,-3,3,8]){
@@ -170,12 +181,12 @@ const switchGlow=new T.PointLight(0xddcc44,1.0,2.5);switchGlow.position.set(0,.2
 // === ESCONDERIJO ===
 // Pilha de caixas (perto da porta norte)
 const crateG=new T.Group();crateG.position.set(4.5,0,-9);scene.add(crateG);
-cube(crateG,0,.55,0,1.1,1.1,1.1,wood);
-cube(crateG,.85,.4,.4,.9,.9,.9,mat(0x7a5c3e,.85,0));
-cube(crateG,-.3,.5,-.5,.8,.8,.8,wood);
+cube(crateG,0,.88,0,1.76,1.76,1.76,wood);
+cube(crateG,1.1,.65,.65,1.4,1.4,1.4,mat(0x7a5c3e,.85,0));
+cube(crateG,-.48,.8,-.8,1.28,1.28,1.28,wood);
 
 // Gaveta — contém martelo e pistola
-const gavetaObj=new T.Group();gavetaObj.position.set(-8.5,0,8);scene.add(gavetaObj);
+const gavetaObj=new T.Group();gavetaObj.position.set(-13,0,8);scene.add(gavetaObj);
 cube(gavetaObj,0,1.0,0,1.0,2.0,.65,mat(0x3d3020,.85,.2));
 cube(gavetaObj,0,1.42,.34,.88,.76,.05,mat(0x2a2015,.9,.1));
 cube(gavetaObj,0,.62,.34,.88,.76,.05,mat(0x2a2015,.9,.1));
@@ -222,17 +233,66 @@ function makeMachine(x,z,name,color){
   const light=new T.PointLight(color,2.0,5);light.position.set(0,2.6,1.2);g.add(light);
   machines.push({x,z,name,group:g,done:false,light});
 }
-makeMachine(-7.75,-3,"GERADOR",0x35aaff);
+makeMachine(-12.12,-3,"GERADOR",0x35aaff);
 makeMachine(6.5,-10.5,"TRANCA DA PORTA",0xff6633);
 const trancaMachine=machines[1];
 trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;
-// Kits fora da fábrica (coletáveis durante o dia)
-const kitA=new T.Group();kitA.position.set(7.5,0,-13);scene.add(kitA);
-cube(kitA,0,.35,0,.65,.7,.65,wood);cube(kitA,0,.75,0,.4,.08,.65,mat(0x888800,.5,.3));
-const kitAGlow=new T.PointLight(0x99dd44,2.0,3);kitAGlow.position.set(0,1.2,0);kitA.add(kitAGlow);
-const kitB=new T.Group();kitB.position.set(-7.5,0,-13);scene.add(kitB);
-cube(kitB,0,.35,0,.65,.7,.65,mat(0x5c3a1e,.85,.1));cube(kitB,0,.75,0,.35,.08,.55,mat(0x6cb8e8,.4,.6));
-const kitBGlow=new T.PointLight(0x6cb8e8,2.0,3);kitBGlow.position.set(0,1.2,0);kitB.add(kitBGlow);
+// === CAIXAS EXTERNAS + SISTEMA DE INSTALAÇÃO DE MÁQUINAS ===
+// Caixa A — gramado lado direito (reparo)
+const crateA=new T.Group();crateA.position.set(5,0,-13.5);scene.add(crateA);
+cube(crateA,0,.65,0,1.1,1.3,1.1,wood);cube(crateA,0,1.3,0,1.0,.12,1.0,mat(0x777733,.8,.2));
+cube(crateA,.5,1.42,.5,.5,.14,.5,mat(0x557722,.7,.2));
+const crateAGlow=new T.PointLight(0x99dd44,2.5,4);crateAGlow.position.set(0,2,0);crateA.add(crateAGlow);
+// Caixa B — gramado lado esquerdo (peças)
+const crateB=new T.Group();crateB.position.set(-5,0,-13.5);scene.add(crateB);
+cube(crateB,0,.65,0,1.1,1.3,1.1,mat(0x4a3828,.85,.1));cube(crateB,0,1.3,0,1.0,.12,1.0,mat(0x336688,.75,.2));
+cube(crateB,-.5,1.42,-.5,.5,.14,.5,mat(0x2255aa,.65,.3));
+const crateBGlow=new T.PointLight(0x4488ff,2.5,4);crateBGlow.position.set(0,2,0);crateB.add(crateBGlow);
+// Zonas alvo — setas indicando onde instalar
+function makeTarget(x,z,color){
+  const g=new T.Group();g.position.set(x,0,z);scene.add(g);
+  cube(g,0,.04,0,1.8,.08,1.8,mat(color,.3,.9));
+  const cone=new T.Mesh(new T.ConeGeometry(.5,.8,8),mat(color,.3,.8));
+  cone.rotation.z=Math.PI;cone.position.set(0,2.5,0);g.add(cone);
+  const shaft=new T.Mesh(new T.CylinderGeometry(.06,.06,1.5,8),mat(color,.3,.8));
+  shaft.position.set(0,1.5,0);g.add(shaft);
+  const l=new T.PointLight(color,2.2,5);l.position.set(0,1,0);g.add(l);
+  return g;
+}
+const targetAGroup=makeTarget(-10,5,0x44ff88);
+const targetBGroup=makeTarget(-3,5,0x4488ff);
+// Máquinas que aparecem ao instalar caixas (decoração)
+function makeDecorMachine(x,z,color){
+  const g=new T.Group();g.position.set(x,0,z);scene.add(g);
+  const bodyMat=mat(0x48545d,.45,.72),edge=mat(0x20282d,.38,.8);
+  cube(g,0,1.35,0,2.5,2.45,1.75,bodyMat);cube(g,0,2.58,0,2.35,.18,1.65,edge);
+  for(let fx of [-.95,.95]) for(let fz of [-.62,.62]) cube(g,fx,.18,fz,.28,.3,.28,edge);
+  cube(g,0,1.75,.91,1.9,.9,.08,edge);cube(g,-.42,1.92,.97,.72,.42,.06,mat(0x14718b,.25,.3));
+  cube(g,.5,1.95,.98,.55,.35,.06,mat(color,.35,.3));
+  for(let i=0;i<5;i++){const b=new T.Mesh(new T.SphereGeometry(.07,10,8),mat([0xff3333,0xffc52b,0x43df8b,0x4aa9ff][i%4],.35,.2));b.position.set(-.72+i*.18,1.43,.99);g.add(b);}
+  for(let i=0;i<8;i++) cube(g,-1.28,1.45+i*.12,.2,.08,.055,.95,edge);
+  for(let i=-1;i<=1;i++){const cyl=new T.Mesh(new T.CylinderGeometry(.14,.16,.48,12),metal);cyl.position.set(i*.62,2.9,-.3);g.add(cyl);const cap=new T.Mesh(new T.CylinderGeometry(.17,.17,.08,12),yellow);cap.position.set(i*.62,3.16,-.3);g.add(cap);}
+  const gauge=new T.Mesh(new T.CylinderGeometry(.2,.2,.08,20),metal);gauge.rotation.x=Math.PI/2;gauge.position.set(.83,2.15,.99);g.add(gauge);
+  const dial=new T.Mesh(new T.CircleGeometry(.15,20),mat(0xe2e4d7,.35));dial.position.set(.83,2.15,1.04);g.add(dial);
+  const pipe=new T.Mesh(new T.TorusGeometry(.25,.055,8,16),mat(color,.35,.6));pipe.position.set(1.18,1.1,.2);pipe.rotation.y=Math.PI/2;g.add(pipe);
+  const l=new T.PointLight(color,1.8,5);l.position.set(0,2.6,1.2);g.add(l);
+  return g;
+}
+const decorMachineA=makeDecorMachine(-10,5,0x44ff88);decorMachineA.visible=false;
+const decorMachineB=makeDecorMachine(-3,5,0x4488ff);decorMachineB.visible=false;
+// Máquinas decorativas sempre visíveis
+makeDecorMachine(-5,-6,0xdd8833);
+makeDecorMachine(2,-7,0xaa44cc);
+makeDecorMachine(-8,8,0xff3344);
+// Esteiras decorativas (sem colisão)
+function makeEsteira(x,z,hlen,ry){
+  const g=new T.Group();g.position.set(x,0,z);if(ry)g.rotation.y=Math.PI/2;scene.add(g);
+  cube(g,0,.55,0,hlen,.2,.8,darkMetal);
+  for(let lx=-hlen+0.4;lx<hlen;lx+=0.6){const r=new T.Mesh(new T.CylinderGeometry(.12,.12,.75,8),metal);r.rotation.z=Math.PI/2;r.position.set(lx,.62,0);g.add(r);}
+  for(const ex of [-hlen,hlen]){const drum=new T.Mesh(new T.CylinderGeometry(.18,.18,.82,12),darkMetal);drum.rotation.z=Math.PI/2;drum.position.set(ex,.62,0);g.add(drum);}
+  for(const lx of [-hlen+0.3,0,hlen-0.3]) for(const lz of [-.6,.6]) cube(g,lx,.28,lz,.12,.55,.12,rusty);
+}
+makeEsteira(0,3,3);makeEsteira(-8,-5,2.5,true);makeEsteira(5,7,2);
 
 // ===== COLISÃO DO JOGADOR =====
 // A câmera representa o jogador; colisões são calculadas no plano X/Z.
@@ -257,11 +317,12 @@ for(const machine of machines) addCollisionBox(machine.x,machine.z,1.38,1.02);
 for(const px of [-9,-5,0,5,9]){
   for(const pz of [-9,-5,0,5,9]) addCollisionBox(px,pz,.42,.46);
 }
+for(const pz of [-9,-5,0,5,9]){addCollisionBox(-11,pz,.42,.46);addCollisionBox(-13,pz,.42,.46);}
 // Gate and its side frames
 collisionBoxes.push({cx:0,cz:-11.12,hx:3.95,hz:.28,isDoor:true});
 addCollisionBox(-4.25,-11.12,.34,.42);
 addCollisionBox(4.25,-11.12,.34,.42);
-addCollisionBox(-8.5,8,.55,.4);      // gaveta
+addCollisionBox(-13,8,.55,.4);        // gaveta
 // Divisória do corredor leste
 addCollisionBox(7,-5,.22,6);         // segmento norte
 addCollisionBox(7,7.25,.22,3.75);    // segmento sul
@@ -319,7 +380,7 @@ const pArmL=cube(playerBody,-.38,.92,0,.22,.72,.22,shirtC);
 const pArmR=cube(playerBody,.38,.92,0,.22,.72,.22,shirtC);
 const pLegL=cube(playerBody,-.13,.35,0,.2,.68,.22,pantsC);
 const pLegR=cube(playerBody,.13,.35,0,.2,.68,.22,pantsC);
-const flashlightTarget=new T.Vector3();const playerPos=new T.Vector3(0,0,7);let velY=0,onGround=true,camShake=0,thirdPerson=true;let gen=100,elapsed=0,started=false,locked=false,active=false,hidden=false,hideNow=null,sanity=100,toastT=0,gameOver=false,monsterDist=99,currentMachine=null,repairs=0,outageTime=0,nextMachineBreak=10,generatorRepairCooldown=0,flashBattery=100,boardCount=0,boardAttackTarget=null,boardAttackTimer=0;let hasHammer=false,hasPistol=false,ammo=12,shootCooldown=0;let doorOpen=false,doorTimer=50,doorAnimY=0,spiderSpawnTimer=0;let dayPhase=true,phaseTimer=360,nightTimer=360,outsideKitA=false,outsideKitB=false;let walkPhase=0;const spiders=[];let lurkActive=false,lurkTimer=65+Math.random()*35,lurkCountdown=0;let breathBar=0,breathFail=0;const hideSpots=[{x:4.5,z:-9,label:'CAIXAS'}];const keys={};let last=performance.now();
+const flashlightTarget=new T.Vector3();const playerPos=new T.Vector3(0,0,7);let velY=0,onGround=true,camShake=0,thirdPerson=true;let gen=100,elapsed=0,started=false,locked=false,active=false,hidden=false,hideNow=null,sanity=100,toastT=0,gameOver=false,monsterDist=99,currentMachine=null,repairs=0,outageTime=0,nextMachineBreak=10,generatorRepairCooldown=0,flashBattery=100,boardCount=0,boardAttackTarget=null,boardAttackTimer=0;let hasHammer=false,hasPistol=false,ammo=12,shootCooldown=0;let doorOpen=false,doorTimer=50,doorAnimY=0,spiderSpawnTimer=0;let dayPhase=true,phaseTimer=360,nightTimer=360,carriedCrate=null,crateAPlaced=false,crateBPlaced=false;let walkPhase=0;const spiders=[];let lurkActive=false,lurkTimer=65+Math.random()*35,lurkCountdown=0;let breathBar=0,breathFail=0;const hideSpots=[{x:4.5,z:-9,label:'CAIXAS'}];const keys={};let last=performance.now();
 function say(t){$('#toast').textContent=t;$('#toast').style.opacity=1;toastT=2.5}
 function near(){let best=null,distance=3.5;for(const m of machines){const needs=m.name==='GERADOR'?gen<100:!m.done;if(!needs)continue;const d=Math.hypot(playerPos.x-m.x,playerPos.z-m.z);if(d<distance){distance=d;best=m;}}return best;}
 const batteries=[];
@@ -334,8 +395,8 @@ function enterHide(h){hidden=true;hideNow=h;breathBar=20;breathFail=0;$('#breath
 function exitHide(){hidden=false;hideNow=null;breathBar=0;breathFail=0;$('#breathPanel').style.display='none';say('Saiu do esconderijo.');}
 function nearHammer(){return false;}
 function nearPistol(){return false;}
-function nearGaveta(){return !gavetaOpened&&Math.hypot(playerPos.x-(-8.5),playerPos.z-8)<2.2;}
-function startNight(){dayPhase=false;nightTimer=360;doorAnimY=0;doorOpen=false;doorTimer=30;$('#dayOverlay').style.display='none';$('#nightOverlay').style.display='';scene.background.set(0x111923);scene.fog.color.set(0x111923);say('🌑 A NOITE CAIU! Fique de olho no pato!');const bf=$('#bloodFlash');bf.style.transition='opacity .1s';bf.style.opacity='.45';setTimeout(()=>{bf.style.transition='opacity 2s';bf.style.opacity='0';},200);}
+function nearGaveta(){return !gavetaOpened&&Math.hypot(playerPos.x-(-13),playerPos.z-8)<2.2;}
+function startNight(){dayPhase=false;nightTimer=360;doorAnimY=0;doorOpen=false;doorTimer=30;$('#dayOverlay').style.display='none';$('#nightOverlay').style.display='';scene.background.set(0x111923);scene.fog.color.set(0x111923);scene.fog.near=18;scene.fog.far=48;sunLight.intensity=0;say('🌑 A NOITE CAIU! Fique de olho no pato!');const bf=$('#bloodFlash');bf.style.transition='opacity .1s';bf.style.opacity='.45';setTimeout(()=>{bf.style.transition='opacity 2s';bf.style.opacity='0';},200);}
 function nearDoor(){return playerPos.z<-8.5&&Math.abs(playerPos.x)<5.5;}
 function makeSpider(x,z){const sg=new T.Group();sg.position.set(x,.3,z);const sm=mat(0x1a1a1a,.8,0);const body=new T.Mesh(new T.SphereGeometry(.28,8,6),sm);sg.add(body);for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2;const leg=new T.Mesh(new T.CylinderGeometry(.03,.02,.55,6),sm);leg.position.set(Math.cos(a)*.38,0,Math.sin(a)*.38);leg.rotation.z=Math.PI/2;sg.add(leg);}const eyes=new T.Mesh(new T.SphereGeometry(.06,6,6),mat(0xff2200,1,0));eyes.position.set(.12,.18,.22);sg.add(eyes);scene.add(sg);spiders.push({group:sg,alive:true,hp:3,attackTimer:0});}
 function shoot(){if(!hasPistol||ammo<=0||shootCooldown>0||!started||gameOver)return;ammo--;shootCooldown=0.4;const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2(0,0),camera);const meshes=spiders.filter(s=>s.alive).flatMap(s=>Array.from(s.group.children));const hits=ray.intersectObjects(meshes,false);if(hits.length>0){const hit=hits[0].object;const sp=spiders.find(s=>s.alive&&s.group.children.includes(hit));if(sp){sp.hp--;camShake=.15;if(sp.hp<=0){sp.alive=false;sp.group.visible=false;say('🕷️ ARANHA ELIMINADA!');}else say('🕷️ ACERTOU! Vida: '+sp.hp);}else say('💥 BANG!');}else say('💨 Errou!');$('#ammoHud').textContent='🔫 Munição: '+ammo;}
@@ -343,8 +404,10 @@ const introLines=['02:00 AM','A fábrica estava abandonada há anos.','Mas a emp
 function playIntro(){const ov=$('#introOv');const txt=$('#introText');const sk=$('#introSkip');ov.style.display='flex';let i=0,done=false;function finish(){if(done)return;done=true;txt.style.opacity=0;setTimeout(()=>{ov.style.display='none';started=true;$('#dayOverlay').style.display='';},900);}sk.addEventListener('click',finish);setTimeout(()=>{sk.style.opacity=1;},2000);function next(){if(done)return;if(i>=introLines.length){finish();return;}txt.style.opacity=0;setTimeout(()=>{txt.textContent=introLines[i++];txt.style.opacity=1;setTimeout(next,2300);},850);}next();}
 function nearWindow(){for(const w of factoryWindows){const d=Math.hypot(playerPos.x-w.x,playerPos.z-w.z);if(d<2.8)return w;}return null;}
 function boardWindow(w){if(!hasHammer){say('🔨 Você precisa de um MARTELO para barricar!');return;}if(w.boarded){say('🪵 Janela já barricada (Vida: '+Math.round(w.boardStrength)+'%)');return;}w.boarded=true;w.boardStrength=100;boardCount++;const plankMat=new T.MeshStandardMaterial({color:0x8b6914,roughness:.9});const pg=new T.Group();scene.add(pg);pg.position.set(w.x+w.side*.12,5,w.z);const p1=new T.Mesh(new T.BoxGeometry(.12,.22,4.0),plankMat);p1.position.set(0,.8,0);pg.add(p1);const p2=new T.Mesh(new T.BoxGeometry(.12,.22,4.0),plankMat);p2.position.set(0,-.8,0);pg.add(p2);const p3=new T.Mesh(new T.BoxGeometry(.12,3.4,.22),plankMat);p3.position.set(0,0,-1.5);pg.add(p3);const p4=new T.Mesh(new T.BoxGeometry(.12,3.4,.22),plankMat);p4.position.set(0,0,1.5);pg.add(p4);w.planks=pg;$('#bTask').textContent='Janelas: '+boardCount+'/4 barricadas';say('🪵 JANELA BARRICADA! O bicho vai ter que arrombar!');}
-function use(){if(!started||gameOver)return;if(currentMachine)return;if(hidden){exitHide();return;}if(nearSwitch()){activateSwitch();return;}if(dayPhase&&!outsideKitA&&Math.hypot(playerPos.x-7.5,playerPos.z+13)<2.2){outsideKitA=true;kitA.visible=false;trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;say('🔧 KIT DE REPARO! Tranca da porta reforçada!');return;}
-if(dayPhase&&!outsideKitB&&Math.hypot(playerPos.x+7.5,playerPos.z+13)<2.2){outsideKitB=true;kitB.visible=false;flashBattery=Math.min(100,flashBattery+100);if(!flashOn&&flashBattery>0){flashOn=true;flash.visible=true;}say('🔦 KIT DE PILHAS! Lanterna totalmente recarregada!');return;}
+function use(){if(!started||gameOver)return;if(currentMachine)return;if(hidden){exitHide();return;}if(nearSwitch()){activateSwitch();return;}if(dayPhase&&!carriedCrate&&!crateAPlaced&&Math.hypot(playerPos.x-5,playerPos.z+13.5)<2.2){carriedCrate='A';say('📦 Caixa pega! Leve até a marcação VERDE.');return;}
+if(dayPhase&&!carriedCrate&&!crateBPlaced&&Math.hypot(playerPos.x+5,playerPos.z+13.5)<2.2){carriedCrate='B';say('📦 Caixa pega! Leve até a marcação AZUL.');return;}
+if(dayPhase&&carriedCrate==='A'&&Math.hypot(playerPos.x+10,playerPos.z-5)<2.5){crateAPlaced=true;carriedCrate=null;crateA.position.set(-10,0,5);targetAGroup.visible=false;decorMachineA.visible=true;trancaMachine.done=true;trancaMachine.light.color.set(0x33ff66);trancaMachine.light.intensity=3;say('🏭 MÁQUINA INSTALADA! Tranca reforçada!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.3';setTimeout(()=>{bf.style.transition='opacity 1.2s';bf.style.opacity='0';},100);return;}
+if(dayPhase&&carriedCrate==='B'&&Math.hypot(playerPos.x+3,playerPos.z-5)<2.5){crateBPlaced=true;carriedCrate=null;crateB.position.set(-3,0,5);targetBGroup.visible=false;decorMachineB.visible=true;flashBattery=Math.min(100,flashBattery+100);if(!flashOn&&flashBattery>0){flashOn=true;flash.visible=true;}say('🏭 MÁQUINA INSTALADA! Lanterna recarregada!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.3';setTimeout(()=>{bf.style.transition='opacity 1.2s';bf.style.opacity='0';},100);return;}
 
 if(nearGaveta()){gavetaOpened=true;gavetaObj.children.forEach((c,i)=>{if(c.isPointLight)return;if(i===1)c.position.z=.9;if(i===2)c.position.z=.9;});hasHammer=true;hasPistol=true;ammo=12;$('#ammoHud').style.display='';$('#ammoHud').textContent='🔫 Munição: 12';$('#ab-shoot').style.display='';gavetaGlow.intensity=0;say('🔨🔫 GAVETA ABERTA! Martelo e pistola encontrados!');return;}const b=nearBattery();if(b){pickupBattery(b);return;}if(nearDoor()&&doorOpen){doorOpen=false;say('🚪 Porta fechada!');return;}const w=nearWindow();if(w&&!w.boarded){boardWindow(w);return;}const h=nearHide();if(h){enterHide(h);return;}const m=near();if(!m){say('Nada por aqui para interagir.');return;}currentMachine=m;openMinigame(m);}
 let yaw=0,pitch=0,dragLook=false,lastMouseX=0,lastMouseY=0;
@@ -412,7 +475,13 @@ function finishMachine(m){if(m.name==='GERADOR'){gen=Math.min(100,gen+65);outage
 function lose(){gameOver=true;document.exitPointerLock?.();$('#overlay').style.display='flex';$('#card').innerHTML='<small>FIM DE JOGO</small><h1>O PATO<br>TE ACHOU</h1><p>Você ouviu um grasnado atrás de você...</p><button onclick="location.reload()">TENTAR NOVAMENTE</button>'}
 const fwd=new T.Vector3(),right=new T.Vector3(),move=new T.Vector3();
 function animate(now){requestAnimationFrame(animate);let dt=Math.min((now-last)/1000,.05);last=now;if(started&&!gameOver){elapsed+=dt;let mins=Math.min(360,Math.floor(elapsed/10));$('#clock').textContent=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');gen=Math.max(0,gen-dt*.42);$('#powerText').textContent=Math.round(gen)+'%';$('#powerFill').style.width=gen+'%';
-if(dayPhase){phaseTimer=Math.max(0,phaseTimer-dt);const pm=Math.floor(phaseTimer/60),ps=Math.floor(phaseTimer%60);$('#phaseTimerText').textContent=String(pm).padStart(2,'0')+':'+String(ps).padStart(2,'0');if(phaseTimer<=0)startNight();for(let l of lamps)l.intensity=22;scene.background.set(0x1f2e44);scene.fog.color.set(0x1f2e44);$('#lightText').textContent='☀ PREPARAÇÃO';doorAnimY=Math.min(doorAnimY+dt*4,6);gate.position.y=doorAnimY;}else{nightTimer=Math.max(0,nightTimer-dt);const nm=Math.floor(nightTimer/60),ns=Math.floor(nightTimer%60);$('#nightTimerText').textContent=String(nm).padStart(2,'0')+':'+String(ns).padStart(2,'0');if(nightTimer<=0){say('🌅 AMANHECER! VOCÊ SOBREVIVEU A NOITE!');setTimeout(()=>{gameOver=true;$('#overlay').style.display='flex';$('#card').innerHTML='<small>VITÓRIA</small><h1>VOCÊ<br>SOBREVIVEU</h1><p>O amanhecer chegou. Você resistiu a noite toda.</p><button onclick="location.reload()">JOGAR DE NOVO</button>';},2000);}let on=gen>0;for(let l of lamps)l.intensity=on?12:0;scene.background.set(on?0x111923:0x010104);scene.fog.color.set(on?0x111923:0x010104);$('#lightText').textContent='LUZES: '+(on?'LIGADAS':'APAGADAS');}
+if(dayPhase){phaseTimer=Math.max(0,phaseTimer-dt);const pm=Math.floor(phaseTimer/60),ps=Math.floor(phaseTimer%60);$('#phaseTimerText').textContent=String(pm).padStart(2,'0')+':'+String(ps).padStart(2,'0');if(phaseTimer<=0)startNight();for(let l of lamps)l.intensity=28;sunLight.intensity=1.8;scene.background.set(0x87c5e0);scene.fog.color.set(0x87c5e0);scene.fog.near=35;scene.fog.far=90;$('#lightText').textContent='☀ DIA — PREPARAÇÃO';doorAnimY=Math.min(doorAnimY+dt*4,6);gate.position.y=doorAnimY;
+// Animar setas dos alvos
+if(targetAGroup.visible&&targetAGroup.children[1])targetAGroup.children[1].position.y=2.0+Math.sin(elapsed*3)*.35;
+if(targetBGroup.visible&&targetBGroup.children[1])targetBGroup.children[1].position.y=2.0+Math.sin(elapsed*3+1)*.35;
+// Atualizar posição da caixa sendo carregada
+if(carriedCrate==='A')crateA.position.set(playerPos.x,playerPos.y+0.7,playerPos.z);
+if(carriedCrate==='B')crateB.position.set(playerPos.x,playerPos.y+0.7,playerPos.z);}else{nightTimer=Math.max(0,nightTimer-dt);const nm=Math.floor(nightTimer/60),ns=Math.floor(nightTimer%60);$('#nightTimerText').textContent=String(nm).padStart(2,'0')+':'+String(ns).padStart(2,'0');if(nightTimer<=0){say('🌅 AMANHECER! VOCÊ SOBREVIVEU A NOITE!');setTimeout(()=>{gameOver=true;$('#overlay').style.display='flex';$('#card').innerHTML='<small>VITÓRIA</small><h1>VOCÊ<br>SOBREVIVEU</h1><p>O amanhecer chegou. Você resistiu a noite toda.</p><button onclick="location.reload()">JOGAR DE NOVO</button>';},2000);}let on=gen>0;for(let l of lamps)l.intensity=on?12:0;scene.background.set(on?0x111923:0x010104);scene.fog.color.set(on?0x111923:0x010104);$('#lightText').textContent='LUZES: '+(on?'LIGADAS':'APAGADAS');}
 if(!dayPhase&&!gen&&!active&&!boardAttackTarget){const unboarded=factoryWindows.filter(w=>!w.boarded);if(unboarded.length>0){active=true;const entrance=unboarded[Math.floor(Math.random()*unboarded.length)];monster.visible=true;monster.position.set(entrance.x+entrance.side*1.2,0,entrance.z);say('💀 TEM ALGO ARROMBANDO A JANELA!');const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=.6;}else if(boardCount>0){boardAttackTarget=factoryWindows.filter(w=>w.boarded)[Math.floor(Math.random()*boardCount)];boardAttackTimer=0;say('🪵 O BICHO ESTÁ ARROMBANDO A MADEIRA!');camShake=.3;}}
 if(!dayPhase&&boardAttackTarget){boardAttackTimer+=dt;if(boardAttackTimer>=3){boardAttackTimer=0;boardAttackTarget.boardStrength=Math.max(0,boardAttackTarget.boardStrength-25);camShake=.4;$('#bTask').textContent='Janelas: '+boardCount+'/4 barricadas';if(boardAttackTarget.boardStrength<=0){boardAttackTarget.boarded=false;boardCount=Math.max(0,boardCount-1);if(boardAttackTarget.planks){scene.remove(boardAttackTarget.planks);boardAttackTarget.planks=null;}say('💀 O BICHO ARROMBOU A MADEIRA! ELE ENTROU!');active=true;monster.visible=true;monster.position.set(boardAttackTarget.x+boardAttackTarget.side*1.2,0,boardAttackTarget.z);const bf=$('#bloodFlash');bf.style.transition='opacity .06s';bf.style.opacity='.8';setTimeout(()=>{bf.style.transition='opacity .6s';bf.style.opacity='0';},120);camShake=1.0;boardAttackTarget=null;}else{say('🪵 MADEIRA SENDO ARROMBADA! Vida: '+Math.round(boardAttackTarget.boardStrength)+'%');}}}
 // Evento lurk — pato na janela do corredor
@@ -430,15 +499,15 @@ if(doorOpen){spiderSpawnTimer+=dt;if(spiderSpawnTimer>=18){spiderSpawnTimer=0;ma
 for(const sp of spiders){if(!sp.alive)continue;const dx=playerPos.x-sp.group.position.x;const dz=playerPos.z-sp.group.position.z;const dist=Math.hypot(dx,dz);if(dist>0.6){sp.group.position.x+=dx/dist*dt*2.4;sp.group.position.z+=dz/dist*dt*2.4;sp.group.rotation.y=Math.atan2(dx,dz);sp.group.children.forEach((c,i)=>{if(i>0&&i<=8)c.rotation.x=Math.sin(elapsed*10+i)*.35;});}if(dist<1.1){sp.attackTimer+=dt;if(sp.attackTimer>=0.6){sp.attackTimer=0;sanity=Math.max(0,sanity-14);camShake=.3;say('🕷️ A ARANHA TE MORDEU!');if(sanity<=0)lose();}}}
 camera.getWorldDirection(fwd);fwd.y=0;fwd.normalize();right.crossVectors(fwd,new T.Vector3(0,1,0)).normalize();move.set(0,0,0);if(!hidden){if(keys.KeyW)move.add(fwd);if(keys.KeyS)move.sub(fwd);if(keys.KeyD)move.add(right);if(keys.KeyA)move.sub(right)}if(move.lengthSq()){
   move.normalize().multiplyScalar((keys.ShiftLeft?5:2.8)*dt);
-  const nextX=T.MathUtils.clamp(playerPos.x+move.x,-9.1,9.1);
-  const nextZ=T.MathUtils.clamp(playerPos.z+move.z,dayPhase?-14.5:-11.2,11.2);
+  const nextX=T.MathUtils.clamp(playerPos.x+move.x,-13.0,9.1);
+  const nextZ=T.MathUtils.clamp(playerPos.z+move.z,dayPhase?-16:-11.2,11.2);
   if(!playerBlocked(nextX,playerPos.z)) playerPos.x=nextX;
   if(!playerBlocked(playerPos.x,nextZ)) playerPos.z=nextZ;
 }
 // Animação de caminhada 3ª pessoa
 {const mv=move.lengthSq()>0;if(mv)walkPhase+=dt*7;const sw=mv?Math.sin(walkPhase)*.5:0;pLegL.rotation.x=sw;pLegR.rotation.x=-sw;pArmL.rotation.x=-sw*.8;pArmR.rotation.x=sw*.8;}
-playerPos.x=T.MathUtils.clamp(playerPos.x,-9.1,9.1);
-playerPos.z=T.MathUtils.clamp(playerPos.z,dayPhase?-14.5:-11.2,11.2);
+playerPos.x=T.MathUtils.clamp(playerPos.x,-13.0,9.1);
+playerPos.z=T.MathUtils.clamp(playerPos.z,dayPhase?-16:-11.2,11.2);
 // Pulo
 if(keys.Space&&onGround){velY=5.8;onGround=false;}
 velY-=20*dt;playerPos.y+=velY*dt;
@@ -446,14 +515,14 @@ if(playerPos.y<=0){playerPos.y=0;velY=0;onGround=true;}
 // Camera shake
 if(camShake>0)camShake=Math.max(0,camShake-dt*2.5);
 const shX=(Math.random()-.5)*camShake*.25,shY=(Math.random()-.5)*camShake*.18;
-if(thirdPerson){const camDist=3.2;const cx=playerPos.x+Math.sin(yaw)*camDist+shX;const cz=T.MathUtils.clamp(playerPos.z+Math.cos(yaw)*camDist,-11.4,11.4);camera.position.set(cx,playerPos.y+2.2+shY,cz);}
+if(thirdPerson){const camDist=3.2;const cx=playerPos.x+Math.sin(yaw)*camDist+shX;const cz=T.MathUtils.clamp(playerPos.z+Math.cos(yaw)*camDist,dayPhase?-18:-11.4,11.4);camera.position.set(cx,playerPos.y+2.2+shY,cz);}
 else{camera.position.set(playerPos.x+shX,playerPos.y+1.65+shY,playerPos.z);}
 camera.rotation.order='YXZ';camera.rotation.set(pitch,yaw,0);
 playerBody.position.set(playerPos.x,playerPos.y,playerPos.z);
 playerBody.rotation.y=yaw+Math.PI;
 // Minigame de respiração
 if(hidden){breathBar+=dt*18;if(keys.KeyH)breathBar=Math.max(0,breathBar-dt*35);breathBar=T.MathUtils.clamp(breathBar,0,100);$('#breathFill').style.width=breathBar+'%';$('#breathFill').style.background=breathBar>80?'#ff3300':breathBar>55?'#ff9900':'#22cc66';if(breathBar>82&&active&&monsterDist<7){breathFail+=dt;if(breathFail>=2.0){say('💀 O PATO TE OUVIU RESPIRAR!');setTimeout(lose,600);}}else breathFail=Math.max(0,breathFail-dt*.5);}
-if(flashOn){flashBattery=Math.max(0,flashBattery-dt*1.8);if(flashBattery<=0){flashOn=false;flash.visible=false;say('🔦 BATERIA ACABOU! Procure uma bateria.');}}$('#battText').textContent=Math.round(flashBattery)+'%';$('#battFill').style.width=flashBattery+'%';flash.visible=flashOn;const nb=nearBattery();const nw=nearWindow();let a=near();let prTxt='';if(hidden)prTxt='E — SAIR  |  H — CONTER RESPIRAÇÃO 🫁';else if(nearSwitch())prTxt=lurkActive?'⚡ E — LIGAR LUZ 💡 [URGENT!]':'E — INTERRUPTOR 💡';else if(nearGaveta())prTxt='E — ABRIR GAVETA 🔨🔫';else if(nb)prTxt='E — PEGAR BATERIA 🔦';else if(nearDoor()&&doorOpen)prTxt='E — FECHAR PORTA 🚪';else if(nw&&!nw.boarded&&hasHammer)prTxt='E — BARRICAR JANELA 🪵';else if(nw&&!nw.boarded)prTxt='Encontre um martelo 🔨';else if(nearHide())prTxt='E — ESCONDER no '+nearHide().label;else if(a)prTxt='E — CONSERTAR '+a.name;$('#prompt').textContent=prTxt;
+if(flashOn){flashBattery=Math.max(0,flashBattery-dt*1.8);if(flashBattery<=0){flashOn=false;flash.visible=false;say('🔦 BATERIA ACABOU! Procure uma bateria.');}}$('#battText').textContent=Math.round(flashBattery)+'%';$('#battFill').style.width=flashBattery+'%';flash.visible=flashOn;const nb=nearBattery();const nw=nearWindow();let a=near();let prTxt='';if(hidden)prTxt='E — SAIR  |  H — CONTER RESPIRAÇÃO 🫁';else if(nearSwitch())prTxt=lurkActive?'⚡ E — LIGAR LUZ 💡 [URGENT!]':'E — INTERRUPTOR 💡';else if(nearGaveta())prTxt='E — ABRIR GAVETA 🔨🔫';else if(nb)prTxt='E — PEGAR BATERIA 🔦';else if(nearDoor()&&doorOpen)prTxt='E — FECHAR PORTA 🚪';else if(nw&&!nw.boarded&&hasHammer)prTxt='E — BARRICAR JANELA 🪵';else if(nw&&!nw.boarded)prTxt='Encontre um martelo 🔨';else if(nearHide())prTxt='E — ESCONDER no '+nearHide().label;else if(dayPhase&&!carriedCrate&&!crateAPlaced&&Math.hypot(playerPos.x-5,playerPos.z+13.5)<2.5)prTxt='E — PEGAR CAIXA VERDE 📦';else if(dayPhase&&!carriedCrate&&!crateBPlaced&&Math.hypot(playerPos.x+5,playerPos.z+13.5)<2.5)prTxt='E — PEGAR CAIXA AZUL 📦';else if(dayPhase&&carriedCrate==='A')prTxt='📦 Carregando! Leve até a seta VERDE ↓';else if(dayPhase&&carriedCrate==='B')prTxt='📦 Carregando! Leve até a seta AZUL ↓';else if(a)prTxt='E — CONSERTAR '+a.name;$('#prompt').textContent=prTxt;
 if(active){let target=new T.Vector3(playerPos.x,0,playerPos.z);if(hidden&&hideNow)target.set(hideNow.x,0,hideNow.z);let dir=target.clone().sub(monster.position);monsterDist=dir.length();if(monsterDist>1.15){dir.normalize();monster.position.addScaledVector(dir,dt*1.15);monster.rotation.y=Math.atan2(dir.x,dir.z)}if(monsterDist<2&&!hidden){sanity=Math.max(0,sanity-dt*38);if(sanity<=0)lose()}else sanity=Math.min(100,sanity+dt*2)}
 $('#sanityText').textContent=Math.round(sanity)+'%';$('#sanityFill').style.width=sanity+'%';$('#gTask').textContent=dayPhase?'☀ Fase: PREPARAÇÃO':'🌑 Fase: SOBREVIVER ATÉ O AMANHECER';$('#dTask').textContent=trancaMachine&&trancaMachine.done?'🔒 PORTA TRANCADA':'🔓 TRANCA QUEBRADA!';$('#wTask').textContent=gen>0?'⚡ Energia: '+Math.round(gen)+'%':'⚠ ENERGIA ACABOU!';if(toastT>0){toastT-=dt;if(toastT<=0)$('#toast').style.opacity=0}}
 renderer.render(scene,camera)}animate(performance.now());addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
